@@ -1,0 +1,44 @@
+{
+  "enabledPlugins": {
+    "atomic-agents@claude-plugins-official": false,
+    "claude-code-setup@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "claude-md-progressive-disclosurer@daymade-skills": true,
+    "claude-skills-troubleshooting@daymade-skills": true,
+    "cli-demo-generator@daymade-skills": false,
+    "code-review@claude-plugins-official": true,
+    "code-simplifier@claude-plugins-official": true,
+    "context7@claude-plugins-official": true,
+    "deep-research@daymade-skills": true,
+    "docs-cleaner@daymade-skills": true,
+    "explanatory-output-style@claude-plugins-official": true,
+    "feature-dev@claude-plugins-official": false,
+    "gopls-lsp@claude-plugins-official": true,
+    "skill-creator@daymade-skills": false,
+    "skill-reviewer@daymade-skills": false,
+    "skills-search@daymade-skills": false,
+    "statusline-generator@daymade-skills": false,
+    "superpowers@claude-plugins-official": false
+  },
+  "permissions": {
+    "allow": [
+      "Bash(jj describe:*)",
+      "Bash(jj file:*)",
+      "Bash(jj new:*)",
+      "Bash(just build:*)",
+      "Bash(just help:*)",
+      "Bash(just test:*)",
+      "Skill(claude-md-management:revise-claude-md)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "mcp__context7__query-docs",
+      "mcp__serena__check_onboarding_performed",
+      "mcp__serena__list_dir",
+      "mcp__serena__onboarding",
+      "mcp__serena__write_memory"
+    ]
+  },
+  "outputStyle": "Explanatory",
+  "spinnerTipsEnabled": false,
+  "prefersReducedMotion": true
+}
