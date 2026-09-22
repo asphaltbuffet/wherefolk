@@ -44,6 +44,8 @@ func BuildTree(households []Household) (*Tree, error) {
 		children: make(map[HouseholdID][]HouseholdID),
 	}
 
+	seenPersonIDs := make(map[PersonID]bool)
+
 	for _, h := range households {
 		if _, dup := t.byID[h.ID]; dup {
 			return nil, fmt.Errorf("%w: %s", ErrDuplicateID, h.ID)
@@ -51,7 +53,33 @@ func BuildTree(households []Household) (*Tree, error) {
 		if len(h.Adults) == 0 {
 			return nil, fmt.Errorf("%w: %s", ErrNoAdults, h.ID)
 		}
+		for _, p := range h.Adults {
+			if p.ID == "" {
+				continue
+			}
+			if seenPersonIDs[p.ID] {
+				return nil, fmt.Errorf("%w: %s", ErrDuplicateID, p.ID)
+			}
+			seenPersonIDs[p.ID] = true
+		}
+		for _, p := range h.Dependents {
+			if p.ID == "" {
+				continue
+			}
+			if seenPersonIDs[p.ID] {
+				return nil, fmt.Errorf("%w: %s", ErrDuplicateID, p.ID)
+			}
+			seenPersonIDs[p.ID] = true
+		}
 		t.byID[h.ID] = h
+	}
+
+	for _, h := range households {
+		if h.Address.SharedWith != "" {
+			if _, ok := t.byID[h.Address.SharedWith]; !ok {
+				return nil, fmt.Errorf("%w: %s shares the address of %s", ErrUnknownHousehold, h.ID, h.Address.SharedWith)
+			}
+		}
 	}
 
 	for _, h := range households {

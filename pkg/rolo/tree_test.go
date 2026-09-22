@@ -209,6 +209,21 @@ func TestBuildTreeRejectsMalformedData(t *testing.T) {
 			},
 			wantErr: rolo.ErrNoAdults,
 		},
+		{
+			name: "shared address names a household that does not exist",
+			households: []rolo.Household{
+				{ID: "h_dave", Adults: []rolo.Person{adult("Dave")}, Address: rolo.Address{SharedWith: "h_ghost"}},
+			},
+			wantErr: rolo.ErrUnknownHousehold,
+		},
+		{
+			name: "duplicate person id across households",
+			households: []rolo.Household{
+				{ID: "h_dave", Adults: []rolo.Person{{ID: "p_dup", Given: "Dave", Birth: rolo.Date{Year: 1950}}}},
+				{ID: "h_diane", Adults: []rolo.Person{{ID: "p_dup", Given: "Diane", Birth: rolo.Date{Year: 1950}}}},
+			},
+			wantErr: rolo.ErrDuplicateID,
+		},
 	}
 
 	for _, tt := range tests {

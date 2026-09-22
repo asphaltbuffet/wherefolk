@@ -54,7 +54,7 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
 ## Testing
 
 - All tests must be table-driven: a `tests []struct{ name string; ... }` slice iterated with `t.Run(tt.name, ...)`.
-- Test data lives in `testdata/example.json` — a two-family dataset covering: maiden names, marriage dates, dependents (living and deceased), nested sub-families, multiple addresses, and `aka`.
+- Test data lives in `testdata/directory.json` — three Households (one Branch two levels deep, one standalone root) covering: a birth name, an anniversary, living and deceased Dependents, an `aka`, and multiple address lines. `TestExampleDirectoryIsCanonicallyFormatted` pins this file's byte-level formatting, so hand edits must match its exact indentation and key order or that test fails.
 - Use a `checkFunc func(t *testing.T, ...)` field in table rows that need assertions beyond simple field comparisons.
 
 ## Notes
