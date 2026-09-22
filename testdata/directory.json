@@ -1,0 +1,118 @@
+{
+  "schema": 1,
+  "households": [
+    {
+      "id": "h_lang01",
+      "adults": [
+        {
+          "id": "p_rob001",
+          "given": "Robert",
+          "surname": "Langford",
+          "birth": "1965-03-12",
+          "death": "",
+          "phone": "555-201-0001",
+          "email": "robert.langford@example.com"
+        },
+        {
+          "id": "p_sus001",
+          "given": "Susan",
+          "surname": "Langford",
+          "birth_name": "Marsh",
+          "birth": "1967-08-24",
+          "death": "",
+          "phone": "555-201-0002",
+          "email": "susan.langford@example.com"
+        }
+      ],
+      "dependents": [
+        {
+          "id": "p_tho001",
+          "given": "Thomas",
+          "surname": "Langford",
+          "birth": "1996-07-19",
+          "death": "2022-01-08"
+        },
+        {
+          "id": "p_emm001",
+          "given": "Emma",
+          "surname": "Langford",
+          "birth": "1999-12-25",
+          "death": "",
+          "phone": "555-201-0020",
+          "email": "emma.langford@example.com"
+        }
+      ],
+      "anniversary": "1991-06-15",
+      "address": {
+        "lines": [
+          "42 Elm Street",
+          "Springfield, IL 62701"
+        ]
+      }
+    },
+    {
+      "id": "h_lang02",
+      "parent": "h_lang01",
+      "adults": [
+        {
+          "id": "p_dan001",
+          "given": "Daniel",
+          "surname": "Langford",
+          "birth": "1993-11-03",
+          "death": "",
+          "phone": "555-201-0010",
+          "email": "dan.langford@example.com"
+        },
+        {
+          "id": "p_cla001",
+          "given": "Claire",
+          "surname": "Langford",
+          "birth_name": "Ortega",
+          "birth": "1995-02-17",
+          "death": "",
+          "phone": "555-201-0011",
+          "email": "claire.langford@example.com"
+        }
+      ],
+      "dependents": [
+        {
+          "id": "p_mia001",
+          "given": "Mia",
+          "surname": "Langford",
+          "birth": "2021-04-30",
+          "death": ""
+        }
+      ],
+      "anniversary": "2019-09-07",
+      "address": {
+        "lines": [
+          "17 Birch Lane",
+          "Springfield, IL 62704"
+        ]
+      }
+    },
+    {
+      "id": "h_nova01",
+      "adults": [
+        {
+          "id": "p_pat001",
+          "given": "Patricia",
+          "surname": "Novak",
+          "aka": "Pat",
+          "birth": "1952-05-09",
+          "death": "",
+          "phone": "555-307-0001",
+          "email": "pat.novak@example.com"
+        }
+      ],
+      "anniversary": "",
+      "address": {
+        "lines": [
+          "88 Oakwood Drive",
+          "Shelbyville, IL 62565",
+          "P.O. Box 212, Shelbyville, IL 62565"
+        ]
+      }
+    }
+  ]
+}
