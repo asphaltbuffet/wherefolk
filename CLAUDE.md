@@ -16,11 +16,15 @@ go build ./...
 go test ./...
 
 # Run a single test
-go test ./cmd/... -run TestGetPrintCmd
+go test ./pkg/rolo/ -run TestBuildTree
 
 # Run the tool
-go run . print <filename.json>
+go run .
 ```
+
+The CLI is currently a bare Cobra root with no subcommands — the `print` command was
+removed along with the recursive model. The web UI replaces it; see
+[docs/design/high-level-design.md](docs/design/high-level-design.md).
 
 ## Architecture
 
