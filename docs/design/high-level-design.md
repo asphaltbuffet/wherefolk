@@ -114,6 +114,16 @@ binary understands**. That last case is a rollback, where silently truncating un
 be the worst bug in the system. Deployment is therefore always "pull the image and restart," with
 no manual step to forget.
 
+The snapshot taken before a migration is written to `snapshots/` beside the document, named for the
+version it holds and the time it was taken — `snapshots/pre-migrate-v1-20260922.json`. Work item 6's
+nightly snapshots share that directory.
+
+**The runner itself is deferred until a second schema version exists.** Schema 1 is the only version
+there has ever been: `Load` already refuses anything newer, and a migration chain with no migrations
+in it is machinery built against a guess at a change that has not happened. The seam it will occupy
+is already in `Load` — between the version probe and the decode, so a document whose shape predates
+the current `Document` struct is migrated as bytes before anything tries to unmarshal it.
+
 ### 2.2 Tailscale configuration
 
 **Sidecar, not host.** The official `tailscale/tailscale` image runs `tailscaled`; the application
@@ -441,8 +451,8 @@ Roughly ordered by dependency; each is independently specifiable.
 
 | # | Section | Depends on |
 |---|---|---|
-| 1 | **Data model & store** — flat records, stable IDs, atomic JSON write, load-time tree derivation, `schema` version field | — |
-| 2 | **Migration** — startup migration runner, refuse-if-newer guard, and the first migration converting the recursive `Family` JSON to the new shape | 1 |
+| 1 | ✅ **Data model & store** — flat records, stable IDs, atomic JSON write, load-time tree derivation, `schema` version field | — |
+| 2 | ⏸️ **Migration** — *deferred until a schema 2 exists* (§2.1). The refuse-if-newer guard already shipped in item 1; there is no v0 data to convert. | 1 |
 | 3 | **Validation & normalisation** — dates, phones, emails; normalise-on-save | 1 |
 | 4 | **Tree + search navigation** — two-pane shell, Path breadcrumb, search-with-context | 1 |
 | 5 | **Detail editing** — in-place fields, per-field hidden, structural-change announcements | 3, 4 |
