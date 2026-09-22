@@ -9,11 +9,12 @@ import (
 // the human-readable companion to item 14's /healthz — and deliberately not part
 // of the Editor's two-pane interface (§4.1).
 type statusView struct {
-	Schema     int
-	Households int
-	People     int
-	Roots      int
-	RootLabels []string
+	Schema       int
+	Households   int
+	People       int
+	Roots        int
+	RootLabels   []string
+	DocumentPath string
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -42,10 +43,11 @@ func (s *Server) statusView() statusView {
 	}
 
 	return statusView{
-		Schema:     s.doc.Schema,
-		Households: len(s.doc.Households),
-		People:     people,
-		Roots:      len(roots),
-		RootLabels: labels,
+		Schema:       s.doc.Schema,
+		Households:   len(s.doc.Households),
+		People:       people,
+		Roots:        len(roots),
+		RootLabels:   labels,
+		DocumentPath: s.meta.DocumentPath,
 	}
 }

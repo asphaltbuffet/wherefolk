@@ -47,7 +47,7 @@ func sampleDocument() *store.Document {
 func get(t *testing.T, doc *store.Document, target string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	srv, err := web.New(doc)
+	srv, err := web.New(doc, web.Meta{DocumentPath: "/tmp/test/directory.json"})
 	require.NoError(t, err)
 
 	rec := httptest.NewRecorder()
@@ -105,6 +105,13 @@ func TestStatusPage(t *testing.T) {
 			target: "/",
 			check: func(t *testing.T, body string) {
 				assert.Contains(t, body, "Wherefolk status")
+			},
+		},
+		{
+			name:   "reports the document path",
+			target: "/status",
+			check: func(t *testing.T, body string) {
+				assert.Contains(t, body, `data-field="document">/tmp/test/directory.json<`)
 			},
 		},
 	}

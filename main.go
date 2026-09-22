@@ -45,19 +45,24 @@ func run(getenv func(string) string, logOut io.Writer) error {
 		return fmt.Errorf("load store: %w", err)
 	}
 
-	srv, err := web.New(doc)
+	srv, err := web.New(doc, web.Meta{DocumentPath: cfg.DocumentPath()})
 	if err != nil {
 		return fmt.Errorf("build server: %w", err)
 	}
 
 	addr := net.JoinHostPort(web.Host, strconv.Itoa(cfg.Port))
-	slog.Info("serving", "addr", addr, "document", cfg.DocumentPath(), "households", len(doc.Households))
+
+	ln, err := net.Listen("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("listen: %w", err)
+	}
+
+	slog.Info("serving", "addr", ln.Addr().String(), "document", cfg.DocumentPath(), "households", len(doc.Households))
 
 	httpSrv := &http.Server{
-		Addr:              addr,
 		Handler:           srv.Handler(),
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	return httpSrv.ListenAndServe()
+	return httpSrv.Serve(ln)
 }

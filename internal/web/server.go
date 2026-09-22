@@ -22,15 +22,26 @@ const Host = "127.0.0.1"
 // in memory: the server is the single writer, which is what lets item 6's undo
 // have a coherent place to live.
 type Server struct {
-	mu   sync.RWMutex
-	doc  *store.Document
+	mu  sync.RWMutex
+	doc *store.Document
+	// tree is DERIVED from doc, not independent state. Any future write path
+	// must rebuild it inside the same write lock that mutates doc, or the two
+	// silently disagree and navigation renders a tree that no longer exists.
 	tree *rolo.Tree
+	meta Meta
+}
+
+// Meta carries Operator-facing facts about the running service that the
+// Document itself does not contain. It holds resolved values, never paths to
+// resolve: internal/web must stay free of filesystem concerns.
+type Meta struct {
+	DocumentPath string
 }
 
 // New builds a Server over an already-loaded document. It takes a document
 // rather than a path so the web layer has no filesystem dependency; main owns
 // loading and treats failure as fatal.
-func New(doc *store.Document) (*Server, error) {
+func New(doc *store.Document, meta Meta) (*Server, error) {
 	if doc == nil {
 		return nil, fmt.Errorf("web: document is nil")
 	}
@@ -40,7 +51,7 @@ func New(doc *store.Document) (*Server, error) {
 		return nil, fmt.Errorf("web: build tree: %w", err)
 	}
 
-	return &Server{doc: doc, tree: tree}, nil
+	return &Server{doc: doc, tree: tree, meta: meta}, nil
 }
 
 // Handler returns the server's routes.

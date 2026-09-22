@@ -5,6 +5,7 @@ import (
 	"embed"
 	"fmt"
 	"html/template"
+	"log/slog"
 	"net/http"
 )
 
@@ -27,7 +28,11 @@ func render(w http.ResponseWriter, name string, data any) error {
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, err := buf.WriteTo(w)
+	if _, err := buf.WriteTo(w); err != nil {
+		// The status and headers are already on the wire, so this is not
+		// recoverable — and it is a disconnected client, not a bug.
+		slog.Debug("client disconnected during render", "template", name, "error", err)
+	}
 
-	return err
+	return nil
 }

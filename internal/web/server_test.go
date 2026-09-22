@@ -47,7 +47,7 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := web.New(tt.doc)
+			got, err := web.New(tt.doc, web.Meta{DocumentPath: "/tmp/test/directory.json"})
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -79,7 +79,7 @@ func TestRouting(t *testing.T) {
 	// is a read: the subtests run sequentially and nothing mutates the document.
 	// Work item 5's mutating routes will need a fresh server per row, or the
 	// rows become order-dependent.
-	srv, err := web.New(sampleDocument())
+	srv, err := web.New(sampleDocument(), web.Meta{DocumentPath: "/tmp/test/directory.json"})
 	require.NoError(t, err)
 	handler := srv.Handler()
 
@@ -111,7 +111,7 @@ func TestConcurrentReads(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv, err := web.New(sampleDocument())
+			srv, err := web.New(sampleDocument(), web.Meta{DocumentPath: "/tmp/test/directory.json"})
 			require.NoError(t, err)
 			handler := srv.Handler()
 
