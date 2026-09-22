@@ -30,9 +30,9 @@
 | `internal/store/id.go` | Stable ID generation (nanoid, Crockford base32, typed prefixes). |
 | `internal/store/atomic.go` | Atomic file write: temp → fsync → rename. |
 | `internal/store/store.go` | `Document` (the on-disk shape with `schema`), `Load`, `Save`. |
-| `pkg/rolo/family.go` | **Deleted** at Task 9. |
+| `pkg/rolo/family.go` | **Deleted** at Task 2. |
 
-**Deleted at Task 9:** `pkg/rolo/family.go`, `pkg/rolo/family_test.go`, `cmd/print.go`, `cmd/print_test.go`. The recursive `Family`, its rendering methods, and the CLI that drives them are all superseded. `internal/tui` is left in place but unused; it is dealt with in a later work item.
+**Deleted at Task 2:** `pkg/rolo/family.go`, `pkg/rolo/family_test.go`, `cmd/print.go`, `cmd/print_test.go`, `testdata/example.json`. The recursive `Family`, its rendering methods, and the CLI that drives them are all superseded. They go in Task 2 rather than at the end because `family.go` shares a package with `person.go`: Go compiles a package as a unit, so while both shapes coexist the package cannot build and no test in it can run, whatever `-run` filter is applied. `internal/tui` is left in place but unused; it is dealt with in a later work item.
 
 ---
 
@@ -583,7 +583,16 @@ func (p Person) DisplayName() string {
 Run: `go test ./pkg/rolo/ -run TestPerson -v`
 Expected: PASS
 
-The package will not build as a whole yet — `family.go` still references the old `Person` fields (`Name`, `Given` as birth name) and is deleted in Task 9. Run the focused test only; `go build ./...` is expected to fail until then.
+**This task also deletes the superseded code that Task 9 originally covered.** `pkg/rolo/family.go` lives in the same package as `person.go` and references the old field names, and Go compiles a package as a unit — so no test in `pkg/rolo` can run, whatever `-run` filter is given, while both shapes coexist. Deleting here is what makes this task verifiable:
+
+```bash
+rm -f pkg/rolo/family.go pkg/rolo/family_test.go cmd/print.go cmd/print_test.go testdata/example.json
+rm -rf pkg/rolo/testdata
+```
+
+Then remove the `rootCmd.AddCommand(GetPrintCmd())` line from `cmd/root.go`.
+
+After this, `go build ./...`, `go vet ./...` and `go test ./...` must all succeed, and they must keep succeeding for every task that follows.
 
 - [ ] **Step 5: Commit**
 
@@ -2557,9 +2566,11 @@ jj commit -m "test(store): round-trip the example directory in the new format"
 
 ---
 
-### Task 9: Remove the superseded code
+### Task 9: Verify no superseded code remains
 
-The recursive `Family` and the CLI that renders it are now dead. Removing them is what makes the package compile as a whole again.
+**Superseded — the deletions moved into Task 2.** `family.go` shares a package with `person.go`, so the package could not compile, and no test in it could run, while both shapes existed. Task 2 therefore deletes the old model and CLI as part of its own commit.
+
+What remains here is a verification pass.
 
 **Files:**
 - Delete: `pkg/rolo/family.go`, `pkg/rolo/family_test.go`
@@ -2579,19 +2590,21 @@ rg -n "rolo\.Family|LoadJSON|GetPrintCmd|MakeTree" --type go
 
 Expected: matches only in the files being deleted, plus `cmd/root.go`
 
-- [ ] **Step 2: Delete the superseded files**
+- [ ] **Step 2: Confirm the files are already gone**
 
 ```bash
-rm pkg/rolo/family.go pkg/rolo/family_test.go
-rm cmd/print.go cmd/print_test.go
-rm testdata/example.json
-rm -f pkg/rolo/testdata/example.golden
-rmdir pkg/rolo/testdata 2>/dev/null || true
+ls pkg/rolo/family.go cmd/print.go testdata/example.json 2>&1
 ```
 
-- [ ] **Step 3: Drop the print command from root.go**
+Expected: "No such file or directory" for each. If any still exists, delete it and note the discrepancy in your report.
 
-Read `cmd/root.go` and remove the line registering the print command — it will be a call of the form `rootCmd.AddCommand(GetPrintCmd())` inside the root command's constructor. Leave the rest of the file intact.
+- [ ] **Step 3: Confirm `cmd/root.go` no longer registers the print command**
+
+```bash
+rg -n "AddCommand" cmd/root.go
+```
+
+Expected: no matches.
 
 - [ ] **Step 4: Verify the module builds and every test passes**
 
