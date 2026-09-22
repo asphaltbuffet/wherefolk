@@ -13,8 +13,11 @@ const PathSeparator = " › "
 var (
 	// ErrUnknownParent means a Household names a parent that is not in the document.
 	ErrUnknownParent = errors.New("unknown parent household")
-	// ErrDuplicateID means two Households share an ID.
-	ErrDuplicateID = errors.New("duplicate household id")
+	// ErrDuplicateID means an ID appears twice in the document — either two
+	// Households sharing a HouseholdID, or a PersonID appearing in more than
+	// one place. IDs are identities, so a collision makes the document
+	// ambiguous about who is who.
+	ErrDuplicateID = errors.New("duplicate id")
 	// ErrCycle means the parent links form a loop, so a Household is its own ancestor.
 	ErrCycle = errors.New("cycle in household parentage")
 	// ErrNoAdults means a Household has no adults, which cannot be labelled or rendered.
@@ -48,28 +51,23 @@ func BuildTree(households []Household) (*Tree, error) {
 
 	for _, h := range households {
 		if _, dup := t.byID[h.ID]; dup {
-			return nil, fmt.Errorf("%w: %s", ErrDuplicateID, h.ID)
+			return nil, fmt.Errorf("%w: household %s appears more than once", ErrDuplicateID, h.ID)
 		}
 		if len(h.Adults) == 0 {
 			return nil, fmt.Errorf("%w: %s", ErrNoAdults, h.ID)
 		}
-		for _, p := range h.Adults {
-			if p.ID == "" {
-				continue
+		// A Person belongs to exactly one Household, so a PersonID may appear
+		// only once in the document — whether as an adult or as a Dependent.
+		for _, group := range [][]Person{h.Adults, h.Dependents} {
+			for _, p := range group {
+				if p.ID == "" {
+					continue
+				}
+				if seenPersonIDs[p.ID] {
+					return nil, fmt.Errorf("%w: person %s appears more than once", ErrDuplicateID, p.ID)
+				}
+				seenPersonIDs[p.ID] = true
 			}
-			if seenPersonIDs[p.ID] {
-				return nil, fmt.Errorf("%w: %s", ErrDuplicateID, p.ID)
-			}
-			seenPersonIDs[p.ID] = true
-		}
-		for _, p := range h.Dependents {
-			if p.ID == "" {
-				continue
-			}
-			if seenPersonIDs[p.ID] {
-				return nil, fmt.Errorf("%w: %s", ErrDuplicateID, p.ID)
-			}
-			seenPersonIDs[p.ID] = true
 		}
 		t.byID[h.ID] = h
 	}
