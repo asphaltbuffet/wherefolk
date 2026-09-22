@@ -193,9 +193,9 @@ func TestHouseholdEldestAdultBirth(t *testing.T) {
 			want:      rolo.Date{},
 		},
 		{
-			name: "no adult has a birth date yields the zero date",
+			name:      "no adult has a birth date yields the zero date",
 			household: rolo.Household{Adults: []rolo.Person{{Given: "Unknown"}}},
-			want: rolo.Date{},
+			want:      rolo.Date{},
 		},
 	}
 

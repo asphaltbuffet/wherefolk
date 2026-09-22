@@ -18,17 +18,20 @@ go test ./...
 # Run a single test
 go test ./pkg/rolo/ -run TestBuildTree
 
-# Run the tool
-go run .
+# Run the server against the example data, then visit http://127.0.0.1:8099/status
+# (bare `go run .` looks for /var/lib/wherefolk/directory.json and exits non-zero)
+WHEREFOLK_DATA=./testdata WHEREFOLK_PORT=8099 go run .
 ```
 
-The CLI is currently a bare Cobra root with no subcommands — the `print` command was
-removed along with the recursive model. The web UI replaces it; see
-[docs/design/high-level-design.md](docs/design/high-level-design.md).
+There is no CLI. The binary is a service: `main` loads the store and starts the web server.
+An Operator CLI (export, validate, repair) may return as its own work item, built with the
+standard library `flag` package. See [docs/design/high-level-design.md](docs/design/high-level-design.md).
 
 ## Architecture
 
-- **`main.go`** — entry point, delegates to `cmd.Execute()`
+- **`main.go`** — entry point: reads config, loads the store, starts the web server
+- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_PORT`)
+- **`internal/web/`** — HTTP handlers and embedded templates
 - **`pkg/rolo/`** — domain types, no persistence
   - `Person` — a flat record with a stable `PersonID`, partial-precision `Date`s, and per-field `Hidden` flags
   - `Household` — adults, dependents, anniversary, address, and a `Parent` link. Children are **not** stored
@@ -62,7 +65,6 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
 
 ## Notes
 
-- Cobra commands must write output via `cmd.OutOrStdout()` (e.g. `fmt.Fprintln(cmd.OutOrStdout(), ...)`) — bare `fmt.Println` bypasses `SetOut` and breaks test capture.
 - `Person.DisplayName()` renders a nickname as `Given "Aka" Surname`.
 - Normalisation is called explicitly by the editing layer, not by `store.Save` — a hand-repaired
   document is loaded and saved exactly as written.

@@ -151,8 +151,11 @@ otherwise coarse — every device on the tailnet could reach the service, includ
 later for unrelated reasons. This is the layer where "privacy is built-in" is actually enforced.
 
 **Debugging** happens via `docker exec` or a temporarily published port. The app always binds
-`127.0.0.1:8080`; no code path or configuration flag differs between debug and production, so
-nothing can be left switched on by accident.
+loopback — the interface is a package constant, not a setting — so no code path or configuration
+value can expose it beyond the host and nothing can be left switched on by accident. The port is
+configurable via `WHEREFOLK_PORT` (default `8080`) because a collision in the shared network
+namespace is plausible; splitting the address this way keeps the security-bearing half out of the
+environment (ADR-0007).
 
 ### 2.3 Secrets
 
@@ -173,6 +176,11 @@ mechanisms, catching different failures:
 
 **`/healthz` with a Docker `HEALTHCHECK`** verifies the store is readable and Typst is present and
 version-compatible. This catches a wedged process *from inside* and restarts it.
+
+`/status` is its human-readable companion, built in item 11: the same facts — schema version,
+document path, Household and Person counts, Typst availability — rendered for an Operator who is
+looking into a problem rather than for a probe deciding whether to restart. It is Operator-facing
+diagnostics, deliberately not part of the Editor's two-pane interface (§4.1).
 
 **Healthchecks.io**, which the Operator already runs, catches what an internal check cannot: a dead
 container cannot report that it is dead. It is a dead-man's switch — the job pings outward on
@@ -458,21 +466,22 @@ and date — weak social pressure, but free, and honest that distribution is the
 
 ## 6. Implementation sections
 
-Roughly ordered by dependency; each is independently specifiable.
+Roughly ordered by dependency; each is independently specifiable. The numbers are stable
+identifiers, not a build order — item 11 is a prerequisite of item 4 and is built before it.
 
 | # | Section | Depends on |
 |---|---|---|
 | 1 | ✅ **Data model & store** — flat records, stable IDs, atomic JSON write, load-time tree derivation, `schema` version field | — |
 | 2 | ⏸️ **Migration** — *deferred until a schema 2 exists* (§2.1). The refuse-if-newer guard already shipped in item 1; there is no v0 data to convert. | 1 |
 | 3 | ✅ **Validation & normalisation** — dates, phones, emails; normalise-on-save | 1 |
-| 4 | **Tree + search navigation** — two-pane shell, Path breadcrumb, search-with-context | 1 |
+| 4 | **Tree + search navigation** — two-pane shell, Path breadcrumb, search-with-context | 1, 11 |
 | 5 | **Detail editing** — in-place fields, per-field hidden, structural-change announcements | 3, 4 |
 | 6 | **Safety net** — session undo, 30-day trash, nightly snapshots | 1 |
 | 7 | **Typst template & render engine** — flat Household blocks, Memorial blocks, fixed layout, shared-address back-references, PDF + SVG output | 1 |
 | 8 | **Tier filter** — field gating, age computation, date truncation, `[private]` vs. absence | 7 |
 | 9 | **Export UI** — tier chooser by description, SVG preview, pre-flight warnings, `pdfcpu` passphrase on Full | 8 |
 | 10 | **Proof Sheets** — per-Household pagination, withheld-field disclosure, Branch selection | 8 |
-| 11 | **Web shell** — Go templates, htmx, embedded assets, localhost binding | — |
+| 11 | ✅ **Web shell** — Go templates, htmx, embedded assets, loopback binding, `WHEREFOLK_DATA`/`WHEREFOLK_PORT`, Operator `/status` page as the tracer bullet. Foundational: every UI item (4, 5, 9, 10) is built on it, so it ships first | — |
 | 12 | **Container image** — Debian slim, pinned Typst, compose file with Tailscale sidecar, volumes | 11 |
 | 13 | **Tailnet setup** — OAuth client, `tag:wherefolk`, ACL, Serve with HTTPS, Funnel assertion, agenix-managed `.env` | 12 |
 | 14 | **Health & snapshots** — `/healthz`, Docker `HEALTHCHECK`, verified snapshot job, two Healthchecks.io dead-man's switches | 6, 12 |
@@ -480,8 +489,10 @@ Roughly ordered by dependency; each is independently specifiable.
 ### Fate of the existing code
 
 - `pkg/rolo` — the recursive `Family` walk does not survive §1 and §7. Rewritten.
-- `cmd/` — the Cobra CLI is superseded by the web UI. A CLI may survive as an Operator tool
-  (export, validate, repair), which is a different audience from the Editor.
+- `cmd/` — **deleted in item 11.** The Cobra CLI is superseded by the web UI, and the binary now
+  takes no arguments at all, so nothing can make it do anything other than serve (§2.2). An Operator
+  CLI (export, validate, repair) may return as its own work item, built with the standard library
+  `flag` package; that is a different audience from the Editor.
 - `internal/tui` — lipgloss styles have no role in a web UI. Retained only if an Operator CLI keeps
   terminal output.
 

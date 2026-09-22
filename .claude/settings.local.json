@@ -18,7 +18,8 @@
       "mcp__plugin_hm_serena__initial_instructions",
       "mcp__plugin_hm_serena__get_symbols_overview",
       "mcp__plugin_hm_serena__find_symbol",
-      "mcp__plugin_hm_context7__resolve-library-id"
+      "mcp__plugin_hm_context7__resolve-library-id",
+      "mcp__plugin_hm_serena__replace_content"
     ]
   },
   "enabledPlugins": {

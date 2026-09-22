@@ -1,0 +1,18 @@
+{{define "title"}}Status{{end}}
+
+{{define "body"}}
+<h1>Wherefolk status</h1>
+
+<dl>
+  <dt>Schema version</dt><dd data-field="schema">{{.Schema}}</dd>
+  <dt>Document</dt><dd data-field="document">{{.DocumentPath}}</dd>
+  <dt>Households</dt><dd data-field="households">{{.Households}}</dd>
+  <dt>People</dt><dd data-field="people">{{.People}}</dd>
+  <dt>Root Households</dt><dd data-field="roots">{{.Roots}}</dd>
+</dl>
+
+<h2>Root Households</h2>
+<ul>
+  {{range .RootLabels}}<li>{{.}}</li>{{else}}<li>none</li>{{end}}
+</ul>
+{{end}}
