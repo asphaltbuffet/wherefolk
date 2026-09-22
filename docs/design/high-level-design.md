@@ -114,6 +114,16 @@ binary understands**. That last case is a rollback, where silently truncating un
 be the worst bug in the system. Deployment is therefore always "pull the image and restart," with
 no manual step to forget.
 
+The snapshot taken before a migration is written to `snapshots/` beside the document, named for the
+version it holds and the time it was taken — `snapshots/pre-migrate-v1-20260922.json`. Work item 6's
+nightly snapshots share that directory.
+
+**The runner itself is deferred until a second schema version exists.** Schema 1 is the only version
+there has ever been: `Load` already refuses anything newer, and a migration chain with no migrations
+in it is machinery built against a guess at a change that has not happened. The seam it will occupy
+is already in `Load` — between the version probe and the decode, so a document whose shape predates
+the current `Document` struct is migrated as bytes before anything tries to unmarshal it.
+
 ### 2.2 Tailscale configuration
 
 **Sidecar, not host.** The official `tailscale/tailscale` image runs `tailscaled`; the application
@@ -304,6 +314,17 @@ addresses are checked; failures explain rather than block. A missing birthdate i
 is a fact with an export consequence (§5.3), surfaced at export time rather than nagged about
 during editing.
 
+A Finding's message is **displayed verbatim to the Editor**, so it is written for them: plain
+English, no library internals, and a hint at what to change. "Check for a missing @ or a stray
+space" is the register; a parser's own error text is not.
+
+**There are two validation passes, and they want opposite answers about absence.** The
+editing-time pass (`ValidateHouseholds`) stays silent about every empty field, because nagging
+about data that is merely incomplete trains the Editor to ignore findings. The export pre-flight
+(§5.7) reports exactly what the editing pass suppresses — a missing birthdate means that person's
+contact details will be withheld, which the Editor must see *before* sending the Directory out.
+Same data, same question, correct answers that differ by context.
+
 ---
 
 ## 5. Export
@@ -441,9 +462,9 @@ Roughly ordered by dependency; each is independently specifiable.
 
 | # | Section | Depends on |
 |---|---|---|
-| 1 | **Data model & store** — flat records, stable IDs, atomic JSON write, load-time tree derivation, `schema` version field | — |
-| 2 | **Migration** — startup migration runner, refuse-if-newer guard, and the first migration converting the recursive `Family` JSON to the new shape | 1 |
-| 3 | **Validation & normalisation** — dates, phones, emails; normalise-on-save | 1 |
+| 1 | ✅ **Data model & store** — flat records, stable IDs, atomic JSON write, load-time tree derivation, `schema` version field | — |
+| 2 | ⏸️ **Migration** — *deferred until a schema 2 exists* (§2.1). The refuse-if-newer guard already shipped in item 1; there is no v0 data to convert. | 1 |
+| 3 | ✅ **Validation & normalisation** — dates, phones, emails; normalise-on-save | 1 |
 | 4 | **Tree + search navigation** — two-pane shell, Path breadcrumb, search-with-context | 1 |
 | 5 | **Detail editing** — in-place fields, per-field hidden, structural-change announcements | 3, 4 |
 | 6 | **Safety net** — session undo, 30-day trash, nightly snapshots | 1 |
