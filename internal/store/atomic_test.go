@@ -70,7 +70,7 @@ func TestWriteFileAtomic(t *testing.T) {
 				require.NoError(t, os.WriteFile(path, []byte(tt.existing), 0o600))
 			}
 
-			require.NoError(t, writeFileAtomic(path, []byte(tt.write), 0o600))
+			require.NoError(t, writeFileAtomic(path, []byte(tt.write)))
 			tt.checkFunc(t, path)
 		})
 	}
@@ -80,7 +80,7 @@ func TestWriteFileAtomicSetsPermissions(t *testing.T) {
 	dir := t.TempDir()
 	path := filepath.Join(dir, "directory.json")
 
-	require.NoError(t, writeFileAtomic(path, []byte("data"), 0o600))
+	require.NoError(t, writeFileAtomic(path, []byte("data")))
 
 	info, err := os.Stat(path)
 	require.NoError(t, err)
@@ -91,6 +91,6 @@ func TestWriteFileAtomicSetsPermissions(t *testing.T) {
 func TestWriteFileAtomicFailsOnMissingDirectory(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "nonexistent", "directory.json")
 
-	err := writeFileAtomic(path, []byte("data"), 0o600)
+	err := writeFileAtomic(path, []byte("data"))
 	require.Error(t, err)
 }

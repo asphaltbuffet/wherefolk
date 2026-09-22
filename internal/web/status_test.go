@@ -8,8 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/asphaltbuffet/wherefolk/internal/buildmeta"
+	"github.com/asphaltbuffet/wherefolk/internal/config"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
-	"github.com/asphaltbuffet/wherefolk/internal/version"
 	"github.com/asphaltbuffet/wherefolk/internal/web"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -48,7 +49,7 @@ func sampleDocument() *store.Document {
 func get(t *testing.T, doc *store.Document, target string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	srv, err := web.New(doc, web.Meta{DocumentPath: "/tmp/test/directory.json"})
+	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{DocumentPath: "/tmp/test/directory.json"})
 	require.NoError(t, err)
 
 	rec := httptest.NewRecorder()
@@ -67,8 +68,10 @@ func TestStatusPage(t *testing.T) {
 			name:   "reports the build version",
 			target: "/status",
 			check: func(t *testing.T, body string) {
+				t.Helper()
+
 				assert.Contains(t, body,
-					`data-field="version">`+version.ShortVersion()+`<`,
+					`data-field="version">`+buildmeta.ShortVersion()+`<`,
 					"the running build identifies itself")
 			},
 		},
@@ -76,7 +79,9 @@ func TestStatusPage(t *testing.T) {
 			name:   "omits build metadata when nothing was injected",
 			target: "/status",
 			check: func(t *testing.T, body string) {
-				if version.BuildInfo() != "" {
+				t.Helper()
+
+				if buildmeta.BuildInfo() != "" {
 					t.Skip("build metadata was injected via ldflags")
 				}
 
@@ -88,6 +93,8 @@ func TestStatusPage(t *testing.T) {
 			name:   "reports the household count",
 			target: "/status",
 			check: func(t *testing.T, body string) {
+				t.Helper()
+
 				assert.Contains(t, body, `data-field="households">3<`, "three households in the fixture")
 			},
 		},
@@ -95,6 +102,8 @@ func TestStatusPage(t *testing.T) {
 			name:   "reports the person count",
 			target: "/status",
 			check: func(t *testing.T, body string) {
+				t.Helper()
+
 				assert.Contains(t, body, `data-field="people">6<`, "five adults plus one dependent")
 			},
 		},
@@ -102,6 +111,8 @@ func TestStatusPage(t *testing.T) {
 			name:   "reports the root count",
 			target: "/status",
 			check: func(t *testing.T, body string) {
+				t.Helper()
+
 				assert.Contains(t, body, `data-field="roots">2<`, "Aden and Ray are roots; Clyde is not")
 			},
 		},
@@ -109,6 +120,8 @@ func TestStatusPage(t *testing.T) {
 			name:   "reports the schema version",
 			target: "/status",
 			check: func(t *testing.T, body string) {
+				t.Helper()
+
 				assert.Contains(t, body, "Schema version")
 				assert.Contains(t, body, `data-field="schema">1<`)
 			},
@@ -117,6 +130,8 @@ func TestStatusPage(t *testing.T) {
 			name:   "lists root household labels",
 			target: "/status",
 			check: func(t *testing.T, body string) {
+				t.Helper()
+
 				assert.Contains(t, body, "Aden/Nettie")
 				assert.Contains(t, body, "Ray")
 				assert.NotContains(t, body, "Clyde/Doris", "Clyde is a child, not a root")
@@ -126,6 +141,8 @@ func TestStatusPage(t *testing.T) {
 			name:   "root path serves the same page until item 4 claims it",
 			target: "/",
 			check: func(t *testing.T, body string) {
+				t.Helper()
+
 				assert.Contains(t, body, "Wherefolk status")
 			},
 		},
@@ -133,6 +150,8 @@ func TestStatusPage(t *testing.T) {
 			name:   "reports the document path",
 			target: "/status",
 			check: func(t *testing.T, body string) {
+				t.Helper()
+
 				assert.Contains(t, body, `data-field="document">/tmp/test/directory.json<`)
 			},
 		},

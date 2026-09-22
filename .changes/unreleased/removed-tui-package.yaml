@@ -1,0 +1,5 @@
+kind: Removed
+body: internal/tui, an unreferenced leftover from the pre-service CLI; this drops lipgloss and 12 transitive dependencies
+time: 2026-09-23T00:00:02.000000000-00:00
+custom:
+  Issue: ""

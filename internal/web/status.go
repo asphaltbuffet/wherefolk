@@ -1,10 +1,9 @@
 package web
 
 import (
-	"log/slog"
 	"net/http"
 
-	"github.com/asphaltbuffet/wherefolk/internal/version"
+	"github.com/asphaltbuffet/wherefolk/internal/buildmeta"
 )
 
 // statusView is what status.html renders. It is Operator-facing diagnostics —
@@ -26,8 +25,9 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	view := s.statusView()
 	s.mu.RUnlock()
 
-	if err := render(w, "status", view); err != nil {
-		slog.Error("render status", "error", err)
+	err := s.render(r.Context(), w, "status", view)
+	if err != nil {
+		s.log.ErrorContext(r.Context(), "render status", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 }
@@ -47,8 +47,8 @@ func (s *Server) statusView() statusView {
 	}
 
 	return statusView{
-		Version:      version.ShortVersion(),
-		BuildInfo:    version.BuildInfo(),
+		Version:      buildmeta.ShortVersion(),
+		BuildInfo:    buildmeta.BuildInfo(),
 		Schema:       s.doc.Schema,
 		Households:   len(s.doc.Households),
 		People:       people,

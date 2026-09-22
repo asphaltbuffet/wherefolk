@@ -2,6 +2,8 @@ package main
 
 import (
 	"bytes"
+	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"os"
@@ -13,6 +15,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// testLogger discards output, so a test's logging cannot reach the test binary's
+// own stderr or leak into another test.
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
 
 func TestRunStartupFailures(t *testing.T) {
 	// A directory holding no document, to exercise the missing-store path.
@@ -30,7 +38,9 @@ func TestRunStartupFailures(t *testing.T) {
 	badTree := t.TempDir()
 	require.NoError(t, os.WriteFile(
 		filepath.Join(badTree, "directory.json"),
-		[]byte(`{"schema":1,"households":[{"id":"h_orphan","parent":"h_missing","adults":[{"id":"p_x","given":"X","surname":"Y","birth":"","death":"","phone":"","email":""}]}]}`),
+		[]byte(
+			`{"schema":1,"households":[{"id":"h_orphan","parent":"h_missing","adults":[{"id":"p_x","given":"X","surname":"Y","birth":"","death":"","phone":"","email":""}]}]}`,
+		),
 		0o600,
 	))
 
@@ -92,7 +102,7 @@ func TestRunStartupFailures(t *testing.T) {
 // rather than being ignored until the supervisor loses patience and SIGKILLs.
 //
 // The signal is real and process-wide, so these rows run sequentially and this
-// test must not be made parallel: signal.NotifyContext hooks the whole process,
+// test must not be made parallel: [signal.NotifyContext] hooks the whole process,
 // and a concurrent test raising its own signal would be delivered here too.
 func TestServeShutsDownOnSignal(t *testing.T) {
 	tests := []struct {
@@ -110,18 +120,21 @@ func TestServeShutsDownOnSignal(t *testing.T) {
 
 			httpSrv := &http.Server{
 				Handler:           http.NotFoundHandler(),
-				ReadHeaderTimeout: 10 * time.Second,
+				ReadHeaderTimeout: readHeaderTimeout,
 			}
 
 			done := make(chan error, 1)
-			go func() { done <- serve(httpSrv, ln) }()
+			go func() { done <- serve(httpSrv, ln, testLogger()) }()
 
 			// Give serve time to install its signal handler; a signal raised
 			// before NotifyContext runs would be the default disposition and
 			// would kill the test binary.
 			require.Eventually(t, func() bool {
-				conn, err := net.DialTimeout("tcp", ln.Addr().String(), time.Second)
-				if err != nil {
+				// A distinct name, not the outer err: this closure runs on the
+				// polling goroutine's schedule, so assigning to the outer
+				// variable would race with the assertions below.
+				conn, dialErr := net.DialTimeout("tcp", ln.Addr().String(), time.Second)
+				if dialErr != nil {
 					return false
 				}
 				_ = conn.Close()
@@ -132,8 +145,8 @@ func TestServeShutsDownOnSignal(t *testing.T) {
 			require.NoError(t, syscall.Kill(os.Getpid(), tt.signal))
 
 			select {
-			case err := <-done:
-				assert.NoError(t, err, "a stop signal is a clean exit, not a failure")
+			case serveErr := <-done:
+				require.NoError(t, serveErr, "a stop signal is a clean exit, not a failure")
 			case <-time.After(10 * time.Second):
 				t.Fatal("serve ignored the signal and kept running")
 			}
@@ -159,8 +172,8 @@ func TestServeReportsListenerFailure(t *testing.T) {
 
 			err = serve(&http.Server{
 				Handler:           http.NotFoundHandler(),
-				ReadHeaderTimeout: 10 * time.Second,
-			}, ln)
+				ReadHeaderTimeout: readHeaderTimeout,
+			}, ln, testLogger())
 
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantErr)

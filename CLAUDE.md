@@ -30,7 +30,9 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
 ## Architecture
 
 - **`main.go`** — entry point: reads config, loads the store, starts the web server
-- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_PORT`)
+- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`)
+  - `Config` carries the log *level*; `main` builds the `*slog.Logger` from it and injects it.
+    Nothing outside `main` touches slog's package default — constructors take a `*slog.Logger`.
 - **`internal/web/`** — HTTP handlers and embedded templates
 - **`pkg/rolo/`** — domain types, no persistence
   - `Person` — a flat record with a stable `PersonID`, partial-precision `Date`s, and per-field `Hidden` flags
@@ -45,7 +47,10 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - `Load` validates the schema version and the tree, refusing a document newer than `CurrentSchema`
   - `Save` writes atomically (temp → fsync → rename) with `0600` permissions
   - `NewPersonID`/`NewHouseholdID` generate prefixed nanoids over a Crockford base32 alphabet
-- **`internal/tui/`** — lipgloss styles, currently unreferenced
+- **`internal/buildmeta/`** — build metadata (`Version`, `GitCommit`, `BuildDate`) injected via ldflags.
+  The package is deliberately not named `version` or `buildinfo`: both collide with stdlib
+  (`go/version`, `debug/buildinfo`). The ldflag paths in `mise.toml` and `.goreleaser.yml` are
+  strings, so renaming this package silently stops injection unless they are updated too.
 
 ## Data Format
 

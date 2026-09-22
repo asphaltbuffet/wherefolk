@@ -1,0 +1,5 @@
+kind: Added
+body: WHEREFOLK_LOG_LEVEL sets the log threshold (debug, info, warn, error; default info)
+time: 2026-09-23T00:00:00.000000000-00:00
+custom:
+  Issue: ""

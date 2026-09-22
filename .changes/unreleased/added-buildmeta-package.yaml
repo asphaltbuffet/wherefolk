@@ -1,0 +1,5 @@
+kind: Added
+body: internal/buildmeta reports the running build, injected via ldflags and surfaced on /status
+time: 2026-09-22T00:00:01.000000000-00:00
+custom:
+  Issue: ""

@@ -1,6 +1,8 @@
 package web_test
 
 import (
+	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -9,10 +11,17 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/asphaltbuffet/wherefolk/internal/config"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/internal/web"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
+
+// testLogger discards output. Injecting it keeps each test's logging isolated,
+// which a package-level default logger could not guarantee.
+func testLogger() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
+}
 
 func TestNew(t *testing.T) {
 	tests := []struct {
@@ -47,7 +56,12 @@ func TestNew(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := web.New(tt.doc, web.Meta{DocumentPath: "/tmp/test/directory.json"})
+			got, err := web.New(
+				tt.doc,
+				config.Config{},
+				testLogger(),
+				web.Meta{DocumentPath: "/tmp/test/directory.json"},
+			)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -74,14 +88,24 @@ func TestRouting(t *testing.T) {
 		{name: "unknown path", method: http.MethodGet, target: "/nope", wantCode: http.StatusNotFound},
 		{name: "post to status", method: http.MethodPost, target: "/status", wantCode: http.StatusMethodNotAllowed},
 		{name: "vendored htmx", method: http.MethodGet, target: "/static/htmx.min.js", wantCode: http.StatusOK},
-		{name: "unknown static asset", method: http.MethodGet, target: "/static/nope.js", wantCode: http.StatusNotFound},
+		{
+			name:     "unknown static asset",
+			method:   http.MethodGet,
+			target:   "/static/nope.js",
+			wantCode: http.StatusNotFound,
+		},
 	}
 
 	// One server shared across the rows, which is safe only while every route
 	// is a read: the subtests run sequentially and nothing mutates the document.
 	// Work item 5's mutating routes will need a fresh server per row, or the
 	// rows become order-dependent.
-	srv, err := web.New(sampleDocument(), web.Meta{DocumentPath: "/tmp/test/directory.json"})
+	srv, err := web.New(
+		sampleDocument(),
+		config.Config{},
+		testLogger(),
+		web.Meta{DocumentPath: "/tmp/test/directory.json"},
+	)
 	require.NoError(t, err)
 	handler := srv.Handler()
 
@@ -113,7 +137,12 @@ func TestConcurrentReads(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv, err := web.New(sampleDocument(), web.Meta{DocumentPath: "/tmp/test/directory.json"})
+			srv, err := web.New(
+				sampleDocument(),
+				config.Config{},
+				testLogger(),
+				web.Meta{DocumentPath: "/tmp/test/directory.json"},
+			)
 			require.NoError(t, err)
 			handler := srv.Handler()
 

@@ -18,6 +18,7 @@ environment.
 |---|---|---|
 | `WHEREFOLK_DATA` | `/var/lib/wherefolk` | Directory holding `directory.json` |
 | `WHEREFOLK_PORT` | `8080` | Port to listen on (the interface is fixed — see [ADR-0007](docs/adr/0007-configurable-port-fixed-interface.md)) |
+| `WHEREFOLK_LOG_LEVEL` | `info` | Log threshold: `debug`, `info`, `warn`, or `error` |
 
 ### Container
 

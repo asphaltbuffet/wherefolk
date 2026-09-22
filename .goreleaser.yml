@@ -17,7 +17,7 @@ builds:
       - amd64
       - arm64
     ldflags:
-      - -s -w -X github.com/asphaltbuffet/wherefolk/internal/version.Version={{.Version}} -X github.com/asphaltbuffet/wherefolk/internal/version.GitCommit={{.ShortCommit}} -X github.com/asphaltbuffet/wherefolk/internal/version.BuildDate={{.Date}}
+      - -s -w -X github.com/asphaltbuffet/wherefolk/internal/buildmeta.Version={{.Version}} -X github.com/asphaltbuffet/wherefolk/internal/buildmeta.GitCommit={{.ShortCommit}} -X github.com/asphaltbuffet/wherefolk/internal/buildmeta.BuildDate={{.Date}}
     mod_timestamp: "{{ .CommitTimestamp }}"
 
 archives:

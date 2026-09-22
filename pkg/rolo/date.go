@@ -1,3 +1,10 @@
+// Package rolo holds the Directory's domain types: the Person and Household
+// records, the Tree derived from their Parent links, and the normalisation and
+// validation rules applied to them.
+//
+// Nothing here persists anything. Loading and saving live in internal/store, so
+// these types can be reasoned about without a filesystem. See CONTEXT.md for the
+// vocabulary and docs/adr/ for the decisions behind the shape.
 package rolo
 
 import (
@@ -15,6 +22,11 @@ import (
 // Partial precision is a domain requirement, not a convenience: the export
 // tiers truncate a living person's date to month and day, and many ancestors
 // are recorded with only a year.
+// encoding/json forces the receiver split: UnmarshalJSON must take a pointer to
+// write through, while MarshalJSON stays on the value so it is also used for
+// non-addressable Dates. Every other method is a query on a 3-int value type.
+//
+//nolint:recvcheck // mixed receivers are required by encoding/json; see above
 type Date struct {
 	Year  int
 	Month int
@@ -30,8 +42,11 @@ func ParseDate(s string) (Date, error) {
 		return Date{}, nil
 	}
 
+	// A date is at most year-month-day; anything longer is not a date.
+	const maxDateParts = 3
+
 	parts := strings.Split(s, "-")
-	if len(parts) > 3 {
+	if len(parts) > maxDateParts {
 		return Date{}, fmt.Errorf("parse date %q: too many components", s)
 	}
 

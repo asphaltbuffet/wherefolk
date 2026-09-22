@@ -22,14 +22,14 @@ func TestLoadExampleDirectory(t *testing.T) {
 	}{
 		{
 			name: "three households",
-			checkFunc: func(t *testing.T, doc *store.Document, tree *rolo.Tree) {
+			checkFunc: func(t *testing.T, doc *store.Document, _ *rolo.Tree) {
 				t.Helper()
 				assert.Len(t, doc.Households, 3)
 			},
 		},
 		{
 			name: "two roots, ordered by eldest adult's birth date",
-			checkFunc: func(t *testing.T, doc *store.Document, tree *rolo.Tree) {
+			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
 				t.Helper()
 				roots := tree.Roots()
 				require.Len(t, roots, 2)
@@ -39,7 +39,7 @@ func TestLoadExampleDirectory(t *testing.T) {
 		},
 		{
 			name: "a married child with a dependent is its own household",
-			checkFunc: func(t *testing.T, doc *store.Document, tree *rolo.Tree) {
+			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
 				t.Helper()
 				kids := tree.Children("h_lang01")
 				require.Len(t, kids, 1)
@@ -48,7 +48,7 @@ func TestLoadExampleDirectory(t *testing.T) {
 		},
 		{
 			name: "path disambiguates a nested household",
-			checkFunc: func(t *testing.T, doc *store.Document, tree *rolo.Tree) {
+			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
 				t.Helper()
 				path, err := tree.PathString("h_lang02")
 				require.NoError(t, err)
@@ -57,7 +57,7 @@ func TestLoadExampleDirectory(t *testing.T) {
 		},
 		{
 			name: "an unmarried adult child remains a dependent",
-			checkFunc: func(t *testing.T, doc *store.Document, tree *rolo.Tree) {
+			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
 				t.Helper()
 				h, ok := tree.Get("h_lang01")
 				require.True(t, ok)
@@ -75,7 +75,7 @@ func TestLoadExampleDirectory(t *testing.T) {
 		},
 		{
 			name: "a deceased dependent keeps both dates",
-			checkFunc: func(t *testing.T, doc *store.Document, tree *rolo.Tree) {
+			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
 				t.Helper()
 				h, ok := tree.Get("h_lang01")
 				require.True(t, ok)
@@ -93,7 +93,7 @@ func TestLoadExampleDirectory(t *testing.T) {
 		},
 		{
 			name: "a nickname renders in double quotes",
-			checkFunc: func(t *testing.T, doc *store.Document, tree *rolo.Tree) {
+			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
 				t.Helper()
 				h, ok := tree.Get("h_nova01")
 				require.True(t, ok)
@@ -102,7 +102,7 @@ func TestLoadExampleDirectory(t *testing.T) {
 		},
 		{
 			name: "multiple address lines survive",
-			checkFunc: func(t *testing.T, doc *store.Document, tree *rolo.Tree) {
+			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
 				t.Helper()
 				h, ok := tree.Get("h_nova01")
 				require.True(t, ok)
@@ -111,7 +111,7 @@ func TestLoadExampleDirectory(t *testing.T) {
 		},
 		{
 			name: "a minor dependent is gated by age",
-			checkFunc: func(t *testing.T, doc *store.Document, tree *rolo.Tree) {
+			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
 				t.Helper()
 				h, ok := tree.Get("h_lang02")
 				require.True(t, ok)
@@ -123,7 +123,7 @@ func TestLoadExampleDirectory(t *testing.T) {
 		},
 		{
 			name: "no household in the example is memorial",
-			checkFunc: func(t *testing.T, doc *store.Document, tree *rolo.Tree) {
+			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
 				t.Helper()
 				require.NoError(t, tree.Walk(func(h rolo.Household, _ int) error {
 					assert.False(t, h.IsMemorial(), "%s should not be memorial", h.Label())
