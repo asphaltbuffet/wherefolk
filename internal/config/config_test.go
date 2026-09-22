@@ -1,0 +1,85 @@
+package config_test
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
+	"github.com/asphaltbuffet/wherefolk/internal/config"
+)
+
+// env builds a getenv function over a map, so tests stay pure.
+func env(vars map[string]string) func(string) string {
+	return func(key string) string { return vars[key] }
+}
+
+func TestLoad(t *testing.T) {
+	tests := []struct {
+		name    string
+		vars    map[string]string
+		wantErr string
+		check   func(t *testing.T, got config.Config)
+	}{
+		{
+			name: "empty environment uses defaults",
+			vars: map[string]string{},
+			check: func(t *testing.T, got config.Config) {
+				assert.Equal(t, "/var/lib/wherefolk", got.DataDir)
+				assert.Equal(t, 8080, got.Port)
+			},
+		},
+		{
+			name: "data directory is overridden",
+			vars: map[string]string{"WHEREFOLK_DATA": "/tmp/wf"},
+			check: func(t *testing.T, got config.Config) {
+				assert.Equal(t, "/tmp/wf", got.DataDir)
+				assert.Equal(t, 8080, got.Port, "port keeps its default")
+			},
+		},
+		{
+			name: "port is overridden",
+			vars: map[string]string{"WHEREFOLK_PORT": "9090"},
+			check: func(t *testing.T, got config.Config) {
+				assert.Equal(t, 9090, got.Port)
+			},
+		},
+		{
+			name:    "unparseable port is fatal",
+			vars:    map[string]string{"WHEREFOLK_PORT": "http"},
+			wantErr: "WHEREFOLK_PORT",
+		},
+		{
+			name:    "port below range is fatal",
+			vars:    map[string]string{"WHEREFOLK_PORT": "0"},
+			wantErr: "WHEREFOLK_PORT",
+		},
+		{
+			name:    "port above range is fatal",
+			vars:    map[string]string{"WHEREFOLK_PORT": "70000"},
+			wantErr: "WHEREFOLK_PORT",
+		},
+		{
+			name: "document path derives from the data directory",
+			vars: map[string]string{"WHEREFOLK_DATA": "/tmp/wf"},
+			check: func(t *testing.T, got config.Config) {
+				assert.Equal(t, "/tmp/wf/directory.json", got.DocumentPath())
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := config.Load(env(tt.vars))
+
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErr)
+				return
+			}
+
+			require.NoError(t, err)
+			tt.check(t, got)
+		})
+	}
+}
