@@ -24,19 +24,28 @@ go run . print <filename.json>
 
 ## Architecture
 
-The application follows a standard Cobra CLI layout:
-
 - **`main.go`** — entry point, delegates to `cmd.Execute()`
-- **`cmd/`** — Cobra commands. Commands are constructed via lazy singleton getters (e.g., `GetPrintCmd()`) rather than `init()`, which allows commands to be instantiated and tested without global side effects.
-- **`pkg/rolo/`** — core data model and rendering logic
-  - `Family` is a recursive struct (`Children []Family`) representing a household that may contain sub-households. All three rendering methods (`Table`, `Info`, `MakeTree`) walk this tree recursively.
-  - `LoadJSON` deserializes a flat `[]Family` (not a `Directory`) from the input file.
-  - `Person.Details()` returns `[]string` (used as a table row), not a formatted string.
-- **`internal/tui/`** — lipgloss styles used across rendering (colors, `Household`, `Address`, `Anniversary`, `Dead`, `Generation` styles).
+- **`pkg/rolo/`** — domain types, no persistence
+  - `Person` — a flat record with a stable `PersonID`, partial-precision `Date`s, and per-field `Hidden` flags
+  - `Household` — adults, dependents, anniversary, address, and a `Parent` link. Children are **not** stored
+  - `Tree` — derived at load time by grouping Households on `Parent`. Provides `Roots`, `Children`, `Path`, `PathString`, and `Walk`
+  - `Date` — partial precision: a date may know a year only, a year and month, or nothing at all
+- **`internal/store/`** — persistence
+  - `Document` — the on-disk shape: a `schema` version plus a flat `[]Household`
+  - `Load` validates the schema version and the tree, refusing a document newer than `CurrentSchema`
+  - `Save` writes atomically (temp → fsync → rename) with `0600` permissions
+  - `NewPersonID`/`NewHouseholdID` generate prefixed nanoids over a Crockford base32 alphabet
+- **`internal/tui/`** — lipgloss styles, currently unreferenced
 
 ## Data Format
 
-Input files are JSON arrays of `Family` objects. See `short.json` for a small example. Each `Family` has `people`, `marriage`, `children` (nested families), and `addresses`. A child entry with only one person and no address/children is treated as a dependent (not an independent household) by `IsFamily()`.
+`testdata/directory.json` is the canonical example. A document is an object with a `schema`
+version and a flat `households` array — **not** a nested tree. Each Household carries its own `id`
+and an optional `parent`; the hierarchy is rebuilt from those links by `rolo.BuildTree`.
+
+Sibling Households are ordered by their eldest adult's birth date, derived rather than stored.
+
+See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions behind this shape.
 
 ## Testing
 
@@ -46,10 +55,8 @@ Input files are JSON arrays of `Family` objects. See `short.json` for a small ex
 
 ## Notes
 
-- `MakeTree()` and `Info()` are implemented in `pkg/rolo/family.go` but commented out in `cmd/print.go`.
-- `ioutil.ReadFile` in `family.go` is deprecated; prefer `os.ReadFile` when touching that code.
 - Cobra commands must write output via `cmd.OutOrStdout()` (e.g. `fmt.Fprintln(cmd.OutOrStdout(), ...)`) — bare `fmt.Println` bypasses `SetOut` and breaks test capture.
-- `Person.Aka` renders as `"nickname"` (double-quoted) in the family name header via `familyName()`.
+- `Person.DisplayName()` renders a nickname as `Given "Aka" Surname`.
 
 ## Agent skills
 
