@@ -50,6 +50,13 @@ func Load(getenv func(string) string) (Config, error) {
 		if port < 1 || port > 65535 {
 			return Config{}, fmt.Errorf("WHEREFOLK_PORT: %d is outside 1-65535", port)
 		}
+		// Atoi accepts a leading sign and leading zeros, so "+8080" and "08080"
+		// would both parse to 8080. A malformed port is fatal rather than
+		// silently coerced, so require the canonical spelling: anything that
+		// does not render back to itself was not a plain port number.
+		if strconv.Itoa(port) != raw {
+			return Config{}, fmt.Errorf("WHEREFOLK_PORT: %q is not a plain port number, did you mean %d?", raw, port)
+		}
 		cfg.Port = port
 	}
 

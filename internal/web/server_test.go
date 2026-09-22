@@ -73,6 +73,8 @@ func TestRouting(t *testing.T) {
 		{name: "root", method: http.MethodGet, target: "/", wantCode: http.StatusOK},
 		{name: "unknown path", method: http.MethodGet, target: "/nope", wantCode: http.StatusNotFound},
 		{name: "post to status", method: http.MethodPost, target: "/status", wantCode: http.StatusMethodNotAllowed},
+		{name: "vendored htmx", method: http.MethodGet, target: "/static/htmx.min.js", wantCode: http.StatusOK},
+		{name: "unknown static asset", method: http.MethodGet, target: "/static/nope.js", wantCode: http.StatusNotFound},
 	}
 
 	// One server shared across the rows, which is safe only while every route

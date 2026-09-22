@@ -63,5 +63,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /status", s.handleStatus)
 	mux.HandleFunc("GET /{$}", s.handleStatus)
 
+	// Vendored assets, served from the embedded FS so the binary stays a single
+	// file with no runtime dependency on a directory beside it. The embed root
+	// already carries the "static/" prefix the URLs use, so the FS is served
+	// as-is rather than sub-rooted.
+	mux.Handle("GET /static/", http.FileServerFS(staticFS))
+
 	return mux
 }

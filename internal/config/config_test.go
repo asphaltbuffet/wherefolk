@@ -60,6 +60,16 @@ func TestLoad(t *testing.T) {
 			wantErr: "WHEREFOLK_PORT",
 		},
 		{
+			name:    "signed port is fatal",
+			vars:    map[string]string{"WHEREFOLK_PORT": "+8080"},
+			wantErr: "WHEREFOLK_PORT",
+		},
+		{
+			name:    "zero-padded port is fatal",
+			vars:    map[string]string{"WHEREFOLK_PORT": "08080"},
+			wantErr: "WHEREFOLK_PORT",
+		},
+		{
 			name: "lowest valid port is accepted",
 			vars: map[string]string{"WHEREFOLK_PORT": "1"},
 			check: func(t *testing.T, got config.Config) {

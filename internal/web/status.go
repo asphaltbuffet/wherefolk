@@ -22,7 +22,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	view := s.statusView()
 	s.mu.RUnlock()
 
-	if err := render(w, "layout", view); err != nil {
+	if err := render(w, "status", view); err != nil {
 		slog.Error("render status", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}

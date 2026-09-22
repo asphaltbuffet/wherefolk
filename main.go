@@ -6,13 +6,16 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"log/slog"
 	"net"
 	"net/http"
 	"os"
+	"os/signal"
 	"strconv"
+	"syscall"
 	"time"
 
 	"github.com/asphaltbuffet/wherefolk/internal/config"
@@ -64,5 +67,49 @@ func run(getenv func(string) string, logOut io.Writer) error {
 		ReadHeaderTimeout: 10 * time.Second,
 	}
 
-	return httpSrv.Serve(ln)
+	return serve(httpSrv, ln)
+}
+
+// shutdownTimeout bounds how long a stopping server waits for in-flight
+// requests. It sits well inside Docker's default ten-second SIGTERM grace
+// period, so the process exits on its own terms rather than being SIGKILLed.
+const shutdownTimeout = 5 * time.Second
+
+// serve runs the server until it fails or the process is asked to stop.
+//
+// Without this, SIGTERM from `docker stop` would be ignored and the container
+// SIGKILLed once the grace period expired. Every route is a read today, so the
+// cost would only be dropped responses — but item 5 adds the write path, and
+// the atomic temp/fsync/rename in internal/store protects a write that has
+// begun, not one that never got to run.
+func serve(httpSrv *http.Server, ln net.Listener) error {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	errc := make(chan error, 1)
+
+	go func() { errc <- httpSrv.Serve(ln) }()
+
+	select {
+	case err := <-errc:
+		// Serve only returns on a real failure here: the shutdown path below
+		// is the only thing that closes the server, and it returns instead.
+		return fmt.Errorf("serve: %w", err)
+
+	case <-ctx.Done():
+		slog.Info("shutting down", "timeout", shutdownTimeout)
+
+		// Stop intercepting signals, so a second SIGTERM from an impatient
+		// operator kills the process rather than being swallowed.
+		stop()
+
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+		defer cancel()
+
+		if err := httpSrv.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("shutdown: %w", err)
+		}
+
+		return nil
+	}
 }
