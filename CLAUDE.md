@@ -34,6 +34,9 @@ removed along with the recursive model. The web UI replaces it; see
   - `Household` — adults, dependents, anniversary, address, and a `Parent` link. Children are **not** stored
   - `Tree` — derived at load time by grouping Households on `Parent`. Provides `Roots`, `Children`, `Path`, `PathString`, and `Walk`
   - `Date` — partial precision: a date may know a year only, a year and month, or nothing at all
+  - `NormalizePhone`/`NormalizeEmail` and the `Normalize()` methods rewrite values into house
+    style; they never fail and never discard input they cannot reformat
+  - `ValidateHouseholds` returns `[]Finding` — observations for the UI to display, never rejections
 - **`internal/store/`** — persistence
   - `Document` — the on-disk shape: a `schema` version plus a flat `[]Household`
   - `Load` validates the schema version and the tree, refusing a document newer than `CurrentSchema`
@@ -61,6 +64,8 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
 
 - Cobra commands must write output via `cmd.OutOrStdout()` (e.g. `fmt.Fprintln(cmd.OutOrStdout(), ...)`) — bare `fmt.Println` bypasses `SetOut` and breaks test capture.
 - `Person.DisplayName()` renders a nickname as `Given "Aka" Surname`.
+- Normalisation is called explicitly by the editing layer, not by `store.Save` — a hand-repaired
+  document is loaded and saved exactly as written.
 
 ## Agent skills
 

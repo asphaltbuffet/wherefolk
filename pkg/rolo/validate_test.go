@@ -260,3 +260,45 @@ func TestSeverityString(t *testing.T) {
 		})
 	}
 }
+
+func TestNormalizeIsIdempotent(t *testing.T) {
+	tests := []struct {
+		name      string
+		household rolo.Household
+	}{
+		{
+			name: "recognised phone and email",
+			household: rolo.Household{
+				ID:     "h_a",
+				Adults: []rolo.Person{{ID: "p_a", Given: "  Pat  ", Phone: "(555) 201-0001", Email: "pat@Example.COM"}},
+			},
+		},
+		{
+			name: "unrecognised phone",
+			household: rolo.Household{
+				ID:     "h_a",
+				Adults: []rolo.Person{{ID: "p_a", Given: "Nigel", Phone: "+44 20 7946 0958"}},
+			},
+		},
+		{
+			name: "address with blank lines",
+			household: rolo.Household{
+				ID:      "h_a",
+				Adults:  []rolo.Person{{ID: "p_a", Given: "Pat"}},
+				Address: rolo.Address{Lines: []string{"  88 Oakwood Drive  ", "", "Shelbyville, IL 62565"}},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			once := tt.household
+			once.Normalize()
+
+			twice := once
+			twice.Normalize()
+
+			assert.Equal(t, once, twice, "normalising twice must equal normalising once")
+		})
+	}
+}

@@ -175,3 +175,33 @@ func TestExampleDirectoryIsCanonicallyFormatted(t *testing.T) {
 	assert.Equal(t, string(want), string(got),
 		"testdata/directory.json should match what Save produces; run the test, then copy the saved file over it")
 }
+
+func TestExampleDirectoryHasNoFindings(t *testing.T) {
+	doc, err := store.Load(examplePath)
+	require.NoError(t, err)
+
+	findings := rolo.ValidateHouseholds(doc.Households)
+	assert.Empty(t, findings,
+		"the example Directory should be clean; a finding here means either the data or the rules are wrong")
+}
+
+func TestExampleDirectoryIsAlreadyNormalised(t *testing.T) {
+	doc, err := store.Load(examplePath)
+	require.NoError(t, err)
+
+	before, err := os.ReadFile(examplePath)
+	require.NoError(t, err)
+
+	for i := range doc.Households {
+		doc.Households[i].Normalize()
+	}
+
+	path := filepath.Join(t.TempDir(), "directory.json")
+	require.NoError(t, store.Save(path, doc))
+
+	after, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	assert.Equal(t, string(before), string(after),
+		"normalising the example Directory must change nothing, or the fixture is not in house style")
+}
