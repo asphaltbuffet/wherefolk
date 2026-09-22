@@ -60,6 +60,20 @@ func TestLoad(t *testing.T) {
 			wantErr: "WHEREFOLK_PORT",
 		},
 		{
+			name: "lowest valid port is accepted",
+			vars: map[string]string{"WHEREFOLK_PORT": "1"},
+			check: func(t *testing.T, got config.Config) {
+				assert.Equal(t, 1, got.Port)
+			},
+		},
+		{
+			name: "highest valid port is accepted",
+			vars: map[string]string{"WHEREFOLK_PORT": "65535"},
+			check: func(t *testing.T, got config.Config) {
+				assert.Equal(t, 65535, got.Port)
+			},
+		},
+		{
 			name: "document path derives from the data directory",
 			vars: map[string]string{"WHEREFOLK_DATA": "/tmp/wf"},
 			check: func(t *testing.T, got config.Config) {
