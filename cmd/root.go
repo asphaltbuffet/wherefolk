@@ -21,8 +21,6 @@ func GetRootCommand() *cobra.Command {
 			Use:   "wherefolk [command]",
 			Short: "wherefolk is a way to manage contact information",
 		}
-
-		rootCmd.AddCommand(GetPrintCmd())
 	}
 
 	return rootCmd
