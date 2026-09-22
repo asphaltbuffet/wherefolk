@@ -17,21 +17,19 @@
       "mcp__serena__write_memory",
       "mcp__plugin_hm_serena__initial_instructions",
       "mcp__plugin_hm_serena__get_symbols_overview",
-      "mcp__plugin_hm_serena__find_symbol"
+      "mcp__plugin_hm_serena__find_symbol",
+      "mcp__plugin_hm_context7__resolve-library-id"
     ]
   },
   "enabledPlugins": {
     "atomic-agents@claude-plugins-official": false,
     "claude-code-setup@claude-plugins-official": true,
     "claude-md-management@claude-plugins-official": true,
-    "claude-md-progressive-disclosurer@daymade-skills": true,
-    "claude-skills-troubleshooting@daymade-skills": true,
     "cli-demo-generator@daymade-skills": false,
     "code-review@claude-plugins-official": true,
     "code-simplifier@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
     "deep-research@daymade-skills": true,
-    "docs-cleaner@daymade-skills": true,
     "explanatory-output-style@claude-plugins-official": true,
     "feature-dev@claude-plugins-official": false,
     "gopls-lsp@claude-plugins-official": true,
@@ -39,7 +37,7 @@
     "skill-reviewer@daymade-skills": false,
     "skills-search@daymade-skills": false,
     "statusline-generator@daymade-skills": false,
-    "superpowers@claude-plugins-official": false
+    "superpowers@claude-plugins-official": true
   },
   "outputStyle": "Explanatory",
   "spinnerTipsEnabled": false,
