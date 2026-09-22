@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/asphaltbuffet/wherefolk/internal/store"
+	"github.com/asphaltbuffet/wherefolk/internal/version"
 	"github.com/asphaltbuffet/wherefolk/internal/web"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -62,6 +63,27 @@ func TestStatusPage(t *testing.T) {
 		target string
 		check  func(t *testing.T, body string)
 	}{
+		{
+			name:   "reports the build version",
+			target: "/status",
+			check: func(t *testing.T, body string) {
+				assert.Contains(t, body,
+					`data-field="version">`+version.ShortVersion()+`<`,
+					"the running build identifies itself")
+			},
+		},
+		{
+			name:   "omits build metadata when nothing was injected",
+			target: "/status",
+			check: func(t *testing.T, body string) {
+				if version.BuildInfo() != "" {
+					t.Skip("build metadata was injected via ldflags")
+				}
+
+				assert.NotContains(t, body, `data-field="build"`,
+					"an un-injected build renders no build row at all")
+			},
+		},
 		{
 			name:   "reports the household count",
 			target: "/status",

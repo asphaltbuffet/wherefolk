@@ -1,0 +1,5 @@
+kind: Added
+body: Container image published to ghcr.io for linux/amd64 and linux/arm64
+time: 2026-09-22T00:00:02.000000000-00:00
+custom:
+  Issue: ""
