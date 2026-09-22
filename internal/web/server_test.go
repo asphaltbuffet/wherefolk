@@ -75,6 +75,10 @@ func TestRouting(t *testing.T) {
 		{name: "post to status", method: http.MethodPost, target: "/status", wantCode: http.StatusMethodNotAllowed},
 	}
 
+	// One server shared across the rows, which is safe only while every route
+	// is a read: the subtests run sequentially and nothing mutates the document.
+	// Work item 5's mutating routes will need a fresh server per row, or the
+	// rows become order-dependent.
 	srv, err := web.New(sampleDocument())
 	require.NoError(t, err)
 	handler := srv.Handler()
@@ -89,8 +93,14 @@ func TestRouting(t *testing.T) {
 	}
 }
 
-// TestConcurrentReads exists to be run under -race: htmx issues overlapping
-// requests, so handlers must not race even with a single Editor.
+// TestConcurrentReads checks that handlers are safe to call concurrently,
+// because htmx issues overlapping requests even with a single Editor.
+//
+// Today it cannot fail: the package has readers and no writers, and concurrent
+// reads of data nobody mutates are not a data race — removing the handler's
+// RLock leaves -race clean. It is a regression trip-wire for work item 5, when
+// the write path makes the locking genuinely load-bearing, not proof that the
+// locking is correct now.
 func TestConcurrentReads(t *testing.T) {
 	tests := []struct {
 		name    string
