@@ -25,11 +25,26 @@ func sampleDocument() *store.Document {
 				Adults: []rolo.Person{adult("p_aden01", "Aden", 1910), adult("p_nett01", "Nettie", 1912)},
 			},
 			{
-				ID:          "h_clyde",
-				Parent:      "h_aden",
-				Adults:      []rolo.Person{adult("p_clyd01", "Clyde", 1938), adult("p_dori01", "Doris", 1940)},
+				ID:     "h_clyde",
+				Parent: "h_aden",
+				Adults: []rolo.Person{adult("p_clyd01", "Clyde", 1938), adult("p_dori01", "Doris", 1940)},
+				Dependents: []rolo.Person{
+					{
+						ID:      "p_carl01",
+						Given:   "Carl",
+						Surname: "Whitlock",
+						Birth:   rolo.Date{Year: 1963},
+						Hidden:  rolo.HiddenFields{Phone: true},
+					},
+				},
 				Anniversary: rolo.Date{Year: 1961, Month: 6, Day: 14},
 				Address:     rolo.Address{Lines: []string{"88 Oakwood Drive", "Shelbyville, IL 62565"}},
+			},
+			{
+				ID:      "h_carla",
+				Parent:  "h_clyde",
+				Adults:  []rolo.Person{adult("p_carla01", "Carla", 1965)},
+				Address: rolo.Address{SharedWith: "h_clyde"},
 			},
 		},
 	}
@@ -51,7 +66,7 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 			name: "households survive the round trip",
 			checkFunc: func(t *testing.T, got *store.Document) {
 				t.Helper()
-				require.Len(t, got.Households, 2)
+				require.Len(t, got.Households, 3)
 			},
 		},
 		{
@@ -89,6 +104,49 @@ func TestSaveLoadRoundTrip(t *testing.T) {
 				path, err := tree.PathString("h_clyde")
 				require.NoError(t, err)
 				assert.Equal(t, "Aden/Nettie › Clyde/Doris", path)
+			},
+		},
+		{
+			name: "a dependent survives the round trip",
+			checkFunc: func(t *testing.T, got *store.Document) {
+				t.Helper()
+				tree, err := got.Tree()
+				require.NoError(t, err)
+
+				h, ok := tree.Get("h_clyde")
+				require.True(t, ok)
+				require.Len(t, h.Dependents, 1)
+				assert.Equal(t, rolo.PersonID("p_carl01"), h.Dependents[0].ID)
+				assert.Equal(t, "Carl", h.Dependents[0].Given)
+			},
+		},
+		{
+			name: "a withheld field survives the round trip",
+			checkFunc: func(t *testing.T, got *store.Document) {
+				t.Helper()
+				tree, err := got.Tree()
+				require.NoError(t, err)
+
+				h, ok := tree.Get("h_clyde")
+				require.True(t, ok)
+				require.Len(t, h.Dependents, 1)
+				assert.True(t, h.Dependents[0].Hidden.Phone)
+				assert.False(t, h.Dependents[0].Hidden.Email)
+				assert.False(t, h.Dependents[0].Hidden.Birth)
+			},
+		},
+		{
+			name: "a shared address survives as a reference",
+			checkFunc: func(t *testing.T, got *store.Document) {
+				t.Helper()
+				tree, err := got.Tree()
+				require.NoError(t, err)
+
+				h, ok := tree.Get("h_carla")
+				require.True(t, ok)
+				assert.True(t, h.SharesAddress())
+				assert.Equal(t, rolo.HouseholdID("h_clyde"), h.Address.SharedWith)
+				assert.Empty(t, h.Address.Lines)
 			},
 		},
 	}
