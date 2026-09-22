@@ -481,7 +481,7 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 8 | **Tier filter** — field gating, age computation, date truncation, `[private]` vs. absence | 7 |
 | 9 | **Export UI** — tier chooser by description, SVG preview, pre-flight warnings, `pdfcpu` passphrase on Full | 8 |
 | 10 | **Proof Sheets** — per-Household pagination, withheld-field disclosure, Branch selection | 8 |
-| 11 | **Web shell** — Go templates, htmx, embedded assets, loopback binding, `WHEREFOLK_DATA`/`WHEREFOLK_PORT`, Operator `/status` page as the tracer bullet. Foundational: every UI item (4, 5, 9, 10) is built on it, so it ships first | — |
+| 11 | ✅ **Web shell** — Go templates, htmx, embedded assets, loopback binding, `WHEREFOLK_DATA`/`WHEREFOLK_PORT`, Operator `/status` page as the tracer bullet. Foundational: every UI item (4, 5, 9, 10) is built on it, so it ships first | — |
 | 12 | **Container image** — Debian slim, pinned Typst, compose file with Tailscale sidecar, volumes | 11 |
 | 13 | **Tailnet setup** — OAuth client, `tag:wherefolk`, ACL, Serve with HTTPS, Funnel assertion, agenix-managed `.env` | 12 |
 | 14 | **Health & snapshots** — `/healthz`, Docker `HEALTHCHECK`, verified snapshot job, two Healthchecks.io dead-man's switches | 6, 12 |
@@ -489,8 +489,10 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 ### Fate of the existing code
 
 - `pkg/rolo` — the recursive `Family` walk does not survive §1 and §7. Rewritten.
-- `cmd/` — the Cobra CLI is superseded by the web UI. A CLI may survive as an Operator tool
-  (export, validate, repair), which is a different audience from the Editor.
+- `cmd/` — **deleted in item 11.** The Cobra CLI is superseded by the web UI, and the binary now
+  takes no arguments at all, so nothing can make it do anything other than serve (§2.2). An Operator
+  CLI (export, validate, repair) may return as its own work item, built with the standard library
+  `flag` package; that is a different audience from the Editor.
 - `internal/tui` — lipgloss styles have no role in a web UI. Retained only if an Operator CLI keeps
   terminal output.
 

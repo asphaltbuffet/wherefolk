@@ -18,8 +18,9 @@ go test ./...
 # Run a single test
 go test ./pkg/rolo/ -run TestBuildTree
 
-# Run the tool
-go run .
+# Run the server against the example data, then visit http://127.0.0.1:8099/status
+# (bare `go run .` looks for /var/lib/wherefolk/directory.json and exits non-zero)
+WHEREFOLK_DATA=./testdata WHEREFOLK_PORT=8099 go run .
 ```
 
 There is no CLI. The binary is a service: `main` loads the store and starts the web server.
