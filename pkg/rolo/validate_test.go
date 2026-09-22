@@ -261,6 +261,20 @@ func TestSeverityString(t *testing.T) {
 	}
 }
 
+// deepCopyHousehold copies a Household including its slice contents.
+//
+// A plain struct assignment shares the Adults, Dependents and Address.Lines
+// backing arrays, so normalising the copy would mutate the original too — and
+// an idempotence test written that way compares a value to itself and can
+// never fail.
+func deepCopyHousehold(h rolo.Household) rolo.Household {
+	out := h
+	out.Adults = append([]rolo.Person(nil), h.Adults...)
+	out.Dependents = append([]rolo.Person(nil), h.Dependents...)
+	out.Address.Lines = append([]string(nil), h.Address.Lines...)
+	return out
+}
+
 func TestNormalizeIsIdempotent(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -292,10 +306,11 @@ func TestNormalizeIsIdempotent(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			once := tt.household
+			once := deepCopyHousehold(tt.household)
 			once.Normalize()
 
-			twice := once
+			twice := deepCopyHousehold(tt.household)
+			twice.Normalize()
 			twice.Normalize()
 
 			assert.Equal(t, once, twice, "normalising twice must equal normalising once")
