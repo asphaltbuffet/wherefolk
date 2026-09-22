@@ -3,7 +3,6 @@ package rolo
 import (
 	"fmt"
 	"net/mail"
-	"strings"
 )
 
 // Severity says how much attention a Finding deserves. Neither level blocks
@@ -90,8 +89,12 @@ func validatePerson(household HouseholdID, p Person) []Finding {
 	}
 
 	if p.Email != "" {
-		if err := checkEmail(p.Email); err != nil {
-			add("email", fmt.Sprintf("%q does not look like an email address: %s", p.Email, err), SeverityWarning)
+		if hint, malformed, bad := checkEmail(p.Email); bad {
+			if malformed {
+				add("email", fmt.Sprintf("%q does not look like an email address — %s", p.Email, hint), SeverityWarning)
+			} else {
+				add("email", fmt.Sprintf("%q does not look like an email address: %s", p.Email, hint), SeverityWarning)
+			}
 		}
 	}
 
@@ -106,6 +109,10 @@ func validatePerson(household HouseholdID, p Person) []Finding {
 }
 
 // validateAnniversary reports an Anniversary that predates an adult's birth.
+//
+// It stops at the first such adult rather than collecting one Finding per
+// adult: the Finding is about the anniversary field, not about any one
+// person, so a single report of it is enough.
 func validateAnniversary(h Household) []Finding {
 	if h.Anniversary.IsZero() {
 		return nil
@@ -116,11 +123,15 @@ func validateAnniversary(h Household) []Finding {
 			continue
 		}
 		if dateLess(h.Anniversary, p.Birth) {
+			name := p.DisplayName()
+			if name == "" {
+				name = "one of the adults"
+			}
 			return []Finding{{
 				Household: h.ID,
 				Field:     "anniversary",
 				Message: fmt.Sprintf("the anniversary %s is before %s was born (%s)",
-					h.Anniversary, strings.TrimSpace(p.Given+" "+p.Surname), p.Birth),
+					h.Anniversary, name, p.Birth),
 				Severity: SeverityWarning,
 			}}
 		}
@@ -129,18 +140,23 @@ func validateAnniversary(h Household) []Finding {
 	return nil
 }
 
-// checkEmail reports whether a value is a plain email address.
+// checkEmail reports whether a value is a plain email address. When bad is
+// true, hint is a plain-English fragment suitable for display to the
+// Editor — never the underlying parser error — and malformed distinguishes a
+// parse failure (hint is a full sentence fragment introduced by an em dash)
+// from a successfully parsed address that carries a display name (hint is
+// introduced by a colon, as before).
 //
 // net/mail.ParseAddress also accepts the display-name form, Pat Novak
 // <pat@example.com>, which is not what belongs in a directory's email field —
 // so an address that parses but carries a name is rejected here.
-func checkEmail(s string) error {
+func checkEmail(s string) (hint string, malformed, bad bool) {
 	addr, err := mail.ParseAddress(s)
 	if err != nil {
-		return err
+		return "check for a missing @ or a stray space.", true, true
 	}
 	if addr.Name != "" {
-		return fmt.Errorf("it includes a name; enter only the address, %s", addr.Address)
+		return fmt.Sprintf("it includes a name; enter only the address, %s", addr.Address), false, true
 	}
-	return nil
+	return "", false, false
 }

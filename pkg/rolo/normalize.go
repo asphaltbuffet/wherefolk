@@ -106,10 +106,6 @@ func (h *Household) Normalize() {
 // stray empty line in the file does not become a blank line in the printed
 // Directory.
 func (a *Address) normalize() {
-	if len(a.Lines) == 0 {
-		return
-	}
-
 	kept := make([]string, 0, len(a.Lines))
 	for _, line := range a.Lines {
 		if trimmed := strings.TrimSpace(line); trimmed != "" {

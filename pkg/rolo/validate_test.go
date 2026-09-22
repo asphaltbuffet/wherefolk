@@ -58,6 +58,24 @@ func TestValidateHouseholdsReportsProblems(t *testing.T) {
 			},
 		},
 		{
+			name: "an email with no @ gives a plain-English hint",
+			household: rolo.Household{
+				ID:     "h_a",
+				Adults: []rolo.Person{{ID: "p_a", Given: "Pat", Email: "pat.example.com"}},
+			},
+			checkFunc: func(t *testing.T, findings []rolo.Finding) {
+				t.Helper()
+				f, ok := findingFor(findings, "email")
+				require.True(t, ok, "expected a finding about email")
+				assert.Equal(t, rolo.SeverityWarning, f.Severity)
+				assert.Contains(t, f.Message, "check for a missing @")
+				assert.NotContains(t, f.Message, "angle-addr",
+					"the raw parser error must not reach the Editor")
+				assert.NotContains(t, f.Message, "mail:",
+					"the raw parser error must not reach the Editor")
+			},
+		},
+		{
 			name: "an email with a display name is a warning",
 			household: rolo.Household{
 				ID:     "h_a",
@@ -102,6 +120,22 @@ func TestValidateHouseholdsReportsProblems(t *testing.T) {
 				assert.Equal(t, rolo.SeverityWarning, f.Severity)
 				assert.Equal(t, rolo.PersonID(""), f.Person,
 					"an anniversary belongs to the Household, not to one Person")
+			},
+		},
+		{
+			name: "an anniversary before a nameless adult's birth names no one",
+			household: rolo.Household{
+				ID:          "h_a",
+				Anniversary: rolo.Date{Year: 1950},
+				Adults:      []rolo.Person{{ID: "p_a", Birth: rolo.Date{Year: 1975}}},
+			},
+			checkFunc: func(t *testing.T, findings []rolo.Finding) {
+				t.Helper()
+				f, ok := findingFor(findings, "anniversary")
+				require.True(t, ok, "expected a finding about anniversary")
+				assert.Contains(t, f.Message, "one of the adults")
+				assert.NotContains(t, f.Message, "  ",
+					"a nameless adult must not leave a double space in the message")
 			},
 		},
 		{
