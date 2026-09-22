@@ -17,7 +17,9 @@ var templateFS embed.FS
 var templates = template.Must(template.ParseFS(templateFS, "templates/*.html"))
 
 // render writes a named template to w, buffering first so that a template
-// execution error does not emit a half-written page under a 200 status.
+// execution error leaves w untouched: the caller can still send a 500 cleanly.
+// A failure during the write itself is not recoverable — the status and headers
+// are already on the wire by then — but that is a disconnected client, not a bug.
 func render(w http.ResponseWriter, name string, data any) error {
 	var buf bytes.Buffer
 	if err := templates.ExecuteTemplate(&buf, name, data); err != nil {
