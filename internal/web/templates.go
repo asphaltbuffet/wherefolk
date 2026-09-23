@@ -63,7 +63,11 @@ func mustParsePages() map[string]*template.Template {
 	// The base set is the layout plus every fragment. Pages clone it, so a page
 	// can override neither, and adding a fragment cannot collide with a page's
 	// own "title" or "body".
-	base := template.Must(template.ParseFS(templateFS, layoutFile))
+	base := template.Must(
+		template.New(path.Base(layoutFile)).
+			Funcs(templateFuncs()).
+			ParseFS(templateFS, layoutFile),
+	)
 
 	if len(fragments) > 0 {
 		base = template.Must(base.ParseFS(templateFS, fragments...))
@@ -95,6 +99,21 @@ func mustParsePages() map[string]*template.Template {
 	}
 
 	return parsed
+}
+
+// templateFuncs are the helpers templates may call. Keep this set small: logic
+// that needs more than a rename belongs in a view model, where it is testable
+// without rendering HTML.
+func templateFuncs() template.FuncMap {
+	return template.FuncMap{
+		// nodes rebinds a tree view to a different level of nodes, which is how
+		// the tree template recurses while keeping the selection and open set
+		// in scope. html/template has no way to construct a struct.
+		"nodes": func(v treeView, children []treeNode) treeView {
+			v.Nodes = children
+			return v
+		},
+	}
 }
 
 // render writes a page to w, buffering first so that a template execution error

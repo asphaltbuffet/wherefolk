@@ -75,6 +75,7 @@ func (s *Server) Handler() http.Handler {
 	// keeps its own route so the Operator's bookmark never moves.
 	mux.HandleFunc("GET /status", s.handleStatus)
 	mux.HandleFunc("GET /{$}", s.handleStatus)
+	mux.HandleFunc("GET /tree", s.handleTree)
 
 	// Vendored assets, served from the embedded FS so the binary stays a single
 	// file with no runtime dependency on a directory beside it. The embed root
