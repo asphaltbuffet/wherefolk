@@ -81,7 +81,10 @@ func run(getenv func(string) string, logOut io.Writer) error {
 		ReadHeaderTimeout: readHeaderTimeout,
 	}
 
-	return serve(httpSrv, ln, logger)
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	return serve(ctx, stop, httpSrv, ln, logger)
 }
 
 // shutdownTimeout bounds how long a stopping server waits for in-flight
@@ -95,17 +98,19 @@ const (
 	readHeaderTimeout = 10 * time.Second
 )
 
-// serve runs the server until it fails or the process is asked to stop.
+// serve runs the server until it fails or ctx is cancelled, and calls stop once
+// shutdown begins so a second signal is no longer intercepted.
 //
 // Without this, SIGTERM from `docker stop` would be ignored and the container
 // SIGKILLed once the grace period expired. Every route is a read today, so the
 // cost would only be dropped responses — but item 5 adds the write path, and
 // the atomic temp/fsync/rename in internal/store protects a write that has
 // begun, not one that never got to run.
-func serve(httpSrv *http.Server, ln net.Listener, logger *slog.Logger) error {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
+// The caller owns the signal registration rather than serve creating it, so
+// that it is demonstrably installed before anything can signal the process. A
+// registration made here would race with a signal raised immediately after
+// serve is called — which is exactly what a test does.
+func serve(ctx context.Context, stop func(), httpSrv *http.Server, ln net.Listener, logger *slog.Logger) error {
 	errc := make(chan error, 1)
 
 	go func() { errc <- httpSrv.Serve(ln) }()

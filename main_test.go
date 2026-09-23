@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"log/slog"
 	"net"
@@ -114,16 +115,6 @@ func TestServeShutsDownOnSignal(t *testing.T) {
 		{name: "SIGINT from a terminal", signal: syscall.SIGINT},
 	}
 
-	// serve deregisters its own handler while shutting down, so between one row
-	// finishing and the next installing its handler the process has none — and a
-	// signal landing in that window would kill the test binary by default
-	// disposition. This registration spans every row and keeps a handler
-	// installed throughout; it never reads the channel, it only holds the
-	// disposition off.
-	guard := make(chan os.Signal, 1)
-	signal.Notify(guard, os.Interrupt, syscall.SIGTERM)
-	t.Cleanup(func() { signal.Stop(guard) })
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			ln, err := net.Listen("tcp", "127.0.0.1:0")
@@ -134,13 +125,18 @@ func TestServeShutsDownOnSignal(t *testing.T) {
 				ReadHeaderTimeout: readHeaderTimeout,
 			}
 
-			done := make(chan error, 1)
-			go func() { done <- serve(httpSrv, ln, testLogger()) }()
+			// Register before serve is started, not inside it. This is what
+			// makes the signal below safe: the handler provably exists when it
+			// is raised, so it can neither kill the test binary by default
+			// disposition nor be delivered before anyone is listening.
+			ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+			defer stop()
 
-			// Wait until the server is actually serving before signalling it.
-			// This does not prove NotifyContext has run — the listener was
-			// already accepting before serve was called — so the guard above is
-			// what makes an early signal survivable.
+			done := make(chan error, 1)
+			go func() { done <- serve(ctx, stop, httpSrv, ln, testLogger()) }()
+
+			// Wait until the server is actually serving, so the shutdown path
+			// is what ends it rather than a signal arriving before Serve ran.
 			require.Eventually(t, func() bool {
 				// A distinct name, not the outer err: this closure runs on the
 				// polling goroutine's schedule, so assigning to the outer
@@ -182,7 +178,9 @@ func TestServeReportsListenerFailure(t *testing.T) {
 			require.NoError(t, err)
 			require.NoError(t, ln.Close())
 
-			err = serve(&http.Server{
+			// No signal handling here: this row asserts that a Serve failure is
+			// reported, so the context must never cancel and stop is a no-op.
+			err = serve(t.Context(), func() {}, &http.Server{
 				Handler:           http.NotFoundHandler(),
 				ReadHeaderTimeout: readHeaderTimeout,
 			}, ln, testLogger())
