@@ -96,9 +96,11 @@ with a Rust binary the Operator did not build.
 
 **Frontend:** server-rendered Go templates with htmx, embedded in the binary via `embed`. No
 JavaScript build step, no `node_modules`, no separate asset serving — the interaction budget here
-is a tree, a form, and an export dialog. Hand-written JavaScript is used only for tree
-expand/collapse, which should feel instant. This also keeps the supply-chain surface near zero,
-which matters for an application whose defining constraint is privacy.
+is a tree, a form, and an export dialog. Hand-written JavaScript is reserved for tree
+expand/collapse, which should feel instant — but item 4 shipped without any: the toggles are
+ordinary links whose state lives in the URL (ADR-0008), so the licence is still unspent and the
+only script served is htmx itself. This keeps the supply-chain surface near zero, which matters for
+an application whose defining constraint is privacy.
 
 **Nix** remains the development environment (pinned Go toolchain, `typst`), not the deployment
 mechanism. GoReleaser is dropped: its value is cross-platform release archives for many users, and
@@ -474,7 +476,7 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 1 | ✅ **Data model & store** — flat records, stable IDs, atomic JSON write, load-time tree derivation, `schema` version field | — |
 | 2 | ⏸️ **Migration** — *deferred until a schema 2 exists* (§2.1). The refuse-if-newer guard already shipped in item 1; there is no v0 data to convert. | 1 |
 | 3 | ✅ **Validation & normalisation** — dates, phones, emails; normalise-on-save | 1 |
-| 4 | **Tree + search navigation** — two-pane shell, Path breadcrumb, search-with-context | 1, 11 |
+| 4 | ✅ **Tree + search navigation** — two-pane shell, Path breadcrumb, search-with-context. Navigation state lives in the URL (ADR-0008) | 1, 11 |
 | 5 | **Detail editing** — in-place fields, per-field hidden, structural-change announcements | 3, 4 |
 | 6 | **Safety net** — session undo, 30-day trash, nightly snapshots | 1 |
 | 7 | **Typst template & render engine** — flat Household blocks, Memorial blocks, fixed layout, shared-address back-references, PDF + SVG output | 1 |

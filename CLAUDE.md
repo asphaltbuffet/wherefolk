@@ -34,6 +34,16 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - `Config` carries the log *level*; `main` builds the `*slog.Logger` from it and injects it.
     Nothing outside `main` touches slog's package default — constructors take a `*slog.Logger`.
 - **`internal/web/`** — HTTP handlers and embedded templates
+  - Templates whose basename starts with `_` are **fragments**: parsed into every page's set and
+    rendered *without* the layout, because htmx swaps them into a page that is already loaded.
+    `render` emits a whole page and takes an HTTP status; `renderFragment` emits one named template.
+  - Navigation state lives in the URL, never in a cookie or client state (ADR-0008). `/h/{id}` is
+    the selection; `?open=`/`?close=` carry the expanded Branches.
+  - View models in `view.go` hold rendered **strings**, not `rolo` values. A withheld field becomes
+    `[private]` and a Memorial Household's contact details are blanked *there*, so a value the
+    Editor withheld cannot reach a template and leak through a later markup change.
+  - URLs bound for `hx-*` attributes are built with `url.Values` in the view model, never
+    concatenated in a template: `html/template` percent-encodes into `href` but not into `hx-get`.
 - **`pkg/rolo/`** — domain types, no persistence
   - `Person` — a flat record with a stable `PersonID`, partial-precision `Date`s, and per-field `Hidden` flags
   - `Household` — adults, dependents, anniversary, address, and a `Parent` link. Children are **not** stored
@@ -70,7 +80,14 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
 
 ## Notes
 
-- `Person.DisplayName()` renders a nickname as `Given "Aka" Surname`.
+- `Person.DisplayName()` renders a nickname as `Given "Aka" Surname`. `html/template` escapes those
+  quotes in rendered HTML, so tests asserting on output must expect `&#34;`, not `"`.
+- `rolo.SearchPeople` is a linear scan, deliberately: an index would need invalidating on every edit
+  once item 5 makes the document mutable, and a few hundred people scan instantly.
+- **Two kinds of absence, and they must render differently** (§5.5). A *withheld* field — one the
+  Editor marked hidden — renders `[private]`, so nobody re-collects it next year. A *suppressed*
+  field — one a tier or a Memorial Household omits — renders as nothing at all, because a marker
+  would advertise that the data exists.
 - Normalisation is called explicitly by the editing layer, not by `store.Save` — a hand-repaired
   document is loaded and saved exactly as written.
 
