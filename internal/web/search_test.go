@@ -3,6 +3,7 @@ package web_test
 import (
 	"fmt"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,8 +26,13 @@ func TestSearchFragment(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.NotContains(t, body, "Clyde")
-				assert.NotContains(t, body, "Aden")
+				// Counting list items rather than naming absent people: a bug
+				// returning one unrelated match would slip past a pair of
+				// NotContains, but cannot slip past a count of zero.
+				assert.Equal(t, 0, strings.Count(body, "<li>"),
+					"nothing typed yet means no results at all")
+				assert.NotContains(t, body, "No one found",
+					"an empty box is not the same as a search that found nobody")
 			},
 		},
 		{
