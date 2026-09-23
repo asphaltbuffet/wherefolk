@@ -265,6 +265,12 @@ type householdView struct {
 
 	AddressLines   []string
 	AddressPrivate bool
+	// AddressNote is the single-line form of the address row — the [private]
+	// marker or a Shared Address back-reference. It exists so the template
+	// interpolates one value instead of hardcoding the marker text, which would
+	// put a second copy of Private where drift is least likely to be noticed.
+	// Empty when the Household has ordinary address lines, or none at all.
+	AddressNote string
 	// SharedWith is the label of the Household whose Address this one uses,
 	// empty unless this is a Shared Address. §3 makes it a reference rather than
 	// a copy, so the pane shows where the address comes from.
@@ -317,15 +323,25 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 		Dependents:  peopleViews(h.Dependents, memorial),
 	}
 
+	// Order matters: Hidden is tested first, so a Household that both withholds
+	// its address and shares its parent's renders [private] rather than naming
+	// whose address it uses — which would itself disclose the withheld fact.
 	switch {
 	case h.AddressHidden():
 		// The lines are deliberately not copied into the view: a withheld value
 		// that never reaches the template cannot leak through a future change
-		// to the markup.
+		// to the markup. AddressNote carries the marker so the Private constant
+		// stays the single source of that string.
 		view.AddressPrivate = true
+		view.AddressNote = Private
 	case h.SharesAddress():
+		// Unreachable with a loaded document: BuildTree rejects a dangling
+		// SharedWith, and web.New surfaces that as a startup error, so a broken
+		// reference never reaches a request. The check keeps the zero value
+		// meaningful for a Server built directly in a test.
 		if parent, found := s.tree.Get(h.Address.SharedWith); found {
 			view.SharedWith = parent.Label()
+			view.AddressNote = "Same address as " + parent.Label()
 		}
 	default:
 		view.AddressLines = h.Address.Lines

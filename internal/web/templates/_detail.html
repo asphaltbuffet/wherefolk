@@ -13,10 +13,8 @@
       </nav>
 
       <dl class="household-facts">
-        {{if .AddressPrivate}}
-          <dt>Address</dt><dd>[private]</dd>
-        {{else if .SharedWith}}
-          <dt>Address</dt><dd>Same address as {{.SharedWith}}</dd>
+        {{if .AddressNote}}
+          <dt>Address</dt><dd>{{.AddressNote}}</dd>
         {{else if .AddressLines}}
           <dt>Address</dt>
           <dd>{{range .AddressLines}}<span class="address-line">{{.}}</span>{{end}}</dd>
