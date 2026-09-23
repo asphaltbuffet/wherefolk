@@ -1,6 +1,8 @@
 package web_test
 
 import (
+	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -247,6 +249,53 @@ func TestHouseholdView(t *testing.T) {
 			}
 
 			tt.checkFunc(t, got)
+		})
+	}
+}
+
+// TestTreeMarksMemorialHouseholds covers the one treeNode field nothing else
+// asserts. Memorial is the tree's only signal that a Branch's heads have died,
+// and it drives a style rather than text, so without this row the marker could
+// disappear silently.
+//
+// This asserts on a class name, which the project otherwise avoids. The
+// exception is deliberate: the fact under test — "the tree distinguishes a
+// Memorial Household" — has no textual form to assert on, since the label is
+// the same either way. The class IS the observable behaviour here.
+func TestTreeMarksMemorialHouseholds(t *testing.T) {
+	tests := []struct {
+		name      string
+		target    string
+		checkFunc func(t *testing.T, body string)
+	}{
+		{
+			name:   "a Memorial Household is marked in the tree",
+			target: "/tree",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, "tree-memorial",
+					"h_aden's adults are both deceased, so the tree must distinguish it")
+			},
+		},
+		{
+			name:   "a Household with a living adult is not marked",
+			target: "/tree?open=h_aden",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				// h_clyde is revealed by the open set and has living adults.
+				require.Contains(t, body, "Clyde/Doris", "precondition: the child is visible")
+				assert.Equal(t, 1, strings.Count(body, "tree-memorial"),
+					"only h_aden is a Memorial Household, so only one node carries the marker")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := get(t, sampleDocument(), tt.target)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			tt.checkFunc(t, rec.Body.String())
 		})
 	}
 }
