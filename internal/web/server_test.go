@@ -129,12 +129,13 @@ func TestRouting(t *testing.T) {
 // locking is correct now.
 func TestRenderFragmentOmitsLayout(t *testing.T) {
 	tests := []struct {
-		name      string
-		page      string
-		fragment  string
-		data      any
-		wantErr   bool
-		checkFunc func(t *testing.T, body string)
+		name            string
+		page            string
+		fragment        string
+		data            any
+		wantErr         bool
+		wantErrContains string
+		checkFunc       func(t *testing.T, body string)
 	}{
 		{
 			name:     "a fragment renders without page chrome",
@@ -149,18 +150,23 @@ func TestRenderFragmentOmitsLayout(t *testing.T) {
 			},
 		},
 		{
-			name:     "an unknown page is an error, not a blank response",
-			page:     "no_such_page",
-			fragment: "fragment_probe",
-			data:     nil,
-			wantErr:  true,
+			name:            "an unknown page is an error, not a blank response",
+			page:            "no_such_page",
+			fragment:        "fragment_probe",
+			data:            nil,
+			wantErr:         true,
+			wantErrContains: "no such page no_such_page",
 		},
 		{
-			name:     "an unknown fragment is an error",
+			name:     "an unknown fragment names the page it was looked up in",
 			page:     "status",
 			fragment: "no_such_fragment",
 			data:     nil,
 			wantErr:  true,
+			// The page is the half html/template's own error cannot know, so
+			// asserting on it is what distinguishes this package's wrapping
+			// from the bare library error.
+			wantErrContains: "in page status",
 		},
 	}
 
@@ -174,6 +180,10 @@ func TestRenderFragmentOmitsLayout(t *testing.T) {
 
 			if tt.wantErr {
 				require.Error(t, err)
+				// Assert on the message, not merely that an error happened:
+				// html/template reports an undefined name by itself, so a bare
+				// require.Error would pass no matter what this package does.
+				assert.ErrorContains(t, err, tt.wantErrContains)
 				return
 			}
 

@@ -143,15 +143,15 @@ func (s *Server) renderFragment(ctx context.Context, w http.ResponseWriter, page
 		return fmt.Errorf("render fragment %s: no such page %s", fragment, page)
 	}
 
-	if set.Lookup(fragment) == nil {
-		return fmt.Errorf("render fragment %s: not defined in page %s", fragment, page)
-	}
-
+	// An undefined fragment name needs no guard of its own: ExecuteTemplate
+	// reports it, and the wrap below adds the page it was looked up in — the
+	// half the library's own error cannot know. One guard then execute is also
+	// exactly render's shape, so the two read the same way.
 	var buf bytes.Buffer
 
 	err := set.ExecuteTemplate(&buf, fragment, data)
 	if err != nil {
-		return fmt.Errorf("render fragment %s: %w", fragment, err)
+		return fmt.Errorf("render fragment %s in page %s: %w", fragment, page, err)
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
