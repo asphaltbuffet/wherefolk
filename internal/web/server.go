@@ -71,10 +71,13 @@ func New(doc *store.Document, cfg config.Config, logger *slog.Logger, meta Meta)
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
 
-	// Item 4 replaces the "/" registration with the two-pane editing UI; /status
-	// keeps its own route so the Operator's bookmark never moves.
+	// /status is the Operator's diagnostics page and keeps its own route so the
+	// bookmark never moves; everything else is the Editor's two-pane interface.
 	mux.HandleFunc("GET /status", s.handleStatus)
-	mux.HandleFunc("GET /{$}", s.handleStatus)
+	mux.HandleFunc("GET /{$}", s.handleDirectory)
+	mux.HandleFunc("GET /h/{id}", s.handleDirectory)
+	mux.HandleFunc("GET /tree", s.handleTree)
+	mux.HandleFunc("GET /search", s.handleSearch)
 
 	// Vendored assets, served from the embedded FS so the binary stays a single
 	// file with no runtime dependency on a directory beside it. The embed root

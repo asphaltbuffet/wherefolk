@@ -15,6 +15,14 @@ type HouseholdID string
 type Address struct {
 	Lines      []string    `json:"lines,omitempty"`
 	SharedWith HouseholdID `json:"shared_with,omitempty"`
+
+	// Hidden withholds the Address from every export, the way HiddenFields
+	// withholds a Person's contact details. It lives on Address rather than on
+	// HiddenFields because an Address belongs to the Household, not to either
+	// adult: §4.4's "my address stays out, my name is fine" is a statement
+	// about the household's address, and duplicating the flag per adult would
+	// let the two disagree.
+	Hidden bool `json:"hidden,omitempty"`
 }
 
 // Household is the unit that renders as one block in the Directory. A node
@@ -81,6 +89,11 @@ func (h Household) HasLivingMember() bool {
 // SharesAddress reports whether this Household's address is a reference to
 // another Household's.
 func (h Household) SharesAddress() bool { return h.Address.SharedWith != "" }
+
+// AddressHidden reports whether the Editor has withheld this Household's
+// Address. It is a method rather than a bare field read so templates and the
+// tier filter (item 8) ask the same question in the same words.
+func (h Household) AddressHidden() bool { return h.Address.Hidden }
 
 // Label is the Household's name as it appears in the tree and in a Path:
 // the adults' given names joined by a slash, as in "Dave/Diane".

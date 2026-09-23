@@ -211,3 +211,38 @@ func TestHouseholdEldestAdultBirth(t *testing.T) {
 		})
 	}
 }
+
+func TestAddressHidden(t *testing.T) {
+	tests := []struct {
+		name string
+		h    rolo.Household
+		want bool
+	}{
+		{
+			name: "address with no flag is visible",
+			h:    rolo.Household{Address: rolo.Address{Lines: []string{"1412 Oak St"}}},
+			want: false,
+		},
+		{
+			name: "address marked hidden is hidden",
+			h:    rolo.Household{Address: rolo.Address{Lines: []string{"1412 Oak St"}, Hidden: true}},
+			want: true,
+		},
+		{
+			name: "household with no address at all is not hidden",
+			h:    rolo.Household{},
+			want: false,
+		},
+		{
+			name: "a shared address may itself be hidden",
+			h:    rolo.Household{Address: rolo.Address{SharedWith: "h_parent", Hidden: true}},
+			want: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.h.AddressHidden())
+		})
+	}
+}

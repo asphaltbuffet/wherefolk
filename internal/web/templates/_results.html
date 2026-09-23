@@ -1,0 +1,15 @@
+{{define "results"}}
+<ul id="results" class="results" aria-live="polite">
+  {{range .Results}}
+    <li>
+      <a href="/h/{{.Household}}">{{.Name}}</a>
+      <span class="result-path">{{.Path}}</span>
+    </li>
+  {{else}}
+    {{if .Query}}<li class="results-empty">No one found matching "{{.Query}}".</li>{{end}}
+  {{end}}
+  {{if .Truncated}}
+    <li class="results-note">Showing the first {{len .Results}} matches. Try a longer name.</li>
+  {{end}}
+</ul>
+{{end}}

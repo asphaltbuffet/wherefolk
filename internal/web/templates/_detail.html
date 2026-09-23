@@ -1,0 +1,56 @@
+{{define "detail"}}
+<section id="detail" aria-label="Household">
+  {{if .NotFound}}
+    <h1>That household is not in the directory</h1>
+    <p>It may have been removed, or the link may be out of date. Choose a household from the list
+       on the left.</p>
+  {{else if .Household}}
+    {{with .Household}}
+      <h1>{{.Title}}{{if .Memorial}} <span class="badge">Memorial</span>{{end}}</h1>
+
+      <nav class="breadcrumb" aria-label="Path">
+        {{range $i, $c := .Crumbs}}{{if $i}} › {{end}}<a href="/h/{{$c.ID}}">{{$c.Label}}</a>{{end}}
+      </nav>
+
+      <dl class="household-facts">
+        {{if .AddressNote}}
+          <dt>Address</dt><dd>{{.AddressNote}}</dd>
+        {{else if .AddressLines}}
+          <dt>Address</dt>
+          <dd>{{range .AddressLines}}<span class="address-line">{{.}}</span>{{end}}</dd>
+        {{end}}
+        {{with .Anniversary}}<dt>Anniversary</dt><dd>{{.}}</dd>{{end}}
+      </dl>
+
+      <ul class="people">
+        {{range .Adults}}{{template "person" .}}{{end}}
+      </ul>
+
+      {{if .Dependents}}
+        <h2>Dependents</h2>
+        <ul class="people">
+          {{range .Dependents}}{{template "person" .}}{{end}}
+        </ul>
+      {{end}}
+    {{end}}
+  {{else}}
+    <h1>Choose a household</h1>
+    <p>Pick a household from the list on the left, or search for someone by name.</p>
+  {{end}}
+</section>
+{{end}}
+
+{{define "person"}}
+<li class="person{{if .Deceased}} person-deceased{{end}}">
+  <span class="person-name">{{.Name}}</span>
+  <span class="person-dates">
+    {{with .Birth}}b. {{.}}{{end}}
+    {{with .Death}} · d. {{.}}{{end}}
+  </span>
+  {{if or .Phone .Email}}
+    <span class="person-contact">
+      {{with .Phone}}{{.}}{{end}}{{if and .Phone .Email}} · {{end}}{{with .Email}}{{.}}{{end}}
+    </span>
+  {{end}}
+</li>
+{{end}}

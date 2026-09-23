@@ -1,0 +1,37 @@
+{{define "tree"}}
+<nav id="tree" aria-label="Households">
+  <ul class="tree-level">
+    {{template "tree-nodes" .}}
+  </ul>
+</nav>
+{{end}}
+
+{{define "tree-nodes"}}
+{{$view := .}}
+{{range .Nodes}}
+  <li data-household="{{.ID}}"{{if .Selected}} aria-current="true"{{end}}>
+    {{if .ToggleURL}}
+      <a class="tree-toggle"
+         href="{{.ToggleURL}}"
+         hx-get="{{.ToggleURL}}"
+         hx-target="#tree"
+         hx-swap="outerHTML"
+         hx-push-url="true"
+         aria-expanded="{{if .Open}}true{{else}}false{{end}}"
+         aria-label="{{if .Open}}Collapse{{else}}Expand{{end}} {{.Label}}">{{if .Open}}▾{{else}}▸{{end}}</a>
+    {{else if .Pinned}}
+      <span class="tree-toggle tree-pinned"
+            aria-hidden="true"
+            title="Always shown while this household is selected">▾</span>
+    {{else}}
+      <span class="tree-toggle tree-leaf" aria-hidden="true">·</span>
+    {{end}}
+    <a class="tree-label{{if .Memorial}} tree-memorial{{end}}" href="/h/{{.ID}}">{{.Label}}</a>
+    {{if .Children}}
+      <ul class="tree-level">
+        {{template "tree-nodes" (nodes $view .Children)}}
+      </ul>
+    {{end}}
+  </li>
+{{end}}
+{{end}}
