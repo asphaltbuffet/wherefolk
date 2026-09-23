@@ -12,6 +12,7 @@
     <form class="search" role="search" action="/search" method="get">
       <label class="visually-hidden" for="q">Search for a person</label>
       <input type="search" id="q" name="q" placeholder="Search…" autocomplete="off"
+             value="{{.Results.Query}}"
              hx-get="/search"
              hx-trigger="input changed delay:200ms, search"
              hx-target="#results"

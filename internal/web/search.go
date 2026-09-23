@@ -35,7 +35,18 @@ type resultsView struct {
 // detached editor, and sharing the handler is what guarantees it rather than
 // merely arranging for it.
 func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
-	query := r.URL.Query().Get("q")
+	q := r.URL.Query()
+	query := q.Get("q")
+
+	// htmx sets this header on every request it makes, which is what lets one
+	// route serve both audiences. Without the branch, submitting the form with
+	// JavaScript unavailable — or before htmx has loaded — navigates the browser
+	// to a bare <ul> with no chrome, no stylesheet, and no way back: an
+	// unstyled orphan page, which for this Editor is an error screen.
+	if r.Header.Get("HX-Request") != "true" {
+		s.renderSearchPage(w, r, query)
+		return
+	}
 
 	s.mu.RLock()
 	view := s.resultsView(query)
@@ -44,6 +55,25 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	err := s.renderFragment(r.Context(), w, "directory", "results", view)
 	if err != nil {
 		s.log.ErrorContext(r.Context(), "render search results", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
+}
+
+// renderSearchPage answers a plain browser navigation to /search with the whole
+// two-pane page, results included, so the Editor keeps the tree and can carry on
+// without going back. It is also what makes a search deep-linkable, which
+// ADR-0008 claims of every view.
+func (s *Server) renderSearchPage(w http.ResponseWriter, r *http.Request, query string) {
+	q := r.URL.Query()
+
+	s.mu.RLock()
+	view := s.directoryView("", q.Get("open"), q.Get("close"), q.Get("pane") == paneClosed)
+	view.Results = s.resultsView(query)
+	s.mu.RUnlock()
+
+	err := s.render(r.Context(), w, http.StatusOK, "directory", view)
+	if err != nil {
+		s.log.ErrorContext(r.Context(), "render search page", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 }

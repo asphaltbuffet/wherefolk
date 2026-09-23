@@ -3,13 +3,16 @@ package web_test
 import (
 	"fmt"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/asphaltbuffet/wherefolk/internal/config"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
+	"github.com/asphaltbuffet/wherefolk/internal/web"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
@@ -102,7 +105,7 @@ func TestSearchFragment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := get(t, sampleDocument(), tt.target)
+			rec := getHTMX(t, sampleDocument(), tt.target)
 
 			require.Equal(t, tt.wantStatus, rec.Code)
 			tt.checkFunc(t, rec.Body.String())
@@ -162,7 +165,7 @@ func TestSearchTruncatesLongResultLists(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := get(t, crowdedDocument(t, tt.people), "/search?q="+tt.query)
+			rec := getHTMX(t, crowdedDocument(t, tt.people), "/search?q="+tt.query)
 
 			require.Equal(t, http.StatusOK, rec.Code)
 
@@ -215,6 +218,61 @@ func TestSearchResultExpandsTreeToRevealHousehold(t *testing.T) {
 				assert.Contains(t, body, `data-household="`+id+`"`,
 					"the tree pane must render this ancestor, not just the selected leaf")
 			}
+		})
+	}
+}
+
+// TestSearchWithoutHtmxRendersWholePage guards the non-htmx fallback. The form
+// has action="/search" method="get", so a browser with JavaScript unavailable —
+// or one that submits before htmx has loaded — navigates there directly. Serving
+// the bare fragment on that path gave the Editor an unstyled list with no tree
+// and no way back, which for this audience is an error screen.
+//
+// htmx sets Hx-Request on its own requests, which is what lets one route answer
+// both. It also makes a search deep-linkable, as ADR-0008 claims of every view.
+func TestSearchWithoutHtmxRendersWholePage(t *testing.T) {
+	tests := []struct {
+		name      string
+		htmx      bool
+		checkFunc func(t *testing.T, body string)
+	}{
+		{
+			name: "a plain browser navigation gets the whole page",
+			htmx: false,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, "<!DOCTYPE html>", "not an orphan fragment")
+				assert.Contains(t, body, "Dave Whitlock", "the results are still there")
+				assert.Contains(t, body, "Aden/Nettie", "and so is the tree, so there is a way onward")
+				assert.Contains(t, body, `value="dave"`, "the box keeps what was typed")
+			},
+		},
+		{
+			name: "an htmx request still gets the bare fragment",
+			htmx: true,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.NotContains(t, body, "<!DOCTYPE html>", "a swap target must not nest a document")
+				assert.Contains(t, body, "Dave Whitlock")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, err := web.New(sampleDocument(), config.Config{}, testLogger(), web.Meta{})
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, "/search?q=dave", nil)
+			if tt.htmx {
+				req.Header.Set("Hx-Request", "true")
+			}
+
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			tt.checkFunc(t, rec.Body.String())
 		})
 	}
 }

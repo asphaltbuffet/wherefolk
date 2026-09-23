@@ -212,3 +212,22 @@ func TestStatusPage(t *testing.T) {
 		})
 	}
 }
+
+// getHTMX issues a request the way htmx does, with the HX-Request header set.
+// Handlers that serve both audiences branch on it, so a test asserting on a
+// fragment must say which one it is simulating rather than relying on the
+// handler not distinguishing them.
+func getHTMX(t *testing.T, doc *store.Document, target string) *httptest.ResponseRecorder {
+	t.Helper()
+
+	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{DocumentPath: "/tmp/test/directory.json"})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodGet, target, nil)
+	req.Header.Set("Hx-Request", "true")
+
+	rec := httptest.NewRecorder()
+	srv.Handler().ServeHTTP(rec, req)
+
+	return rec
+}
