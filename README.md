@@ -28,9 +28,15 @@ Wherefolk is deployed as a container behind a Tailscale sidecar
 ```bash
 docker run --rm \
   -v /srv/wherefolk:/var/lib/wherefolk \
-  -p 8080:8080 \
   ghcr.io/asphaltbuffet/wherefolk:latest
 ```
+
+There is deliberately no published port. The service binds loopback only
+([ADR-0001](docs/adr/0001-tailscale-for-access.md),
+[ADR-0007](docs/adr/0007-configurable-port-fixed-interface.md)), so `-p` would
+forward to an interface nothing listens on. The Tailscale sidecar shares the
+container's network namespace and reaches the service over that same loopback,
+which makes `tailscale serve` the only way in.
 
 ### Locally
 

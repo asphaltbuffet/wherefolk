@@ -48,9 +48,8 @@ jobs:
       - name: Generate code
         run: mise run generate
 
-      # dockers_v2 builds during the publish phase, which --snapshot skips, so
-      # this verifies the binaries and archives only — not the image. A broken
-      # Dockerfile surfaces at release time.
+      # --snapshot builds the image but never pushes it, so a broken Dockerfile
+      # fails here rather than part-way through a release.
       - name: Release Test
         uses: goreleaser/goreleaser-action@v7
         with:
