@@ -290,6 +290,11 @@ type directoryView struct {
 	Tree      treeView
 	Household *householdView
 	NotFound  bool
+
+	// Results is the search result list. It is empty on first load and after a
+	// navigation, because the tree — not the last search — is where the Editor
+	// is. The fragment is rendered inline anyway so htmx has a target to swap.
+	Results resultsView
 }
 
 // householdView builds the detail pane for one Household, reporting false if it

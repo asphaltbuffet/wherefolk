@@ -77,6 +77,7 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /{$}", s.handleDirectory)
 	mux.HandleFunc("GET /h/{id}", s.handleDirectory)
 	mux.HandleFunc("GET /tree", s.handleTree)
+	mux.HandleFunc("GET /search", s.handleSearch)
 
 	// Vendored assets, served from the embedded FS so the binary stays a single
 	// file with no runtime dependency on a directory beside it. The embed root
