@@ -37,6 +37,34 @@ func toggleURL(selected rolo.HouseholdID, openList string, id rolo.HouseholdID, 
 	return "/tree?" + q.Encode()
 }
 
+// paneClosed is the only value of ?pane= that means anything. Anything else,
+// including its absence, leaves the tree pane open — the Editor's default view
+// is the one §4.2 calls primary, and a typo in a bookmark should not hide it.
+const paneClosed = "closed"
+
+// paneToggleURL builds the link that opens or closes the tree pane, keeping the
+// Editor on the same Household. Built with [url.Values] like every other link
+// here, so a Household ID can never break the query apart.
+//
+// Closing is a parameter rather than the absence of one because the open state
+// is the default: a link that merely dropped ?pane= would be indistinguishable
+// from a fresh visit.
+func paneToggleURL(selected rolo.HouseholdID, isClosed bool) string {
+	path := "/"
+	if selected != "" {
+		path = "/h/" + url.PathEscape(string(selected))
+	}
+
+	if isClosed {
+		return path
+	}
+
+	q := url.Values{}
+	q.Set("pane", paneClosed)
+
+	return path + "?" + q.Encode()
+}
+
 // treeNode is one row in the tree pane.
 //
 // Children is populated only when Open, so the rendered tree contains exactly
@@ -220,7 +248,12 @@ func (s *Server) joinIDsOrdered(open map[rolo.HouseholdID]bool) string {
 	var ids []string
 
 	_ = s.tree.Walk(func(h rolo.Household, _ int) error {
-		if open[h.ID] {
+		// Childless Households are dropped: "open" means "show my children",
+		// which is meaningless for a leaf, and a leaf renders no close link so
+		// nothing could ever remove it again. selectionChain adds the selection
+		// itself, and the selection is frequently a leaf, so without this the
+		// URL would grow monotonically across a session.
+		if open[h.ID] && len(s.tree.Children(h.ID)) > 0 {
 			ids = append(ids, string(h.ID))
 		}
 		return nil
@@ -295,6 +328,14 @@ type directoryView struct {
 	// navigation, because the tree — not the last search — is where the Editor
 	// is. The fragment is rendered inline anyway so htmx has a target to swap.
 	Results resultsView
+
+	// PaneClosed collapses the tree pane (§4.1). It rides in the URL like the
+	// rest of the navigation state (ADR-0008), so the Editor's choice survives
+	// a reload and a bookmark without a cookie to lose.
+	PaneClosed bool
+	// PaneToggleURL reopens or closes the pane, preserving the current
+	// selection. Built with url.Values for the same reason as a tree toggle.
+	PaneToggleURL string
 }
 
 // householdView builds the detail pane for one Household, reporting false if it

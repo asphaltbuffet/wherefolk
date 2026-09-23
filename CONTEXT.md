@@ -64,17 +64,18 @@ repeated Address.
 
 **Withheld field**:
 A field the Editor has marked hidden. Renders as `[private]` in the editing UI and in every
-Directory tier, so nobody re-collects it next year. Distinct from a **tier-suppressed** field,
+Directory tier, so nobody re-collects it next year. Distinct from a **Suppressed field**,
 which renders as nothing at all. Phone, email, and birth date are withheld per Person; an Address
 is withheld per Household.
 _Avoid_: Private field, redacted, suppressed
 
-**Tier-suppressed field**:
-A field a tier omits for its whole audience — a phone number in the Mail tier, a minor's details
-outside Full. Renders as **nothing at all**, never as a marker: a placeholder would advertise that
-the data exists, leaking exactly what the tier is meant to omit. Contrast a **Withheld field**,
-which the Editor marked hidden and which renders as `[private]` in every tier.
-_Avoid_: Filtered, hidden, redacted
+**Suppressed field**:
+A field omitted for a whole audience rather than by the Editor's choice — a phone number in the
+Mail tier, a minor's details outside Full, or a deceased person's contact details anywhere.
+Renders as **nothing at all**, never as a marker: a placeholder would advertise that the data
+exists, leaking exactly what the suppression is meant to omit. Contrast a **Withheld field**,
+which the Editor marked hidden and which renders as `[private]`.
+_Avoid_: Tier-suppressed (suppression is not always a tier rule), filtered, hidden, redacted
 
 ### Dates
 

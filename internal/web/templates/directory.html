@@ -1,8 +1,13 @@
 {{define "title"}}Directory{{end}}
 
 {{define "body"}}
-<div class="panes">
-  <aside class="pane pane-tree">
+<div class="panes{{if .PaneClosed}} panes-collapsed{{end}}">
+  <a class="pane-toggle" href="{{.PaneToggleURL}}"
+     aria-expanded="{{if .PaneClosed}}false{{else}}true{{end}}"
+     aria-controls="tree"
+     title="{{if .PaneClosed}}Show the household list{{else}}Hide the household list{{end}}"
+    >{{if .PaneClosed}}»{{else}}«{{end}}<span class="visually-hidden">{{if .PaneClosed}}Show{{else}}Hide{{end}} the household list</span></a>
+  <aside class="pane pane-tree"{{if .PaneClosed}} hidden{{end}}>
     {{template "tree" .Tree}}
     <form class="search" role="search" action="/search" method="get">
       <label class="visually-hidden" for="q">Search for a person</label>

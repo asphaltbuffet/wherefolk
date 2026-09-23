@@ -5,7 +5,8 @@ expanded. §2.1 fixes the frontend as server-rendered templates with htmx and pe
 JavaScript only for tree expand/collapse, and ADR-0001 removed identity entirely, so there is no
 session to hang state on and no accounts to key it by. Navigation state therefore lives in the URL:
 `/h/{id}` names the selection, `?open=` carries the expanded set as comma-separated Household IDs,
-and `?close=` removes one from it. Nothing is stored in a cookie, a session, or client-side state.
+`?close=` removes one from it, and `?pane=closed` collapses the tree pane (§4.1). Nothing is
+stored in a cookie, a session, or client-side state.
 
 The server always expands the selection's own ancestors, whatever the query string asks for. A
 `?close=` that names an ancestor of the selection is therefore applied *before* that chain is

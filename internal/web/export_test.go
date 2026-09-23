@@ -66,3 +66,11 @@ func (s *Server) HouseholdViewForTest(id rolo.HouseholdID) (householdView, bool)
 
 	return s.householdView(id)
 }
+
+// JoinIDsOrderedForTest exposes joinIDsOrdered to the external test package.
+func (s *Server) JoinIDsOrderedForTest(open map[rolo.HouseholdID]bool) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.joinIDsOrdered(open)
+}

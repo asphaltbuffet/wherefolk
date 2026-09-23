@@ -38,7 +38,8 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     rendered *without* the layout, because htmx swaps them into a page that is already loaded.
     `render` emits a whole page and takes an HTTP status; `renderFragment` emits one named template.
   - Navigation state lives in the URL, never in a cookie or client state (ADR-0008). `/h/{id}` is
-    the selection; `?open=`/`?close=` carry the expanded Branches.
+    the selection; `?open=`/`?close=` carry the expanded Branches, `?pane=closed` collapses the
+    tree pane.
   - View models in `view.go` hold rendered **strings**, not `rolo` values. A withheld field becomes
     `[private]` and a Memorial Household's contact details are blanked *there*, so a value the
     Editor withheld cannot reach a template and leak through a later markup change.
@@ -86,8 +87,8 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
   once item 5 makes the document mutable, and a few hundred people scan instantly.
 - **Two kinds of absence, and they must render differently** (§5.5). A *withheld* field — one the
   Editor marked hidden — renders `[private]`, so nobody re-collects it next year. A *suppressed*
-  field — one a tier or a Memorial Household omits — renders as nothing at all, because a marker
-  would advertise that the data exists.
+  field — one a tier omits, or any contact detail of a deceased person — renders as nothing at
+  all, because a marker would advertise that the data exists.
 - Normalisation is called explicitly by the editing layer, not by `store.Save` — a hand-repaired
   document is loaded and saved exactly as written.
 

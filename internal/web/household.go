@@ -10,9 +10,10 @@ import (
 // Editor's first visit: the tree is shown and the detail pane invites a choice.
 func (s *Server) handleDirectory(w http.ResponseWriter, r *http.Request) {
 	id := rolo.HouseholdID(r.PathValue("id"))
+	q := r.URL.Query()
 
 	s.mu.RLock()
-	view := s.directoryView(id, r.URL.Query().Get("open"), r.URL.Query().Get("close"))
+	view := s.directoryView(id, q.Get("open"), q.Get("close"), q.Get("pane") == paneClosed)
 	s.mu.RUnlock()
 
 	// A selection that is not in the document is the Editor following a stale
@@ -32,8 +33,12 @@ func (s *Server) handleDirectory(w http.ResponseWriter, r *http.Request) {
 }
 
 // directoryView assembles the whole page. Callers hold at least a read lock.
-func (s *Server) directoryView(id rolo.HouseholdID, rawOpen, closing string) directoryView {
-	view := directoryView{Tree: s.treeView(id, rawOpen, closing)}
+func (s *Server) directoryView(id rolo.HouseholdID, rawOpen, closing string, paneClosed bool) directoryView {
+	view := directoryView{
+		Tree:          s.treeView(id, rawOpen, closing),
+		PaneClosed:    paneClosed,
+		PaneToggleURL: paneToggleURL(id, paneClosed),
+	}
 
 	if id == "" {
 		return view

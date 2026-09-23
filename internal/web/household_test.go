@@ -131,3 +131,81 @@ func TestDirectoryPage(t *testing.T) {
 		})
 	}
 }
+
+// TestTreePaneCollapses covers §4.1's "the tree pane is collapsible", which the
+// plan cited the section for but never transcribed into a requirement — the same
+// way it dropped §5.4's no-contact-details rule. The state rides in the URL like
+// the rest of the navigation state (ADR-0008), so it survives a reload.
+func TestTreePaneCollapses(t *testing.T) {
+	tests := []struct {
+		name      string
+		target    string
+		checkFunc func(t *testing.T, body string)
+	}{
+		{
+			name:   "the pane is open by default",
+			target: "/h/h_clyde",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, `aria-expanded="true"`)
+				assert.Contains(t, body, "Aden/Nettie", "the tree is rendered")
+				assert.NotContains(t, body, "panes-collapsed")
+			},
+		},
+		{
+			name:   "pane=closed collapses it and offers to reopen",
+			target: "/h/h_clyde?pane=closed",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, "panes-collapsed")
+				assert.Contains(t, body, `aria-expanded="false"`)
+				assert.Contains(t, body, "Show the household list")
+				assert.Contains(t, body, "Clyde Whitlock", "the detail pane is unaffected")
+			},
+		},
+		{
+			name:   "the toggle keeps the Editor on the same Household",
+			target: "/h/h_clyde",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, `href="/h/h_clyde?pane=closed"`,
+					"collapsing must not lose the selection")
+			},
+		},
+		{
+			name:   "closed, the toggle links back without the parameter",
+			target: "/h/h_clyde?pane=closed",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, `href="/h/h_clyde"`)
+			},
+		},
+		{
+			name:   "an unrecognised pane value leaves the pane open",
+			target: "/h/h_clyde?pane=banana",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.NotContains(t, body, "panes-collapsed",
+					"a typo in a bookmark must not hide the primary interface")
+			},
+		},
+		{
+			name:   "the root page collapses too, without a Household",
+			target: "/?pane=closed",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, "panes-collapsed")
+				assert.Contains(t, body, `href="/"`, "the reopen link works with no selection")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := get(t, sampleDocument(), tt.target)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			tt.checkFunc(t, rec.Body.String())
+		})
+	}
+}

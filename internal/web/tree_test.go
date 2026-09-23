@@ -322,3 +322,45 @@ func TestToggleLinksPushHistory(t *testing.T) {
 		})
 	}
 }
+
+// TestOpenSetDropsChildlessNodes guards against unbounded URL growth.
+// selectionChain always adds the selection itself, and the selection is often a
+// leaf; a leaf renders no close link, so once its ID entered the open set
+// nothing could ever remove it and every subsequent link carried it forward.
+func TestOpenSetDropsChildlessNodes(t *testing.T) {
+	tests := []struct {
+		name     string
+		selected rolo.HouseholdID
+		raw      string
+		want     string
+	}{
+		{
+			name:     "selecting a leaf does not put it in the open list",
+			selected: "h_dave",
+			want:     "h_aden,h_clyde",
+		},
+		{
+			name: "a childless root passed explicitly is dropped",
+			raw:  "h_reeve",
+			want: "",
+		},
+		{
+			name: "a parent is kept",
+			raw:  "h_aden",
+			want: "h_aden",
+		},
+		{
+			name:     "selecting a parent keeps its whole chain",
+			selected: "h_clyde",
+			want:     "h_aden,h_clyde",
+		},
+	}
+
+	srv := newTestServer(t)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, srv.JoinIDsOrderedForTest(srv.OpenSetForTest(tt.selected, tt.raw)))
+		})
+	}
+}

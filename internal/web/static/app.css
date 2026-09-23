@@ -15,9 +15,24 @@ main { height: 100vh; }
 
 .panes {
   display: grid;
-  grid-template-columns: 22rem 1fr;
+  grid-template-columns: 1.5rem 22rem 1fr;
   height: 100%;
 }
+
+/* §4.1: the tree pane is collapsible. The toggle keeps its column so the
+   control never moves; only the tree's own column collapses. */
+.panes-collapsed { grid-template-columns: 1.5rem 0 1fr; }
+
+.pane-toggle {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: var(--gap);
+  text-decoration: none;
+  color: var(--muted);
+  border-right: 1px solid var(--rule);
+}
+.pane-toggle:hover { background: #f4f4f4; color: #000; }
 
 .pane { overflow: auto; padding: var(--gap); }
 .pane-tree { border-right: 1px solid var(--rule); }
