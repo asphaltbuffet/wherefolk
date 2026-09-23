@@ -29,33 +29,16 @@ type treeNode struct {
 // is showing, which may be empty; open is the set of Households whose children
 // are expanded.
 //
-// The selection's own ancestor chain is always treated as open, regardless of
-// what open contains: a selected Household that the tree does not display would
-// break §4.3's promise that navigation stays inside the Editor's mental model.
-// Callers that already fold the chain into open (via openSet) pay nothing extra
-// for this; callers that pass a bare open map still get a correct render.
+// It renders the open set it is given and does not compute one. Deciding what
+// is open — in particular the rule that a selection's ancestors are always
+// open, so the tree can never hide the Household the detail pane is showing —
+// belongs to openSet and treeView. Duplicating that rule here would put it in
+// two places that could drift, and would silently override treeView's
+// deliberate ordering, which applies a close request before re-adding the
+// selection's chain.
 //
 // Callers hold at least a read lock.
 func (s *Server) treeNodes(selected rolo.HouseholdID, open map[rolo.HouseholdID]bool) []treeNode {
-	isOpen := func(id rolo.HouseholdID) bool {
-		return open[id]
-	}
-
-	if chain := s.selectionChain(selected); len(chain) > 0 {
-		merged := make(map[rolo.HouseholdID]bool, len(open)+len(chain))
-		for id, v := range open {
-			merged[id] = v
-		}
-
-		for _, id := range chain {
-			merged[id] = true
-		}
-
-		isOpen = func(id rolo.HouseholdID) bool {
-			return merged[id]
-		}
-	}
-
 	var build func(households []rolo.Household) []treeNode
 
 	build = func(households []rolo.Household) []treeNode {
@@ -69,7 +52,7 @@ func (s *Server) treeNodes(selected rolo.HouseholdID, open map[rolo.HouseholdID]
 				Label:       h.Label(),
 				Memorial:    h.IsMemorial(),
 				Selected:    h.ID == selected,
-				Open:        isOpen(h.ID),
+				Open:        open[h.ID],
 				HasChildren: len(children) > 0,
 			}
 

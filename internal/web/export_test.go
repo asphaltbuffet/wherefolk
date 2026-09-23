@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -21,12 +22,25 @@ func (s *Server) RenderFragmentForTest(
 // TreeNodeForTest is treeNode, exported for the external test package.
 type TreeNodeForTest = treeNode
 
-// TreeNodesForTest exposes treeNodes to the external test package.
+// TreeNodesForTest exposes tree rendering to the external test package.
+//
+// It routes through openSet rather than calling treeNodes with the bare map,
+// because openSet is what folds the selection's ancestors into the open set.
+// Calling treeNodes directly would test a layer in isolation that production
+// never uses that way, and would invite pushing openSet's rule down into
+// treeNodes so the isolated call looked right.
 func (s *Server) TreeNodesForTest(selected rolo.HouseholdID, open map[rolo.HouseholdID]bool) []treeNode {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.treeNodes(selected, open)
+	ids := make([]string, 0, len(open))
+	for id, isOpen := range open {
+		if isOpen {
+			ids = append(ids, string(id))
+		}
+	}
+
+	return s.treeNodes(selected, s.openSet(selected, strings.Join(ids, ",")))
 }
 
 // OpenSetForTest exposes openSet to the external test package.
