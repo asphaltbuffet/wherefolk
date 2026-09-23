@@ -174,7 +174,6 @@ func TestOpenSet(t *testing.T) {
 	}
 }
 
-
 // TestToggleURLEncodesIDs guards the query construction against Household IDs
 // that are not URL-safe. store.Load accepts a hand-repaired document exactly as
 // written and validation in this project observes rather than rejects, so an ID
@@ -292,6 +291,34 @@ func TestSelectionAncestorsHaveNoToggle(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, rec.Code)
 			tt.checkFunc(t, rec.Body.String())
+		})
+	}
+}
+
+// TestToggleLinksPushHistory guards the claim, made in treeView's comment and
+// in ADR-0008, that the back button retraces expansions. An htmx swap does not
+// touch the address bar on its own, so without hx-push-url the toggles would
+// change the tree while the URL stood still and the back button would retrace
+// nothing.
+func TestToggleLinksPushHistory(t *testing.T) {
+	tests := []struct {
+		name   string
+		target string
+	}{
+		{name: "an expand link pushes history", target: "/tree"},
+		{name: "a collapse link pushes history", target: "/tree?open=h_aden"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := get(t, sampleDocument(), tt.target)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+
+			body := rec.Body.String()
+			require.Contains(t, body, "hx-get=", "this fixture state must offer a toggle")
+			assert.Contains(t, body, `hx-push-url="true"`,
+				"a toggle that does not push history breaks ADR-0008's back-button claim")
 		})
 	}
 }
