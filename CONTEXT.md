@@ -69,6 +69,13 @@ which renders as nothing at all. Phone, email, and birth date are withheld per P
 is withheld per Household.
 _Avoid_: Private field, redacted, suppressed
 
+**Tier-suppressed field**:
+A field a tier omits for its whole audience — a phone number in the Mail tier, a minor's details
+outside Full. Renders as **nothing at all**, never as a marker: a placeholder would advertise that
+the data exists, leaking exactly what the tier is meant to omit. Contrast a **Withheld field**,
+which the Editor marked hidden and which renders as `[private]` in every tier.
+_Avoid_: Filtered, hidden, redacted
+
 ### Dates
 
 **Truncated Date**:
