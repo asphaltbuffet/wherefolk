@@ -1,0 +1,61 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Snapshot
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.goreleaser.yml'
+      - 'Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+      - 'mise.toml'
+  pull_request:
+    branches: [main]
+    paths:
+      - '.goreleaser.yml'
+      - 'Dockerfile'
+      - 'go.mod'
+      - 'go.sum'
+      - 'mise.toml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  snapshot:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Set up mise
+        uses: jdx/mise-action@v4
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Generate code
+        run: mise run generate
+
+      # --snapshot builds the image but never pushes it, so a broken Dockerfile
+      # fails here rather than part-way through a release.
+      - name: Release Test
+        uses: goreleaser/goreleaser-action@v7
+        with:
+          distribution: goreleaser-pro
+          version: "~> v2"
+          args: release --clean --snapshot
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GORELEASER_KEY: ${{ secrets.GORELEASER_KEY }}

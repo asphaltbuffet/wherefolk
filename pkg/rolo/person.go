@@ -22,6 +22,11 @@ type HiddenFields struct {
 // Person is a single human being in the Directory. Every Person belongs to
 // exactly one Household, either as one of its adults or as one of its
 // Dependents.
+// The queries below are value-semantic and only Normalize mutates, so only
+// Normalize takes a pointer. Household.Normalize therefore iterates by index
+// rather than by range copy, which would discard the result.
+//
+//nolint:recvcheck // mixed receivers are deliberate; see above
 type Person struct {
 	ID PersonID `json:"id"`
 
@@ -49,7 +54,7 @@ func (p Person) IsDeceased() bool { return !p.Death.IsZero() }
 
 // IsMinor reports whether the Person is under 18 at asOf.
 //
-// The reference time is a parameter rather than time.Now() so that the caller
+// The reference time is a parameter rather than [time.Now] so that the caller
 // sees the time dependency: age gating means the same Directory exported
 // months apart differs as people turn 18.
 //
@@ -81,7 +86,10 @@ func (p Person) IsMinor(asOf time.Time) bool {
 // DisplayName renders the Person's name, with any nickname double-quoted
 // between the given name and the surname.
 func (p Person) DisplayName() string {
-	parts := make([]string, 0, 3)
+	// Given, "Aka", Surname — the widest a display name gets.
+	const maxNameParts = 3
+
+	parts := make([]string, 0, maxNameParts)
 	if p.Given != "" {
 		parts = append(parts, p.Given)
 	}

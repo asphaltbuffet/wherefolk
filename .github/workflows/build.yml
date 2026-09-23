@@ -1,0 +1,82 @@
+# yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
+name: Main Workflow
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  govulncheck:
+    uses: asphaltbuffet/.github/.github/workflows/vulncheck.yml@main
+
+  test:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Set up mise
+        uses: jdx/mise-action@v4
+
+      - name: Generate code
+        run: mise run generate
+
+      - name: Mod tidy
+        run: mise run mod-tidy
+
+      - name: Build
+        run: mise run build
+
+      - name: Test
+        run: mise run test
+
+      - name: Coverage
+        run: mise run cover
+
+      - name: Diff check
+        run: mise run diff
+
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v7
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./bin/coverage.out
+
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      checks: write
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Set up mise
+        uses: jdx/mise-action@v4
+
+      - name: Generate code
+        run: mise run generate
+
+      - name: Mod tidy
+        run: mise run mod-tidy
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v9
+        with:
+          version: v2.9

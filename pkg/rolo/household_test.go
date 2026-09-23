@@ -33,14 +33,18 @@ func TestHouseholdIsMemorial(t *testing.T) {
 			want:      false,
 		},
 		{
-			name:      "one adult deceased, one living",
-			household: rolo.Household{Adults: []rolo.Person{deceasedAdult("Clyde", 1938, 2019), livingAdult("Doris", 1940)}},
-			want:      false,
+			name: "one adult deceased, one living",
+			household: rolo.Household{
+				Adults: []rolo.Person{deceasedAdult("Clyde", 1938, 2019), livingAdult("Doris", 1940)},
+			},
+			want: false,
 		},
 		{
-			name:      "both adults deceased",
-			household: rolo.Household{Adults: []rolo.Person{deceasedAdult("Aden", 1910, 1988), deceasedAdult("Nettie", 1912, 1995)}},
-			want:      true,
+			name: "both adults deceased",
+			household: rolo.Household{
+				Adults: []rolo.Person{deceasedAdult("Aden", 1910, 1988), deceasedAdult("Nettie", 1912, 1995)},
+			},
+			want: true,
 		},
 		{
 			name: "both adults deceased but a dependent survives is still memorial",
@@ -117,9 +121,11 @@ func TestHouseholdLabel(t *testing.T) {
 			want:      "Doris",
 		},
 		{
-			name:      "deceased adults still label the household",
-			household: rolo.Household{Adults: []rolo.Person{deceasedAdult("Aden", 1910, 1988), deceasedAdult("Nettie", 1912, 1995)}},
-			want:      "Aden/Nettie",
+			name: "deceased adults still label the household",
+			household: rolo.Household{
+				Adults: []rolo.Person{deceasedAdult("Aden", 1910, 1988), deceasedAdult("Nettie", 1912, 1995)},
+			},
+			want: "Aden/Nettie",
 		},
 		{
 			name:      "no adults falls back to a placeholder",

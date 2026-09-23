@@ -6,10 +6,13 @@
 package web
 
 import (
+	"errors"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 
+	"github.com/asphaltbuffet/wherefolk/internal/config"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -29,6 +32,8 @@ type Server struct {
 	// silently disagree and navigation renders a tree that no longer exists.
 	tree *rolo.Tree
 	meta Meta
+	cfg  config.Config
+	log  *slog.Logger
 }
 
 // Meta carries Operator-facing facts about the running service that the
@@ -41,9 +46,17 @@ type Meta struct {
 // New builds a Server over an already-loaded document. It takes a document
 // rather than a path so the web layer has no filesystem dependency; main owns
 // loading and treats failure as fatal.
-func New(doc *store.Document, meta Meta) (*Server, error) {
+//
+// The logger is injected rather than taken from slog's package default so that
+// nothing here depends on process-global state: main builds it at the level cfg
+// carries and owns where the output goes.
+func New(doc *store.Document, cfg config.Config, logger *slog.Logger, meta Meta) (*Server, error) {
 	if doc == nil {
-		return nil, fmt.Errorf("web: document is nil")
+		return nil, errors.New("web: document is nil")
+	}
+
+	if logger == nil {
+		return nil, errors.New("web: logger is nil")
 	}
 
 	tree, err := doc.Tree()
@@ -51,7 +64,7 @@ func New(doc *store.Document, meta Meta) (*Server, error) {
 		return nil, fmt.Errorf("web: build tree: %w", err)
 	}
 
-	return &Server{doc: doc, tree: tree, meta: meta}, nil
+	return &Server{doc: doc, tree: tree, meta: meta, cfg: cfg, log: logger}, nil
 }
 
 // Handler returns the server's routes.

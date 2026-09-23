@@ -56,7 +56,8 @@ func Load(path string) (*Document, error) {
 	var probe struct {
 		Schema *int `json:"schema"`
 	}
-	if err := json.Unmarshal(b, &probe); err != nil {
+	err = json.Unmarshal(b, &probe)
+	if err != nil {
 		return nil, fmt.Errorf("read document schema: %w", err)
 	}
 	if probe.Schema == nil {
@@ -68,11 +69,14 @@ func Load(path string) (*Document, error) {
 	}
 
 	var doc Document
-	if err := json.Unmarshal(b, &doc); err != nil {
+
+	err = json.Unmarshal(b, &doc)
+	if err != nil {
 		return nil, fmt.Errorf("parse document: %w", err)
 	}
 
-	if _, err := doc.Tree(); err != nil {
+	_, err = doc.Tree()
+	if err != nil {
 		return nil, fmt.Errorf("validate document: %w", err)
 	}
 
@@ -90,7 +94,8 @@ func Save(path string, doc *Document) error {
 	}
 	b = append(b, '\n')
 
-	if err := writeFileAtomic(path, b, documentPerm); err != nil {
+	err = writeFileAtomic(path, b)
+	if err != nil {
 		return fmt.Errorf("save document: %w", err)
 	}
 

@@ -1,3 +1,8 @@
+bin/
+dist/
+*.out
+*.test
+
 .direnv/
 .envrc
 

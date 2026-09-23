@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+#MISE description="Create and push a release tag from the latest changie version"
+
+set -euo pipefail
+
+if [ -n "$(jj diff -s 2>/dev/null)" ]; then
+  echo "Error: working copy has pending changes"
+  jj diff -s
+  exit 1
+fi
+
+parent=$(jj log --no-graph -r '@-' --template 'commit_id' 2>/dev/null)
+trunk=$(jj log --no-graph -r 'trunk()' --template 'commit_id' 2>/dev/null)
+if [ "$parent" != "$trunk" ]; then
+  echo "Error: not on trunk — current @ parent is not trunk()"
+  echo "  Merge your PR before releasing."
+  exit 1
+fi
+
+version=$(changie latest)
+if [ -z "$version" ]; then
+  echo "Error: changie latest returned empty — has pre-release been run?"
+  exit 1
+fi
+
+echo "Version: ${version}"
+
+bare="${version#v}"
+if ! grep -q "^## \[${bare}\]" CHANGELOG.md; then
+  echo "Error: no '## [${bare}]' entry in CHANGELOG.md"
+  echo "  Run 'mise run pre-release <major|minor|patch>' first."
+  exit 1
+fi
+echo "  ✓ CHANGELOG.md has entry for ${bare}"
+
+if git tag --list "${version}" | grep -q "^${version}$"; then
+  echo "Error: tag ${version} already exists — was this release already published?"
+  exit 1
+fi
+echo "  ✓ Tag ${version} does not exist yet"
+
+git tag -m "${version}" "${version}" "${trunk}"
+git push origin "${version}"
+
+echo ""
+echo "Done. CI will build and publish the release for ${version}."

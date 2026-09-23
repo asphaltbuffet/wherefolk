@@ -17,7 +17,7 @@ const housePhoneDigits = 10
 //
 // The empty string returns ("", true): there is nothing to normalise, and most
 // people in the Directory have no phone on file. That is not a failure.
-func NormalizePhone(s string) (normalized string, recognized bool) {
+func NormalizePhone(s string) (string, bool) {
 	trimmed := strings.TrimSpace(s)
 	if trimmed == "" {
 		return "", true

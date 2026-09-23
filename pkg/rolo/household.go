@@ -24,6 +24,11 @@ type Address struct {
 // Parent is empty for a root Household. Children are not stored: they are
 // derived by grouping on Parent when the Tree is built, so moving a Household
 // is a one-field edit that cannot leave two records disagreeing.
+// The queries below are value-semantic and only Normalize mutates, so only
+// Normalize takes a pointer. Callers must normalise through an index —
+// doc.Households[i].Normalize() — because a range copy would be discarded.
+//
+//nolint:recvcheck // mixed receivers are deliberate; see above
 type Household struct {
 	ID     HouseholdID `json:"id"`
 	Parent HouseholdID `json:"parent,omitempty"`

@@ -24,6 +24,8 @@ func (s Severity) String() string {
 	switch s {
 	case SeverityWarning:
 		return "warning"
+	case SeverityNotice:
+		return "notice"
 	default:
 		return "notice"
 	}
@@ -84,7 +86,11 @@ func validatePerson(household HouseholdID, p Person) []Finding {
 
 	if p.Phone != "" {
 		if _, recognized := NormalizePhone(p.Phone); !recognized {
-			add("phone", fmt.Sprintf("%q is not a standard phone number, so it will print exactly as written", p.Phone), SeverityNotice)
+			add(
+				"phone",
+				fmt.Sprintf("%q is not a standard phone number, so it will print exactly as written", p.Phone),
+				SeverityNotice,
+			)
 		}
 	}
 
@@ -147,9 +153,11 @@ func validateAnniversary(h Household) []Finding {
 // from a successfully parsed address that carries a display name (hint is
 // introduced by a colon, as before).
 //
-// net/mail.ParseAddress also accepts the display-name form, Pat Novak
+// [net/mail.ParseAddress] also accepts the display-name form, Pat Novak
 // <pat@example.com>, which is not what belongs in a directory's email field —
 // so an address that parses but carries a name is rejected here.
+//
+//nolint:nonamedreturns // three results, two of them bare bools; the names are what make a call site readable
 func checkEmail(s string) (hint string, malformed, bad bool) {
 	addr, err := mail.ParseAddress(s)
 	if err != nil {

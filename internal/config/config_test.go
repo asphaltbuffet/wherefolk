@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"log/slog"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -25,6 +26,8 @@ func TestLoad(t *testing.T) {
 			name: "empty environment uses defaults",
 			vars: map[string]string{},
 			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
 				assert.Equal(t, "/var/lib/wherefolk", got.DataDir)
 				assert.Equal(t, 8080, got.Port)
 			},
@@ -33,6 +36,8 @@ func TestLoad(t *testing.T) {
 			name: "data directory is overridden",
 			vars: map[string]string{"WHEREFOLK_DATA": "/tmp/wf"},
 			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
 				assert.Equal(t, "/tmp/wf", got.DataDir)
 				assert.Equal(t, 8080, got.Port, "port keeps its default")
 			},
@@ -41,6 +46,8 @@ func TestLoad(t *testing.T) {
 			name: "port is overridden",
 			vars: map[string]string{"WHEREFOLK_PORT": "9090"},
 			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
 				assert.Equal(t, 9090, got.Port)
 			},
 		},
@@ -53,6 +60,47 @@ func TestLoad(t *testing.T) {
 			name:    "port below range is fatal",
 			vars:    map[string]string{"WHEREFOLK_PORT": "0"},
 			wantErr: "WHEREFOLK_PORT",
+		},
+		{
+			name: "log level defaults to info",
+			vars: map[string]string{},
+			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
+				assert.Equal(t, slog.LevelInfo, got.LogLevel)
+			},
+		},
+		{
+			name: "log level is overridden",
+			vars: map[string]string{"WHEREFOLK_LOG_LEVEL": "debug"},
+			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
+				assert.Equal(t, slog.LevelDebug, got.LogLevel)
+			},
+		},
+		{
+			name: "log level is case-insensitive",
+			vars: map[string]string{"WHEREFOLK_LOG_LEVEL": "WARN"},
+			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
+				assert.Equal(t, slog.LevelWarn, got.LogLevel)
+			},
+		},
+		{
+			name: "log level accepts error",
+			vars: map[string]string{"WHEREFOLK_LOG_LEVEL": "error"},
+			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
+				assert.Equal(t, slog.LevelError, got.LogLevel)
+			},
+		},
+		{
+			name:    "unknown log level is fatal",
+			vars:    map[string]string{"WHEREFOLK_LOG_LEVEL": "chatty"},
+			wantErr: "WHEREFOLK_LOG_LEVEL",
 		},
 		{
 			name:    "port above range is fatal",
@@ -73,6 +121,8 @@ func TestLoad(t *testing.T) {
 			name: "lowest valid port is accepted",
 			vars: map[string]string{"WHEREFOLK_PORT": "1"},
 			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
 				assert.Equal(t, 1, got.Port)
 			},
 		},
@@ -80,6 +130,8 @@ func TestLoad(t *testing.T) {
 			name: "highest valid port is accepted",
 			vars: map[string]string{"WHEREFOLK_PORT": "65535"},
 			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
 				assert.Equal(t, 65535, got.Port)
 			},
 		},
@@ -87,6 +139,8 @@ func TestLoad(t *testing.T) {
 			name: "document path derives from the data directory",
 			vars: map[string]string{"WHEREFOLK_DATA": "/tmp/wf"},
 			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
 				assert.Equal(t, "/tmp/wf/directory.json", got.DocumentPath())
 			},
 		},

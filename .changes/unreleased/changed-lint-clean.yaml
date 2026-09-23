@@ -1,0 +1,5 @@
+kind: Changed
+body: Codebase is clean against the strict golangci-lint config; the logger is now injected rather than taken from slog's package default
+time: 2026-09-23T00:00:01.000000000-00:00
+custom:
+  Issue: ""

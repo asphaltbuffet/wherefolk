@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+#MISE description="Batch changie fragments, merge CHANGELOG"
+#USAGE arg "bump" help="Version bump type" {
+#USAGE   choices "major" "minor" "patch"
+#USAGE }
+
+set -euo pipefail
+
+# shellcheck disable=SC2154
+bump="${usage_bump}"
+
+fragments=("${PWD}/.changes/unreleased/"*.yaml)
+if [ ! -e "${fragments[0]}" ]; then
+  echo "Error: no unreleased change fragments in .changes/unreleased/"
+  echo "  Use 'changie new' to describe changes before running pre-release."
+  exit 1
+fi
+echo "  ✓ Found $(echo "${fragments[@]}" | wc -w) unreleased fragment(s)"
+
+changie batch "$bump"
+changie merge
+
+next=$(changie latest)
+bare="${next#v}"
+
+if ! grep -q "^## \[${bare}\]" CHANGELOG.md; then
+  echo "Error: changie merge did not produce a '## [${bare}]' entry in CHANGELOG.md"
+  exit 1
+fi
+echo "  ✓ CHANGELOG.md has entry for ${bare}"
+
+prev=$(grep "^## \[" CHANGELOG.md | sed -n '2p' | sed 's/^## \[\([^]]*\)\].*/\1/')
+
+if [ -n "$prev" ] && grep -q "github:asphaltbuffet/wherefolk/v${prev}" README.md; then
+  sed -i "s|github:asphaltbuffet/wherefolk/v${prev}|github:asphaltbuffet/wherefolk/v${bare}|g" README.md
+  echo "  ✓ README.md nix pins updated (${prev} → ${bare})"
+fi
+
+echo ""
+echo "Done. Commit .changes/, CHANGELOG.md, and README.md together and open a PR."
+echo "After merge, run 'mise run release' to tag and publish."

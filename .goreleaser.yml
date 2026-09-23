@@ -1,0 +1,76 @@
+# yaml-language-server: $schema=https://goreleaser.com/static/schema-pro.json
+---
+version: 2
+
+# wherefolk is a service, not a portable CLI: ADR-0006 deploys it as a container
+# behind a Tailscale sidecar. Only linux artifacts are built, and the tarballs
+# exist so the image build (and an Operator debugging a host) has a binary to
+# pull; darwin/windows would never be run.
+builds:
+  - env:
+      - CGO_ENABLED=0
+    flags:
+      - -trimpath
+    goos:
+      - linux
+    goarch:
+      - amd64
+      - arm64
+    ldflags:
+      - -s -w -X github.com/asphaltbuffet/wherefolk/internal/buildmeta.Version={{.Version}} -X github.com/asphaltbuffet/wherefolk/internal/buildmeta.GitCommit={{.ShortCommit}} -X github.com/asphaltbuffet/wherefolk/internal/buildmeta.BuildDate={{.Date}}
+    mod_timestamp: "{{ .CommitTimestamp }}"
+
+archives:
+  - formats: [ 'tgz' ]
+    name_template: >-
+      {{ .ProjectName }}-
+      {{- .Version }}-
+      {{- .Os }}-
+      {{- if eq .Arch "amd64" }}x86_64
+      {{- else }}{{ .Arch}}{{ end }}
+    files:
+      - info:
+          owner: root
+          group: root
+          mode: 0644
+          mtime: "{{ .CommitDate }}"
+      - src: CHANGELOG*
+      - src: README*
+      - src: LICENSE*
+
+dockers_v2:
+  - id: wherefolk
+    dockerfile: Dockerfile
+    images:
+      - ghcr.io/asphaltbuffet/wherefolk
+    tags:
+      - "{{ .Version }}"
+      - "latest"
+    platforms:
+      - linux/amd64
+      - linux/arm64
+    labels:
+      org.opencontainers.image.title: "{{ .ProjectName }}"
+      org.opencontainers.image.version: "{{ .Version }}"
+      org.opencontainers.image.revision: "{{ .FullCommit }}"
+      org.opencontainers.image.created: "{{ .Date }}"
+      org.opencontainers.image.source: "https://github.com/asphaltbuffet/wherefolk"
+
+checksum:
+  name_template: "checksums.txt"
+
+snapshot:
+  version_template: "{{ .Version }}-snapshot"
+
+changelog:
+  disable: true
+
+release:
+  github:
+    owner: asphaltbuffet
+    name: wherefolk
+  prerelease: auto
+  mode: replace
+
+announce:
+  skip: true

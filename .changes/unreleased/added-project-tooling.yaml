@@ -1,0 +1,5 @@
+kind: Added
+body: Build, lint, release, and CI tooling — golangci-lint, goreleaser, changie, mise tasks, and GitHub Actions workflows
+time: 2026-09-22T00:00:00.000000000-00:00
+custom:
+  Issue: ""

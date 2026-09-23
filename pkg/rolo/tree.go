@@ -47,63 +47,114 @@ func BuildTree(households []Household) (*Tree, error) {
 		children: make(map[HouseholdID][]HouseholdID),
 	}
 
-	seenPersonIDs := make(map[PersonID]bool)
-
-	for _, h := range households {
-		if _, dup := t.byID[h.ID]; dup {
-			return nil, fmt.Errorf("%w: household %s appears more than once", ErrDuplicateID, h.ID)
-		}
-		if len(h.Adults) == 0 {
-			return nil, fmt.Errorf("%w: %s", ErrNoAdults, h.ID)
-		}
-		// A Person belongs to exactly one Household, so a PersonID may appear
-		// only once in the document — whether as an adult or as a Dependent.
-		for _, group := range [][]Person{h.Adults, h.Dependents} {
-			for _, p := range group {
-				if p.ID == "" {
-					continue
-				}
-				if seenPersonIDs[p.ID] {
-					return nil, fmt.Errorf("%w: person %s appears more than once", ErrDuplicateID, p.ID)
-				}
-				seenPersonIDs[p.ID] = true
-			}
-		}
-		t.byID[h.ID] = h
+	// Each pass must complete before the next begins: indexing populates byID,
+	// which the address and parent passes both look names up in.
+	err := t.index(households)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, h := range households {
-		if h.Address.SharedWith != "" {
-			if _, ok := t.byID[h.Address.SharedWith]; !ok {
-				return nil, fmt.Errorf("%w: %s shares the address of %s", ErrUnknownHousehold, h.ID, h.Address.SharedWith)
-			}
-		}
+	err = t.checkSharedAddresses(households)
+	if err != nil {
+		return nil, err
 	}
 
-	for _, h := range households {
-		if h.Parent == "" {
-			t.roots = append(t.roots, h.ID)
-			continue
-		}
-		if h.Parent == h.ID {
-			return nil, fmt.Errorf("%w: %s is its own parent", ErrCycle, h.ID)
-		}
-		if _, ok := t.byID[h.Parent]; !ok {
-			return nil, fmt.Errorf("%w: %s names parent %s", ErrUnknownParent, h.ID, h.Parent)
-		}
-		t.children[h.Parent] = append(t.children[h.Parent], h.ID)
+	err = t.link(households)
+	if err != nil {
+		return nil, err
 	}
 
 	// Every Household must reach a root by following parent links. A node that
 	// does not is part of a cycle: it has a valid parent, but that chain loops
 	// rather than terminating, so it never appears under any root.
-	if err := t.detectCycles(); err != nil {
+	err = t.detectCycles()
+	if err != nil {
 		return nil, err
 	}
 
 	t.sortSiblings()
 
 	return t, nil
+}
+
+// index records every Household by ID, rejecting a document that reuses one.
+//
+// A Person belongs to exactly one Household, so a PersonID may appear only once
+// across the whole document — whether as an adult or as a Dependent.
+func (t *Tree) index(households []Household) error {
+	seenPersonIDs := make(map[PersonID]bool)
+
+	for _, h := range households {
+		if _, dup := t.byID[h.ID]; dup {
+			return fmt.Errorf("%w: household %s appears more than once", ErrDuplicateID, h.ID)
+		}
+
+		if len(h.Adults) == 0 {
+			return fmt.Errorf("%w: %s", ErrNoAdults, h.ID)
+		}
+
+		for _, group := range [][]Person{h.Adults, h.Dependents} {
+			for _, p := range group {
+				if p.ID == "" {
+					continue
+				}
+
+				if seenPersonIDs[p.ID] {
+					return fmt.Errorf("%w: person %s appears more than once", ErrDuplicateID, p.ID)
+				}
+
+				seenPersonIDs[p.ID] = true
+			}
+		}
+
+		t.byID[h.ID] = h
+	}
+
+	return nil
+}
+
+// checkSharedAddresses verifies that every Shared Address names a Household that
+// exists. It runs after index so that a forward reference is still valid.
+func (t *Tree) checkSharedAddresses(households []Household) error {
+	for _, h := range households {
+		if h.Address.SharedWith == "" {
+			continue
+		}
+
+		if _, ok := t.byID[h.Address.SharedWith]; !ok {
+			return fmt.Errorf(
+				"%w: %s shares the address of %s",
+				ErrUnknownHousehold,
+				h.ID,
+				h.Address.SharedWith,
+			)
+		}
+	}
+
+	return nil
+}
+
+// link fills in roots and children from the Parent references, rejecting a
+// parent that does not exist or that is the Household itself.
+func (t *Tree) link(households []Household) error {
+	for _, h := range households {
+		if h.Parent == "" {
+			t.roots = append(t.roots, h.ID)
+			continue
+		}
+
+		if h.Parent == h.ID {
+			return fmt.Errorf("%w: %s is its own parent", ErrCycle, h.ID)
+		}
+
+		if _, ok := t.byID[h.Parent]; !ok {
+			return fmt.Errorf("%w: %s names parent %s", ErrUnknownParent, h.ID, h.Parent)
+		}
+
+		t.children[h.Parent] = append(t.children[h.Parent], h.ID)
+	}
+
+	return nil
 }
 
 // detectCycles walks upward from every Household, bounding each walk by the

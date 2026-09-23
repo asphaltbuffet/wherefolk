@@ -2,11 +2,11 @@ package web
 
 import (
 	"bytes"
+	"context"
 	"embed"
 	"fmt"
 	"html/template"
 	"io/fs"
-	"log/slog"
 	"net/http"
 	"path"
 	"strings"
@@ -52,12 +52,15 @@ func mustParsePages() map[string]*template.Template {
 		// Clone before parsing: a clone copies the set as it stands, so parsing
 		// the page into the shared layout first would reintroduce the very
 		// collision this indirection exists to prevent.
-		set, err := layout.Clone()
+		var set *template.Template
+
+		set, err = layout.Clone()
 		if err != nil {
 			panic(fmt.Sprintf("web: clone layout for %s: %v", file, err))
 		}
 
-		if _, err := set.ParseFS(templateFS, file); err != nil {
+		_, err = set.ParseFS(templateFS, file)
+		if err != nil {
 			panic(fmt.Sprintf("web: parse %s: %v", file, err))
 		}
 
@@ -74,22 +77,26 @@ func mustParsePages() map[string]*template.Template {
 //
 // name is the page, not the template: "status" renders templates/status.html
 // wrapped in the layout.
-func render(w http.ResponseWriter, name string, data any) error {
+func (s *Server) render(ctx context.Context, w http.ResponseWriter, name string, data any) error {
 	set, ok := pages[name]
 	if !ok {
 		return fmt.Errorf("render %s: no such page", name)
 	}
 
 	var buf bytes.Buffer
-	if err := set.ExecuteTemplate(&buf, "layout", data); err != nil {
+
+	err := set.ExecuteTemplate(&buf, "layout", data)
+	if err != nil {
 		return fmt.Errorf("render %s: %w", name, err)
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if _, err := buf.WriteTo(w); err != nil {
+
+	_, err = buf.WriteTo(w)
+	if err != nil {
 		// The status and headers are already on the wire, so this is not
 		// recoverable — and it is a disconnected client, not a bug.
-		slog.Debug("client disconnected during render", "page", name, "error", err)
+		s.log.DebugContext(ctx, "client disconnected during render", "page", name, "error", err)
 	}
 
 	return nil
