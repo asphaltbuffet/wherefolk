@@ -49,7 +49,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	}
 
 	s.mu.RLock()
-	view := s.resultsView(query)
+	view := s.searchResults(query)
 	s.mu.RUnlock()
 
 	err := s.renderFragment(r.Context(), w, "directory", "results", view)
@@ -68,7 +68,7 @@ func (s *Server) renderSearchPage(w http.ResponseWriter, r *http.Request, query 
 
 	s.mu.RLock()
 	view := s.directoryView("", q.Get("open"), q.Get("close"), q.Get("pane") == paneClosed)
-	view.Results = s.resultsView(query)
+	view.Results = s.searchResults(query)
 	s.mu.RUnlock()
 
 	err := s.render(r.Context(), w, http.StatusOK, "directory", view)
@@ -78,8 +78,11 @@ func (s *Server) renderSearchPage(w http.ResponseWriter, r *http.Request, query 
 	}
 }
 
-// resultsView runs the search and caps the list. Callers hold at least a read lock.
-func (s *Server) resultsView(query string) resultsView {
+// searchResults runs the search and caps the list. Named for what it does rather
+// than what it returns, so it does not collide with the resultsView type.
+//
+// Callers hold at least a read lock.
+func (s *Server) searchResults(query string) resultsView {
 	matches := s.tree.SearchPeople(query)
 
 	view := resultsView{Query: query}

@@ -117,7 +117,7 @@ func TestOpenSet(t *testing.T) {
 		{
 			name:   "empty everything opens nothing",
 			want:   nil,
-			absent: []rolo.HouseholdID{"h_aden", "h_clyde"},
+			absent: []rolo.HouseholdID{"h_aden", "h_clyde", "h_reeve", ""},
 		},
 		{
 			name:   "explicit ids are honoured",
@@ -138,10 +138,12 @@ func TestOpenSet(t *testing.T) {
 			absent: []rolo.HouseholdID{"h_ghost"},
 		},
 		{
-			name:   "whitespace and empty entries are tolerated",
-			raw:    " h_aden , ,",
-			want:   []rolo.HouseholdID{"h_aden"},
-			absent: nil,
+			name: "whitespace and empty entries are tolerated",
+			raw:  " h_aden , ,",
+			want: []rolo.HouseholdID{"h_aden"},
+			// The empty string must not become a phantom key: a parseIDs
+			// that emitted "" would pass a want-only assertion.
+			absent: []rolo.HouseholdID{""},
 		},
 		{
 			name:     "an unknown selection does not discard the explicit set",

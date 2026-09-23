@@ -297,10 +297,14 @@ Search is secondary and must not become an alternative interface. Results carry 
 context:
 
 ```
-  Dave Whitlock    Aden/Nettie › Clyde/Doris
-  Dave Whitlock    Harold/June
-  Dave Reeves      Aden/Nettie › Susan/Ray
+  Dave Whitlock    Aden/Nettie › Clyde/Doris › Dave
+  Dave Whitlock    Harold/June › Dave
+  Dave Reeves      Aden/Nettie › Susan/Ray › Dave
 ```
+
+The Path shown is the **whole** chain, including the person's own Household, not just their
+ancestry. Two brothers who each head a Household under the same parents would otherwise render
+identical context lines; including the leaf distinguishes them.
 
 Selecting a result **expands the tree to that node and selects it** — it does not open a detached
 editor. Search relocates the Editor within their mental model rather than bypassing it.
