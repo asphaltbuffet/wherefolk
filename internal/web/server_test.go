@@ -127,6 +127,62 @@ func TestRouting(t *testing.T) {
 // RLock leaves -race clean. It is a regression trip-wire for work item 5, when
 // the write path makes the locking genuinely load-bearing, not proof that the
 // locking is correct now.
+func TestRenderFragmentOmitsLayout(t *testing.T) {
+	tests := []struct {
+		name      string
+		page      string
+		fragment  string
+		data      any
+		wantErr   bool
+		checkFunc func(t *testing.T, body string)
+	}{
+		{
+			name:     "a fragment renders without page chrome",
+			page:     "status",
+			fragment: "fragment_probe",
+			data:     "hello",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, "hello")
+				assert.NotContains(t, body, "<!DOCTYPE html>", "a fragment is swapped into a page, not a page itself")
+				assert.NotContains(t, body, "<body>")
+			},
+		},
+		{
+			name:     "an unknown page is an error, not a blank response",
+			page:     "no_such_page",
+			fragment: "fragment_probe",
+			data:     nil,
+			wantErr:  true,
+		},
+		{
+			name:     "an unknown fragment is an error",
+			page:     "status",
+			fragment: "no_such_fragment",
+			data:     nil,
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, err := web.New(sampleDocument(), config.Config{}, testLogger(), web.Meta{})
+			require.NoError(t, err)
+
+			rec := httptest.NewRecorder()
+			err = srv.RenderFragmentForTest(t.Context(), rec, tt.page, tt.fragment, tt.data)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+
+			require.NoError(t, err)
+			tt.checkFunc(t, rec.Body.String())
+		})
+	}
+}
+
 func TestConcurrentReads(t *testing.T) {
 	tests := []struct {
 		name    string
