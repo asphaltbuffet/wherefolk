@@ -148,15 +148,11 @@ func TestConcurrentReads(t *testing.T) {
 
 			var wg sync.WaitGroup
 			for range tt.workers {
-				wg.Add(1)
-
-				go func() {
-					defer wg.Done()
-
+				wg.Go(func() {
 					rec := httptest.NewRecorder()
 					handler.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/status", nil))
 					assert.Equal(t, http.StatusOK, rec.Code)
-				}()
+				})
 			}
 			wg.Wait()
 		})
