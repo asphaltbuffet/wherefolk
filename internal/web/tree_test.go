@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/asphaltbuffet/wherefolk/internal/web"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
@@ -173,3 +174,124 @@ func TestOpenSet(t *testing.T) {
 	}
 }
 
+
+// TestToggleURLEncodesIDs guards the query construction against Household IDs
+// that are not URL-safe. store.Load accepts a hand-repaired document exactly as
+// written and validation in this project observes rather than rejects, so an ID
+// carrying "&" or a space is a supported input, not a hypothetical one.
+//
+// The danger is specific to hx-get: html/template percent-encodes into href
+// because it recognises it as a URL attribute, but hx-get is an attribute it
+// knows nothing about and receives HTML escaping only. Building the query with
+// url.Values is what closes that gap.
+func TestToggleURLEncodesIDs(t *testing.T) {
+	tests := []struct {
+		name     string
+		id       rolo.HouseholdID
+		open     string
+		isOpen   bool
+		contains string
+		absent   string
+	}{
+		{
+			name:     "an ampersand cannot terminate the parameter",
+			id:       "h_amp&c=x",
+			open:     "h_a",
+			contains: "h_amp%26c%3Dx",
+			absent:   "h_amp&c=x",
+		},
+		{
+			name:     "a space is encoded",
+			id:       "h_ b",
+			contains: "h_+b",
+			absent:   "h_ b",
+		},
+		{
+			name:     "a quote cannot escape the attribute",
+			id:       `h_"q`,
+			contains: "h_%22q",
+			absent:   `h_"q`,
+		},
+		{
+			name:     "collapsing sends the id as close, not appended to open",
+			id:       "h_aden",
+			open:     "h_aden,h_clyde",
+			isOpen:   true,
+			contains: "close=h_aden",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := web.ToggleURLForTest("", tt.open, tt.id, tt.isOpen)
+
+			assert.Contains(t, got, tt.contains)
+			if tt.absent != "" {
+				assert.NotContains(t, got, tt.absent, "the raw id must never appear unencoded")
+			}
+		})
+	}
+}
+
+// TestSelectionAncestorsHaveNoToggle guards against advertising a control that
+// cannot do anything. treeView re-opens the selection's chain after any close
+// request, so a toggle on one of those nodes would render output identical to
+// not clicking it — an Editor would click "Collapse" and see nothing happen.
+func TestSelectionAncestorsHaveNoToggle(t *testing.T) {
+	tests := []struct {
+		name      string
+		target    string
+		checkFunc func(t *testing.T, body string)
+	}{
+		{
+			name:   "an ancestor of the selection offers no collapse link",
+			target: "/tree?selected=h_clyde",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.NotContains(t, body, "Collapse Aden/Nettie",
+					"h_aden is pinned open, so it must not advertise a Collapse control")
+				assert.Contains(t, body, "Clyde/Doris", "the selection is still visible")
+			},
+		},
+		{
+			// h_reeve is the only other root in the fixture and is childless,
+			// so the tree offers no toggle at all here. Asserting that keeps
+			// the row honest: pinning removes h_aden's control, and nothing
+			// else in this fixture has one to lose.
+			name:   "pinning the selection's chain leaves no toggle in this fixture",
+			target: "/tree?selected=h_clyde",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.NotContains(t, body, "aria-expanded",
+					"h_aden is pinned and h_reeve is childless, so no node offers a toggle")
+				assert.Contains(t, body, "Ray", "the childless root is still listed")
+			},
+		},
+		{
+			name:   "a toggleable node elsewhere is unaffected by pinning",
+			target: "/tree?selected=h_reeve",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, "Expand Aden/Nettie",
+					"h_aden is not in h_reeve's chain, so it keeps its control")
+			},
+		},
+		{
+			name:   "with nothing selected every parent is toggleable",
+			target: "/tree?open=h_aden",
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, "Collapse Aden/Nettie")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := get(t, sampleDocument(), tt.target)
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			tt.checkFunc(t, rec.Body.String())
+		})
+	}
+}

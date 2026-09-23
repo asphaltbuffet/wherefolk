@@ -1,10 +1,41 @@
 package web
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
+
+// toggleURL builds the link that expands or collapses one node.
+//
+// Every value goes through [url.Values.Encode], so an ID carrying "&", "=", or a
+// space cannot break the query apart. Building this here rather than in the
+// template is deliberate: html/template percent-encodes into href, which it
+// recognises as a URL attribute, but hx-get is an attribute it knows nothing
+// about and would receive HTML escaping only.
+//
+// Collapsing is expressed as "everything currently open, minus this one" so the
+// link is a plain URL with no state of its own.
+func toggleURL(selected rolo.HouseholdID, openList string, id rolo.HouseholdID, isOpen bool) string {
+	q := url.Values{}
+
+	if selected != "" {
+		q.Set("selected", string(selected))
+	}
+
+	switch {
+	case isOpen:
+		q.Set("open", openList)
+		q.Set("close", string(id))
+	case openList == "":
+		q.Set("open", string(id))
+	default:
+		q.Set("open", openList+","+string(id))
+	}
+
+	return "/tree?" + q.Encode()
+}
 
 // treeNode is one row in the tree pane.
 //
@@ -23,6 +54,26 @@ type treeNode struct {
 	Open        bool
 	HasChildren bool
 	Children    []treeNode
+
+	// Pinned marks a node the Editor cannot collapse: the selection and its
+	// ancestors, which treeView re-opens after any close request so the tree
+	// can never hide the Household the detail pane is showing. The template
+	// renders these without a toggle control, because advertising a Collapse
+	// affordance that cannot collapse anything is worse than showing none.
+	Pinned bool
+
+	// ToggleURL expands or collapses this node. It is built here, with
+	// url.Values, rather than concatenated in the template: html/template
+	// percent-encodes into href because it recognises it as a URL attribute,
+	// but hx-get is an attribute it knows nothing about, so an ID containing
+	// "&" or a space would be HTML-escaped only and would then break the query
+	// apart in the browser. IDs are not guaranteed safe — store.Load accepts a
+	// hand-repaired document exactly as written, and validation in this project
+	// observes rather than rejects.
+	//
+	// Empty when the node is Pinned or childless, in which case the template
+	// renders no control at all.
+	ToggleURL string
 }
 
 // treeNodes builds the visible tree. selected is the Household the detail pane
@@ -39,6 +90,16 @@ type treeNode struct {
 //
 // Callers hold at least a read lock.
 func (s *Server) treeNodes(selected rolo.HouseholdID, open map[rolo.HouseholdID]bool) []treeNode {
+	// The selection's chain is pinned: treeView re-opens it after any close, so
+	// a toggle on one of these nodes would render identically to not clicking
+	// it at all.
+	pinned := make(map[rolo.HouseholdID]bool)
+	for _, id := range s.selectionChain(selected) {
+		pinned[id] = true
+	}
+
+	openList := s.joinIDsOrdered(open)
+
 	var build func(households []rolo.Household) []treeNode
 
 	build = func(households []rolo.Household) []treeNode {
@@ -54,6 +115,11 @@ func (s *Server) treeNodes(selected rolo.HouseholdID, open map[rolo.HouseholdID]
 				Selected:    h.ID == selected,
 				Open:        open[h.ID],
 				HasChildren: len(children) > 0,
+				Pinned:      pinned[h.ID],
+			}
+
+			if node.HasChildren && !node.Pinned {
+				node.ToggleURL = toggleURL(selected, openList, h.ID, node.Open)
 			}
 
 			if node.Open {

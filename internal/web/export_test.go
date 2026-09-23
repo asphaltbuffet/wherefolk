@@ -50,3 +50,8 @@ func (s *Server) OpenSetForTest(selected rolo.HouseholdID, raw string) map[rolo.
 
 	return s.openSet(selected, raw)
 }
+
+// ToggleURLForTest exposes toggleURL to the external test package.
+func ToggleURLForTest(selected rolo.HouseholdID, openList string, id rolo.HouseholdID, isOpen bool) string {
+	return toggleURL(selected, openList, id, isOpen)
+}

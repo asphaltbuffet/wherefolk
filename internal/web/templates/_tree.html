@@ -10,14 +10,18 @@
 {{$view := .}}
 {{range .Nodes}}
   <li data-household="{{.ID}}"{{if .Selected}} aria-current="true"{{end}}>
-    {{if .HasChildren}}
+    {{if .ToggleURL}}
       <a class="tree-toggle"
-         href="/h/{{.ID}}"
-         hx-get="/tree?selected={{$view.Selected}}&amp;open={{if .Open}}{{$view.Open}}&amp;close={{.ID}}{{else}}{{$view.Open}},{{.ID}}{{end}}"
+         href="{{.ToggleURL}}"
+         hx-get="{{.ToggleURL}}"
          hx-target="#tree"
          hx-swap="outerHTML"
          aria-expanded="{{if .Open}}true{{else}}false{{end}}"
          aria-label="{{if .Open}}Collapse{{else}}Expand{{end}} {{.Label}}">{{if .Open}}▾{{else}}▸{{end}}</a>
+    {{else if .Pinned}}
+      <span class="tree-toggle tree-pinned"
+            aria-hidden="true"
+            title="Always shown while this household is selected">▾</span>
     {{else}}
       <span class="tree-toggle tree-leaf" aria-hidden="true">·</span>
     {{end}}
