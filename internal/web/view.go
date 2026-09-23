@@ -228,3 +228,156 @@ func (s *Server) joinIDsOrdered(open map[rolo.HouseholdID]bool) string {
 
 	return strings.Join(ids, ",")
 }
+
+// Private is what a withheld field renders as. §5.5 fixes the literal string in
+// preference to a lock glyph: it survives any font stack, needs no legend, and
+// reads correctly aloud to a screen reader.
+const Private = "[private]"
+
+// crumb is one step in the Path breadcrumb. Every crumb is navigable, because
+// walking back up the Path is how the Editor gets from a cousin to an uncle.
+type crumb struct {
+	ID    rolo.HouseholdID
+	Label string
+}
+
+// personView is one Person as the detail pane shows them. Every field is a
+// rendered string rather than a domain value: a withheld phone number must not
+// reach the template at all, so the substitution happens here where it is
+// testable without parsing HTML.
+type personView struct {
+	Name     string
+	Birth    string
+	Death    string
+	Phone    string
+	Email    string
+	Deceased bool
+}
+
+// householdView is the detail pane. It holds strings, not rolo types, for the
+// same reason personView does: withheld values are replaced before rendering,
+// not hidden by the template.
+type householdView struct {
+	ID       rolo.HouseholdID
+	Title    string
+	Crumbs   []crumb
+	Memorial bool
+
+	AddressLines   []string
+	AddressPrivate bool
+	// SharedWith is the label of the Household whose Address this one uses,
+	// empty unless this is a Shared Address. §3 makes it a reference rather than
+	// a copy, so the pane shows where the address comes from.
+	SharedWith string
+
+	Anniversary string
+
+	Adults     []personView
+	Dependents []personView
+}
+
+// directoryView is the whole two-pane page. Household is nil when nothing is
+// selected — the Editor's first visit — and NotFound distinguishes that from a
+// selection that does not exist, which needs an explanation rather than an
+// empty pane.
+type directoryView struct {
+	Tree      treeView
+	Household *householdView
+	NotFound  bool
+}
+
+// householdView builds the detail pane for one Household, reporting false if it
+// is not in the tree. Callers hold at least a read lock.
+func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
+	h, ok := s.tree.Get(id)
+	if !ok {
+		return householdView{}, false
+	}
+
+	chain, err := s.tree.Path(id)
+	if err != nil {
+		// Unreachable: Get and Path fail on exactly the same condition.
+		return householdView{}, false
+	}
+
+	crumbs := make([]crumb, 0, len(chain))
+	for _, ancestor := range chain {
+		crumbs = append(crumbs, crumb{ID: ancestor.ID, Label: ancestor.Label()})
+	}
+
+	view := householdView{
+		ID:          id,
+		Title:       householdTitle(h),
+		Crumbs:      crumbs,
+		Memorial:    h.IsMemorial(),
+		Anniversary: h.Anniversary.String(),
+		Adults:      peopleViews(h.Adults),
+		Dependents:  peopleViews(h.Dependents),
+	}
+
+	switch {
+	case h.AddressHidden():
+		// The lines are deliberately not copied into the view: a withheld value
+		// that never reaches the template cannot leak through a future change
+		// to the markup.
+		view.AddressPrivate = true
+	case h.SharesAddress():
+		if parent, found := s.tree.Get(h.Address.SharedWith); found {
+			view.SharedWith = parent.Label()
+		}
+	default:
+		view.AddressLines = h.Address.Lines
+	}
+
+	return view, true
+}
+
+// householdTitle renders the Household's heading — the adults' display names
+// joined by an ampersand, which is how §4.1's mockup heads the detail pane. It
+// differs from Label(), which uses given names only and is the tree's compact
+// form.
+func householdTitle(h rolo.Household) string {
+	names := make([]string, 0, len(h.Adults))
+	for _, a := range h.Adults {
+		names = append(names, a.DisplayName())
+	}
+
+	return strings.Join(names, " & ")
+}
+
+// peopleViews renders a group of Persons, substituting Private for every field
+// the Editor has withheld.
+func peopleViews(people []rolo.Person) []personView {
+	views := make([]personView, 0, len(people))
+
+	for _, p := range people {
+		views = append(views, personView{
+			Name:     p.DisplayName(),
+			Birth:    hide(p.Birth.String(), p.Hidden.Birth),
+			Death:    p.Death.String(),
+			Phone:    hide(p.Phone, p.Hidden.Phone),
+			Email:    hide(p.Email, p.Hidden.Email),
+			Deceased: p.IsDeceased(),
+		})
+	}
+
+	return views
+}
+
+// hide replaces a withheld value with Private, and leaves an absent one absent.
+//
+// Absence and withholding are different facts and must render differently: a
+// field nobody has recorded shows nothing, while one the Editor withheld shows
+// [private] so that nobody helpfully re-collects it next year (§5.5). A death
+// date is never withheld — the flags cover phone, email, and birth only.
+func hide(value string, hidden bool) string {
+	if value == "" {
+		return ""
+	}
+
+	if hidden {
+		return Private
+	}
+
+	return value
+}

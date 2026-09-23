@@ -1,4 +1,21 @@
 {{define "title"}}Directory{{end}}
 
 {{define "body"}}
+<div class="panes">
+  <aside class="pane pane-tree">
+    {{template "tree" .Tree}}
+    <form class="search" role="search" action="/search" method="get">
+      <label class="visually-hidden" for="q">Search for a person</label>
+      <input type="search" id="q" name="q" placeholder="Search…" autocomplete="off"
+             hx-get="/search"
+             hx-trigger="input changed delay:200ms, search"
+             hx-target="#results"
+             hx-swap="outerHTML">
+    </form>
+    {{template "results" .Tree.Nodes}}
+  </aside>
+  <div class="pane pane-detail">
+    {{template "detail" .}}
+  </div>
+</div>
 {{end}}

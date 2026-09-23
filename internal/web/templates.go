@@ -116,14 +116,17 @@ func templateFuncs() template.FuncMap {
 	}
 }
 
-// render writes a page to w, buffering first so that a template execution error
-// leaves w untouched: the caller can still send a 500 cleanly. A failure during
-// the write itself is not recoverable — the status and headers are already on
-// the wire by then — but that is a disconnected client, not a bug.
+// render writes a page to w with the given status, buffering first so that a
+// template execution error leaves w untouched: the caller can still send a 500
+// cleanly. A failure during the write itself is not recoverable — the status and
+// headers are already on the wire by then — but that is a disconnected client,
+// not a bug.
 //
-// name is the page, not the template: "status" renders templates/status.html
-// wrapped in the layout.
-func (s *Server) render(ctx context.Context, w http.ResponseWriter, name string, data any) error {
+// The status is a parameter rather than always 200 because the Editor's
+// not-found page is a rendered page with a 404 on it, not an [http.Error].
+//
+// name is the page, not the template: "status" renders templates/status.html.
+func (s *Server) render(ctx context.Context, w http.ResponseWriter, status int, name string, data any) error {
 	set, ok := pages[name]
 	if !ok {
 		return fmt.Errorf("render %s: no such page", name)
@@ -137,6 +140,7 @@ func (s *Server) render(ctx context.Context, w http.ResponseWriter, name string,
 	}
 
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
 
 	_, err = buf.WriteTo(w)
 	if err != nil {

@@ -55,3 +55,14 @@ func (s *Server) OpenSetForTest(selected rolo.HouseholdID, raw string) map[rolo.
 func ToggleURLForTest(selected rolo.HouseholdID, openList string, id rolo.HouseholdID, isOpen bool) string {
 	return toggleURL(selected, openList, id, isOpen)
 }
+
+// HouseholdViewForTest is householdView, exported for the external test package.
+type HouseholdViewForTest = householdView
+
+// HouseholdViewForTest exposes householdView to the external test package.
+func (s *Server) HouseholdViewForTest(id rolo.HouseholdID) (householdView, bool) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.householdView(id)
+}

@@ -25,7 +25,7 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	view := s.statusView()
 	s.mu.RUnlock()
 
-	err := s.render(r.Context(), w, "status", view)
+	err := s.render(r.Context(), w, http.StatusOK, "status", view)
 	if err != nil {
 		s.log.ErrorContext(r.Context(), "render status", "error", err)
 		http.Error(w, "internal error", http.StatusInternalServerError)

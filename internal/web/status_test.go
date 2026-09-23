@@ -15,8 +15,9 @@ import (
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
-// sampleDocument mirrors the fixture in internal/store: one two-level Branch
-// and one standalone root.
+// sampleDocument mirrors the fixture in internal/store and adds the cases the
+// detail pane must render: a withheld phone, a withheld address, a shared
+// address, a Memorial Household, an anniversary, and a deceased Dependent.
 func sampleDocument() *store.Document {
 	adult := func(id rolo.PersonID, given string, birthYear int) rolo.Person {
 		return rolo.Person{ID: id, Given: given, Surname: "Whitlock", Birth: rolo.Date{Year: birthYear}}
@@ -26,20 +27,68 @@ func sampleDocument() *store.Document {
 		Schema: store.CurrentSchema,
 		Households: []rolo.Household{
 			{
-				ID:     "h_aden",
-				Adults: []rolo.Person{adult("p_aden01", "Aden", 1910), adult("p_nett01", "Nettie", 1912)},
+				// Memorial: both adults deceased.
+				ID: "h_aden",
+				Adults: []rolo.Person{
+					{
+						ID: "p_aden01", Given: "Aden", Surname: "Whitlock",
+						Birth: rolo.Date{Year: 1910, Month: 4, Day: 2},
+						Death: rolo.Date{Year: 1989, Month: 11, Day: 17},
+					},
+					{
+						ID: "p_nett01", Given: "Nettie", Surname: "Whitlock",
+						Birth: rolo.Date{Year: 1912},
+						Death: rolo.Date{Year: 1994},
+					},
+				},
 			},
 			{
 				ID:     "h_clyde",
 				Parent: "h_aden",
-				Adults: []rolo.Person{adult("p_clyd01", "Clyde", 1938), adult("p_dori01", "Doris", 1940)},
+				Adults: []rolo.Person{
+					{
+						ID: "p_clyd01", Given: "Clyde", Surname: "Whitlock",
+						Birth: rolo.Date{Year: 1938, Month: 6, Day: 1},
+						Phone: "555-0142", Email: "clyde@example.com",
+					},
+					{
+						ID: "p_dori01", Given: "Doris", Aka: "Dot", Surname: "Whitlock",
+						BirthName: "Kowalski",
+						Birth:     rolo.Date{Year: 1940},
+						Phone:     "555-0143", Email: "doris@example.com",
+						Hidden: rolo.HiddenFields{Email: true},
+					},
+				},
+				Anniversary: rolo.Date{Year: 1962, Month: 6, Day: 14},
+				Address:     rolo.Address{Lines: []string{"1412 Oak St", "Springfield, IL 62704"}},
 				Dependents: []rolo.Person{
-					{ID: "p_carl01", Given: "Carl", Surname: "Whitlock", Birth: rolo.Date{Year: 1963}},
+					{
+						ID: "p_carl01", Given: "Carl", Surname: "Whitlock",
+						Birth: rolo.Date{Year: 1963}, Death: rolo.Date{Year: 1981},
+					},
 				},
 			},
 			{
-				ID:     "h_reeve",
-				Adults: []rolo.Person{adult("p_reev01", "Ray", 1942)},
+				// Shares its parent's address.
+				ID:      "h_dave",
+				Parent:  "h_clyde",
+				Adults:  []rolo.Person{adult("p_dave01", "Dave", 1971)},
+				Address: rolo.Address{SharedWith: "h_clyde"},
+			},
+			{
+				// Standalone root with a withheld address.
+				ID: "h_reeve",
+				Adults: []rolo.Person{
+					{
+						ID:      "p_reev01",
+						Given:   "Ray",
+						Surname: "Reeves",
+						Birth:   rolo.Date{Year: 1942},
+						Phone:   "555-0199",
+						Hidden:  rolo.HiddenFields{Phone: true},
+					},
+				},
+				Address: rolo.Address{Lines: []string{"9 Elm St"}, Hidden: true},
 			},
 		},
 	}
@@ -95,7 +144,7 @@ func TestStatusPage(t *testing.T) {
 			check: func(t *testing.T, body string) {
 				t.Helper()
 
-				assert.Contains(t, body, `data-field="households">3<`, "three households in the fixture")
+				assert.Contains(t, body, `data-field="households">4<`, "four households in the fixture")
 			},
 		},
 		{
@@ -104,7 +153,7 @@ func TestStatusPage(t *testing.T) {
 			check: func(t *testing.T, body string) {
 				t.Helper()
 
-				assert.Contains(t, body, `data-field="people">6<`, "five adults plus one dependent")
+				assert.Contains(t, body, `data-field="people">7<`, "six adults plus one dependent")
 			},
 		},
 		{
@@ -135,15 +184,6 @@ func TestStatusPage(t *testing.T) {
 				assert.Contains(t, body, "Aden/Nettie")
 				assert.Contains(t, body, "Ray")
 				assert.NotContains(t, body, "Clyde/Doris", "Clyde is a child, not a root")
-			},
-		},
-		{
-			name:   "root path serves the same page until item 4 claims it",
-			target: "/",
-			check: func(t *testing.T, body string) {
-				t.Helper()
-
-				assert.Contains(t, body, "Wherefolk status")
 			},
 		},
 		{

@@ -1,0 +1,62 @@
+/* Desktop only: §1 lists phone and tablet layouts as a non-goal, so this
+   licenses a layout that does not degrade. */
+:root {
+  --gap: 1rem;
+  --muted: #666;
+  --rule: #ddd;
+}
+
+body {
+  font: 16px/1.5 system-ui, sans-serif;
+  margin: 0;
+}
+
+main { height: 100vh; }
+
+.panes {
+  display: grid;
+  grid-template-columns: 22rem 1fr;
+  height: 100%;
+}
+
+.pane { overflow: auto; padding: var(--gap); }
+.pane-tree { border-right: 1px solid var(--rule); }
+
+.tree-level { list-style: none; margin: 0; padding-left: 1rem; }
+.tree-level:first-child { padding-left: 0; }
+.tree-toggle { display: inline-block; width: 1.2rem; text-decoration: none; color: var(--muted); }
+.tree-label { text-decoration: none; color: inherit; }
+.tree-label:hover { text-decoration: underline; }
+.tree-memorial { color: var(--muted); font-style: italic; }
+[aria-current="true"] > .tree-label { font-weight: 700; }
+
+.search { margin-top: var(--gap); }
+.search input { width: 100%; box-sizing: border-box; padding: .4rem; }
+
+.results { list-style: none; margin: var(--gap) 0 0; padding: 0; }
+.result-path { display: block; color: var(--muted); font-size: .85em; }
+
+.breadcrumb { color: var(--muted); margin-bottom: var(--gap); }
+.breadcrumb a { color: inherit; }
+
+.badge {
+  font-size: .6em; text-transform: uppercase; letter-spacing: .08em;
+  vertical-align: middle; color: var(--muted); border: 1px solid var(--rule);
+  padding: .1em .4em; border-radius: .2em;
+}
+
+.household-facts { display: grid; grid-template-columns: 8rem 1fr; gap: .25rem var(--gap); }
+.household-facts dt { color: var(--muted); }
+.household-facts dd { margin: 0; }
+.address-line { display: block; }
+
+.people { list-style: none; margin: var(--gap) 0 0; padding: 0; }
+.person { margin-bottom: .6rem; }
+.person-name { font-weight: 600; }
+.person-dates, .person-contact { display: block; color: var(--muted); font-size: .9em; }
+.person-deceased .person-name { color: var(--muted); }
+
+.visually-hidden {
+  position: absolute; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); white-space: nowrap;
+}
