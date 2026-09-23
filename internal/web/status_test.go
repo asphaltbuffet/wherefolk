@@ -31,9 +31,15 @@ func sampleDocument() *store.Document {
 				ID: "h_aden",
 				Adults: []rolo.Person{
 					{
+						// Contact details on a deceased adult are deliberate:
+						// §5.4 says a Memorial Household publishes none, and a
+						// fixture without them cannot tell suppression from
+						// absence, so the rule would look covered while going
+						// untested.
 						ID: "p_aden01", Given: "Aden", Surname: "Whitlock",
 						Birth: rolo.Date{Year: 1910, Month: 4, Day: 2},
 						Death: rolo.Date{Year: 1989, Month: 11, Day: 17},
+						Phone: "555-0100", Email: "aden@example.com",
 					},
 					{
 						ID: "p_nett01", Given: "Nettie", Surname: "Whitlock",

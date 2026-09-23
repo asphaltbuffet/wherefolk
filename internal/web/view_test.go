@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/asphaltbuffet/wherefolk/internal/config"
+	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/internal/web"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -168,8 +169,9 @@ func TestHouseholdView(t *testing.T) {
 			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
 				t.Helper()
 				require.Len(t, v.Adults, 2)
-				assert.Equal(t, "doris@example.com", "doris@example.com", "sanity: the fixture holds a real value")
 				assert.Equal(t, "[private]", v.Adults[1].Email)
+				assert.NotContains(t, v.Adults[1].Email, "@",
+					"the withheld address is replaced, not merely flagged alongside itself")
 				assert.Equal(t, "555-0143", v.Adults[1].Phone, "only the marked field is withheld")
 			},
 		},
@@ -204,6 +206,12 @@ func TestHouseholdView(t *testing.T) {
 				assert.Equal(t, "1910-04-02", v.Adults[0].Birth)
 				assert.Equal(t, "1989-11-17", v.Adults[0].Death)
 				assert.True(t, v.Adults[0].Deceased)
+
+				// Aden carries a phone and an email in the fixture; §5.4 says
+				// a Memorial Household publishes neither, and §5.5 says the
+				// suppression is silent rather than marked.
+				assert.Empty(t, v.Adults[0].Phone, "§5.4: no contact details")
+				assert.Empty(t, v.Adults[0].Email, "§5.4: no contact details")
 			},
 		},
 		{
@@ -296,6 +304,65 @@ func TestTreeMarksMemorialHouseholds(t *testing.T) {
 
 			require.Equal(t, http.StatusOK, rec.Code)
 			tt.checkFunc(t, rec.Body.String())
+		})
+	}
+}
+
+// TestAddressPrecedence pins the order of householdView's address switch.
+// Hidden must be tested before SharesAddress: a Household that both withholds
+// its address and references a parent's must render [private], never the
+// back-reference. Reordering those two cases would leak the fact that the
+// Household lives at its parent's address, which is itself the withheld
+// information.
+func TestAddressPrecedence(t *testing.T) {
+	tests := []struct {
+		name           string
+		address        rolo.Address
+		wantPrivate    bool
+		wantSharedWith string
+		wantLines      int
+	}{
+		{
+			name:        "hidden beats shared",
+			address:     rolo.Address{SharedWith: "h_root", Lines: []string{"1 Leak Ln"}, Hidden: true},
+			wantPrivate: true,
+		},
+		{
+			name:           "shared without hidden renders the back-reference",
+			address:        rolo.Address{SharedWith: "h_root"},
+			wantSharedWith: "Root",
+		},
+		{
+			name:      "plain address renders its lines",
+			address:   rolo.Address{Lines: []string{"1 Plain St"}},
+			wantLines: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			doc := &store.Document{Schema: store.CurrentSchema, Households: []rolo.Household{
+				{ID: "h_root", Adults: []rolo.Person{{ID: "p_root", Given: "Root", Birth: rolo.Date{Year: 1930}}}},
+				{
+					ID: "h_kid", Parent: "h_root", Address: tt.address,
+					Adults: []rolo.Person{{ID: "p_kid", Given: "Kid", Birth: rolo.Date{Year: 1960}}},
+				},
+			}}
+
+			srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{})
+			require.NoError(t, err)
+
+			v, ok := srv.HouseholdViewForTest("h_kid")
+			require.True(t, ok)
+
+			assert.Equal(t, tt.wantPrivate, v.AddressPrivate)
+			assert.Equal(t, tt.wantSharedWith, v.SharedWith)
+			assert.Len(t, v.AddressLines, tt.wantLines)
+
+			if tt.wantPrivate {
+				assert.Empty(t, v.SharedWith, "a withheld address must not reveal whose it is")
+				assert.Empty(t, v.AddressLines, "a withheld address must not carry its lines")
+			}
 		})
 	}
 }

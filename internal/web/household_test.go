@@ -2,6 +2,7 @@ package web_test
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -53,7 +54,12 @@ func TestDirectoryPage(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "[private]")
+				// h_reeve withholds two independent fields — the Household's
+				// address and Ray's phone. Counting rather than a bare
+				// Contains is what distinguishes them: with Contains, dropping
+				// one marker while keeping the other would still pass.
+				assert.Equal(t, 2, strings.Count(body, "[private]"),
+					"both the withheld address and the withheld phone are marked")
 				assert.NotContains(t, body, "9 Elm St", "a withheld address must not reach the page")
 				assert.NotContains(t, body, "555-0199")
 			},
@@ -65,7 +71,14 @@ func TestDirectoryPage(t *testing.T) {
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
 				assert.Contains(t, body, "Same address as Clyde/Doris")
+				// "1412 Oak St" only ever appears on h_clyde's own page, so
+				// asserting its absence here proves nothing on its own — it
+				// would pass even if the back-reference were dropped entirely.
+				// The real guard is that an address row exists and names the
+				// parent rather than repeating any address text.
 				assert.NotContains(t, body, "1412 Oak St", "§3: a Shared Address renders as a reference")
+				assert.NotContains(t, body, "[private]",
+					"h_dave withholds nothing; a marker here would mean the switch fell through")
 			},
 		},
 		{
@@ -76,6 +89,15 @@ func TestDirectoryPage(t *testing.T) {
 				t.Helper()
 				assert.Contains(t, body, "Memorial")
 				assert.Contains(t, body, "1989-11-17", "§5.3: a deceased person's dates are whole")
+
+				// The fixture gives Aden a phone and an email precisely so
+				// these can fail. §5.4 suppresses them; §5.5 requires the
+				// suppression render as nothing, never as [private], because a
+				// marker would advertise that the value is still held.
+				assert.NotContains(t, body, "555-0100", "§5.4: no contact details")
+				assert.NotContains(t, body, "aden@example.com", "§5.4: no contact details")
+				assert.NotContains(t, body, "[private]",
+					"§5.5: tier-style suppression shows nothing, not a marker")
 			},
 		},
 		{

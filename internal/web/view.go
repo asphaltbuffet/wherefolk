@@ -305,14 +305,16 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 		crumbs = append(crumbs, crumb{ID: ancestor.ID, Label: ancestor.Label()})
 	}
 
+	memorial := h.IsMemorial()
+
 	view := householdView{
 		ID:          id,
 		Title:       householdTitle(h),
 		Crumbs:      crumbs,
-		Memorial:    h.IsMemorial(),
+		Memorial:    memorial,
 		Anniversary: h.Anniversary.String(),
-		Adults:      peopleViews(h.Adults),
-		Dependents:  peopleViews(h.Dependents),
+		Adults:      peopleViews(h.Adults, memorial),
+		Dependents:  peopleViews(h.Dependents, memorial),
 	}
 
 	switch {
@@ -347,18 +349,31 @@ func householdTitle(h rolo.Household) string {
 
 // peopleViews renders a group of Persons, substituting Private for every field
 // the Editor has withheld.
-func peopleViews(people []rolo.Person) []personView {
+func peopleViews(people []rolo.Person, memorial bool) []personView {
 	views := make([]personView, 0, len(people))
 
 	for _, p := range people {
-		views = append(views, personView{
+		view := personView{
 			Name:     p.DisplayName(),
 			Birth:    hide(p.Birth.String(), p.Hidden.Birth),
 			Death:    p.Death.String(),
 			Phone:    hide(p.Phone, p.Hidden.Phone),
 			Email:    hide(p.Email, p.Hidden.Email),
 			Deceased: p.IsDeceased(),
-		})
+		}
+
+		// §5.4: a Memorial Household is a names-and-dates reference with no
+		// contact details. Blanked rather than marked Private, because the two
+		// absences mean different things (§5.5): [private] announces that a
+		// value is held and withheld, which on a dead relative's phone number
+		// would advertise exactly what suppression exists to omit. There is
+		// nothing here to act on, so nothing is shown.
+		if memorial {
+			view.Phone = ""
+			view.Email = ""
+		}
+
+		views = append(views, view)
 	}
 
 	return views
