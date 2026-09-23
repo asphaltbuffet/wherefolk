@@ -316,16 +316,14 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 		crumbs = append(crumbs, crumb{ID: ancestor.ID, Label: ancestor.Label()})
 	}
 
-	memorial := h.IsMemorial()
-
 	view := householdView{
 		ID:          id,
 		Title:       householdTitle(h),
 		Crumbs:      crumbs,
-		Memorial:    memorial,
+		Memorial:    h.IsMemorial(),
 		Anniversary: h.Anniversary.String(),
-		Adults:      peopleViews(h.Adults, memorial),
-		Dependents:  peopleViews(h.Dependents, memorial),
+		Adults:      peopleViews(h.Adults),
+		Dependents:  peopleViews(h.Dependents),
 	}
 
 	// Order matters: Hidden is tested first, so a Household that both withholds
@@ -369,8 +367,8 @@ func householdTitle(h rolo.Household) string {
 }
 
 // peopleViews renders a group of Persons, substituting Private for every field
-// the Editor has withheld.
-func peopleViews(people []rolo.Person, memorial bool) []personView {
+// the Editor has withheld and blanking a deceased person's contact details.
+func peopleViews(people []rolo.Person) []personView {
 	views := make([]personView, 0, len(people))
 
 	for _, p := range people {
@@ -384,12 +382,17 @@ func peopleViews(people []rolo.Person, memorial bool) []personView {
 		}
 
 		// §5.4: a Memorial Household is a names-and-dates reference with no
-		// contact details. Blanked rather than marked Private, because the two
-		// absences mean different things (§5.5): [private] announces that a
-		// value is held and withheld, which on a dead relative's phone number
-		// would advertise exactly what suppression exists to omit. There is
-		// nothing here to act on, so nothing is shown.
-		if memorial {
+		// contact details. The rule is per-Person, not per-Household, because
+		// §5.4's reason for it is that there is nobody left to own them — and a
+		// Memorial Household can still list a living Dependent, whose number
+		// the Editor very much needs. Gating on the Household would hide it.
+		//
+		// Blanked rather than marked Private, because the two absences mean
+		// different things (§5.5): [private] announces that a value is held and
+		// withheld, which on a dead relative's phone number would advertise
+		// exactly what suppression exists to omit. There is nothing here to act
+		// on, so nothing is shown.
+		if p.IsDeceased() {
 			view.Phone = ""
 			view.Email = ""
 		}

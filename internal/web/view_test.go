@@ -366,3 +366,85 @@ func TestAddressPrecedence(t *testing.T) {
 		})
 	}
 }
+
+// TestDeceasedContactSuppressionIsPerPerson pins the boundary of §5.4's
+// no-contact-details rule. The rule is per-Person, not per-Household: §5.4
+// justifies it by there being nobody left to own the details, which does not
+// extend to a living Dependent still listed inside a Memorial Household. An
+// earlier fix gated on IsMemorial() and hid a living minor's phone number,
+// which is the opposite failure from the leak it was fixing.
+func TestDeceasedContactSuppressionIsPerPerson(t *testing.T) {
+	tests := []struct {
+		name      string
+		checkFunc func(t *testing.T, v web.HouseholdViewForTest)
+	}{
+		{
+			name: "a deceased adult's details are suppressed",
+			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
+				t.Helper()
+				require.Len(t, v.Adults, 1)
+				assert.Empty(t, v.Adults[0].Phone, "§5.4: nobody left to own it")
+				assert.Empty(t, v.Adults[0].Email)
+			},
+		},
+		{
+			name: "a living Dependent keeps theirs, even in a Memorial Household",
+			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
+				t.Helper()
+				require.Len(t, v.Dependents, 2)
+				assert.Equal(t, "555-LIVING", v.Dependents[0].Phone,
+					"a living relative's number is exactly what the Editor needs")
+				assert.Equal(t, "living@example.com", v.Dependents[0].Email)
+			},
+		},
+		{
+			name: "a deceased Dependent's details are suppressed",
+			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
+				t.Helper()
+				require.Len(t, v.Dependents, 2)
+				assert.Empty(t, v.Dependents[1].Phone)
+				assert.Empty(t, v.Dependents[1].Email)
+			},
+		},
+		{
+			name: "the Household is still Memorial",
+			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
+				t.Helper()
+				assert.True(t, v.Memorial, "every adult is deceased")
+			},
+		},
+	}
+
+	doc := &store.Document{Schema: store.CurrentSchema, Households: []rolo.Household{{
+		ID: "h_mem",
+		Adults: []rolo.Person{{
+			ID: "p_dead", Given: "Gone", Surname: "X",
+			Birth: rolo.Date{Year: 1910}, Death: rolo.Date{Year: 1990},
+			Phone: "555-DEAD", Email: "dead@example.com",
+		}},
+		Dependents: []rolo.Person{
+			{
+				ID: "p_living", Given: "Living", Surname: "X",
+				Birth: rolo.Date{Year: 2010},
+				Phone: "555-LIVING", Email: "living@example.com",
+			},
+			{
+				ID: "p_gonedep", Given: "GoneDep", Surname: "X",
+				Birth: rolo.Date{Year: 1950}, Death: rolo.Date{Year: 1975},
+				Phone: "555-GONEDEP", Email: "gonedep@example.com",
+			},
+		},
+	}}}
+
+	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{})
+	require.NoError(t, err)
+
+	v, ok := srv.HouseholdViewForTest("h_mem")
+	require.True(t, ok)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.checkFunc(t, v)
+		})
+	}
+}

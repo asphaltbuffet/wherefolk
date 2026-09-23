@@ -119,14 +119,6 @@ func TestRouting(t *testing.T) {
 	}
 }
 
-// TestConcurrentReads checks that handlers are safe to call concurrently,
-// because htmx issues overlapping requests even with a single Editor.
-//
-// Today it cannot fail: the package has readers and no writers, and concurrent
-// reads of data nobody mutates are not a data race — removing the handler's
-// RLock leaves -race clean. It is a regression trip-wire for work item 5, when
-// the write path makes the locking genuinely load-bearing, not proof that the
-// locking is correct now.
 func TestRenderFragmentOmitsLayout(t *testing.T) {
 	tests := []struct {
 		name            string
@@ -193,6 +185,14 @@ func TestRenderFragmentOmitsLayout(t *testing.T) {
 	}
 }
 
+// TestConcurrentReads checks that handlers are safe to call concurrently,
+// because htmx issues overlapping requests even with a single Editor.
+//
+// Today it cannot fail: the package has readers and no writers, and concurrent
+// reads of data nobody mutates are not a data race — removing the handler's
+// RLock leaves -race clean. It is a regression trip-wire for work item 5, when
+// the write path makes the locking genuinely load-bearing, not proof that the
+// locking is correct now.
 func TestConcurrentReads(t *testing.T) {
 	tests := []struct {
 		name    string
