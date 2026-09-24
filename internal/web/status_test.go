@@ -104,14 +104,21 @@ func sampleDocument() *store.Document {
 // testServer builds a Server with recording stubs for the write path. The
 // returned saver captures the last document written, so a test can assert what
 // a save produced without touching a filesystem.
+//
+// attempted records the document passed on every call, success or failure,
+// so a test can assert on what save() was given even when it refused it.
+// saved records it only when save() succeeded, so a test can assert on what
+// the server would go on to serve.
 type recordingSaver struct {
-	saved *store.Document
-	err   error
-	calls int
+	attempted *store.Document
+	saved     *store.Document
+	err       error
+	calls     int
 }
 
 func (r *recordingSaver) save(doc *store.Document) error {
 	r.calls++
+	r.attempted = doc
 	if r.err != nil {
 		return r.err
 	}

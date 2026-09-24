@@ -32,7 +32,7 @@ func TestHandleSave(t *testing.T) {
 		id    string
 		form  url.Values
 		saver *recordingSaver
-		check func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver)
+		check func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver, srv *web.Server)
 	}{
 		{
 			name: "a good submit saves and redirects",
@@ -42,7 +42,7 @@ func TestHandleSave(t *testing.T) {
 				"person.p_clyd01.surname": {"Whitlock"},
 				"person.p_clyd01.phone":   {"555.201.0001"},
 			},
-			check: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver) {
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver, _ *web.Server) {
 				t.Helper()
 
 				assert.Equal(t, http.StatusSeeOther, rec.Code)
@@ -64,7 +64,7 @@ func TestHandleSave(t *testing.T) {
 				"open":                  {"h_aden,h_clyde"},
 				"pane":                  {"closed"},
 			},
-			check: func(t *testing.T, rec *httptest.ResponseRecorder, _ *recordingSaver) {
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, _ *recordingSaver, _ *web.Server) {
 				t.Helper()
 
 				assert.Equal(t, http.StatusSeeOther, rec.Code)
@@ -83,7 +83,7 @@ func TestHandleSave(t *testing.T) {
 				"person.p_clyd01.given": {"Clyde"},
 				"person.p_clyd01.birth": {"June-ish 1998"},
 			},
-			check: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver) {
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver, _ *web.Server) {
 				t.Helper()
 
 				assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
@@ -103,11 +103,28 @@ func TestHandleSave(t *testing.T) {
 				"person.p_clyd01.phone": {"555-9999"},
 			},
 			saver: &recordingSaver{err: assert.AnError},
-			check: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver) {
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver, srv *web.Server) {
 				t.Helper()
 
 				assert.Equal(t, http.StatusInternalServerError, rec.Code)
 				assert.Equal(t, 1, saver.calls)
+
+				require.NotNil(t, saver.attempted,
+					"save() must be called with the attempted document even when it goes on to fail")
+				h := findHousehold(t, saver.attempted, "h_clyde")
+				assert.Equal(t, "555-9999", h.Adults[0].Phone,
+					"the attempted document carried the Editor's rejected submission")
+
+				// The point of this case: prove what the server actually goes
+				// on to serve after the failure, not just what it attempted
+				// to save.
+				getRec := httptest.NewRecorder()
+				srv.Handler().ServeHTTP(getRec, httptest.NewRequest(http.MethodGet, "/h/h_clyde", nil))
+
+				assert.Contains(t, getRec.Body.String(), "555-0142",
+					"a failed save must not leave the mutation visible in what is served")
+				assert.NotContains(t, getRec.Body.String(), "555-9999",
+					"the rejected submission must not leak into a subsequent GET")
 			},
 		},
 		{
@@ -119,7 +136,7 @@ func TestHandleSave(t *testing.T) {
 				"person.p_carl01.given":   {"Carl"},
 				"person.p_carl01.promote": {"on"},
 			},
-			check: func(t *testing.T, rec *httptest.ResponseRecorder, _ *recordingSaver) {
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, _ *recordingSaver, _ *web.Server) {
 				t.Helper()
 
 				assert.Equal(t, http.StatusSeeOther, rec.Code)
@@ -141,7 +158,7 @@ func TestHandleSave(t *testing.T) {
 				"person.p_carl01.given":  {"Carl"},
 				"person.p_carl01.remove": {"on"},
 			},
-			check: func(t *testing.T, rec *httptest.ResponseRecorder, _ *recordingSaver) {
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, _ *recordingSaver, _ *web.Server) {
 				t.Helper()
 
 				assert.Equal(t, http.StatusSeeOther, rec.Code)
@@ -162,7 +179,7 @@ func TestHandleSave(t *testing.T) {
 				"person.new1.given":   {"Nadia"},
 				"person.new1.surname": {"Reeve"},
 			},
-			check: func(t *testing.T, rec *httptest.ResponseRecorder, _ *recordingSaver) {
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, _ *recordingSaver, _ *web.Server) {
 				t.Helper()
 
 				assert.Equal(t, http.StatusSeeOther, rec.Code)
@@ -180,7 +197,7 @@ func TestHandleSave(t *testing.T) {
 			name: "a save to an unknown household is a 404",
 			id:   "h_missing",
 			form: url.Values{"person.p_x.given": {"X"}},
-			check: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver) {
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver, _ *web.Server) {
 				t.Helper()
 
 				assert.Equal(t, http.StatusNotFound, rec.Code)
@@ -194,7 +211,7 @@ func TestHandleSave(t *testing.T) {
 				"person.p_reev01.given":  {"Ray"},
 				"person.p_reev01.remove": {"on"},
 			},
-			check: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver) {
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver, _ *web.Server) {
 				t.Helper()
 
 				assert.Equal(t, http.StatusUnprocessableEntity, rec.Code)
@@ -213,7 +230,7 @@ func TestHandleSave(t *testing.T) {
 			srv := newTestServer(t, sampleDocument(), saver)
 
 			rec := post(t, srv, tt.id, tt.form)
-			tt.check(t, rec, saver)
+			tt.check(t, rec, saver, srv)
 		})
 	}
 }
@@ -454,6 +471,27 @@ func TestRefusedFormRendersEveryEditableField(t *testing.T) {
 				"person.new1.surname",
 				"person.new2.given",
 				"person.new2.surname",
+			},
+		},
+		{
+			// formViewFromSubmission carries address and anniversary across
+			// the refusal the same way it carries person fields; a future
+			// regression here would erase the Editor's address or
+			// anniversary edits on a refused submit just as easily as
+			// dropping IsAdult or NewSlot did.
+			name: "the household's own fields survive a refusal",
+			id:   "h_clyde",
+			form: url.Values{
+				"person.p_clyd01.given":    {"Clyde"},
+				"person.p_clyd01.birth":    {"June-ish 1998"},
+				"person.p_clyd01.is_adult": {"true"},
+				"address.lines":            {"9 Elm St"},
+				"anniversary":              {"1962-06-14"},
+			},
+			names: []string{
+				"address.lines",
+				"address.hidden",
+				"anniversary",
 			},
 		},
 	}
