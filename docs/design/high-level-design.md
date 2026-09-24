@@ -515,8 +515,8 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 2 | ⏸️ **Migration** — *deferred until a schema 2 exists* (§2.1). The refuse-if-newer guard already shipped in item 1; there is no v0 data to convert. | 1 |
 | 3 | ✅ **Validation & normalisation** — dates, phones, emails; normalise-on-save | 1 |
 | 4 | ✅ **Tree + search navigation** — two-pane shell, Path breadcrumb, search-with-context. Navigation state lives in the URL (ADR-0008) | 1, 11 |
-| 5 | **Detail editing** — in-place fields, per-field hidden, structural-change announcements | 3, 4 |
-| 6 | **Safety net** — session undo, 30-day trash, nightly snapshots | 1 |
+| 5 | ✅ **Detail editing** — the pane is the form (§4.4), per-field hidden, add/remove a person, declared Promotion, structural-change announcements. Saves via Post/Redirect/Get (ADR-0008); masking moved to export (ADR-0010); Promotion is one-way (ADR-0009) | 3, 4 |
+| 6 | **Safety net** — session undo, 30-day trash, nightly snapshots. Inherits two slots from item 5: the `.announce-actions` div in `_announce.html` where the undo control belongs, and Household deletion, which item 5 left out because deleting with no recovery path contradicts §3 | 1 |
 | 7 | **Typst template & render engine** — flat Household blocks, Memorial blocks, fixed layout, shared-address back-references, PDF + SVG output | 1 |
 | 8 | **Tier filter** — field gating, age computation, date truncation, `[private]` vs. absence | 7 |
 | 9 | **Export UI** — tier chooser by description, SVG preview, pre-flight warnings, `pdfcpu` passphrase on Full | 8 |

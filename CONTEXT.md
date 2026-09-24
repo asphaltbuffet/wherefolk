@@ -68,6 +68,10 @@ in the spouse or Address in the new Household's own pane. The trigger is still s
 makes Dave a Household is that he now *has* one — but the editing pane governs one Household at a
 time, so it cannot grow a nested form for each Dependent's future spouse.
 
+A Household's form offers two blank slots, one for an adult and one for a Dependent, because the
+two are structurally different (§3) and a Household with a single adult must still be able to gain
+a Dependent. The slot a person arrives in is what decides where they belong; nothing infers it.
+
 **Shared Address**:
 A Household whose Address is a reference to its parent Household's Address rather than its own
 text. Stays in sync when the parent's Address changes and renders as a back-reference instead of a
