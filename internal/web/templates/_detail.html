@@ -54,7 +54,7 @@
 
         <h2>Dependents</h2>
         {{range .Dependents}}{{template "person-fields" .}}{{end}}
-        {{with .NewDependent}}{{if .Key}}{{template "person-fields" .}}{{end}}{{end}}
+        {{if .NewDependent.Key}}{{template "person-fields" .NewDependent}}{{end}}
 
         {{with .Findings}}
           <ul class="findings">
@@ -80,6 +80,8 @@
   <legend>
     {{if .IsNew}}Add someone{{else}}{{.Given}} {{.Surname}}{{end}}
   </legend>
+
+  <input type="hidden" name="person.{{.Key}}.is_adult" value="{{if .IsAdult}}true{{else}}false{{end}}">
 
   <label for="{{.Key}}-given">Given name</label>
   <input id="{{.Key}}-given" name="person.{{.Key}}.given" value="{{.Given}}">

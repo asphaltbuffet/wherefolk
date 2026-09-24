@@ -57,6 +57,11 @@ type personSubmission struct {
 	ID  rolo.PersonID
 	New bool
 
+	// WasAdult records that this person was submitted from the adult group,
+	// carried through from the hidden is_adult input so the refusal path can
+	// set personFormView.IsAdult without consulting the document.
+	WasAdult bool
+
 	Given     string
 	Surname   string
 	BirthName string
@@ -195,6 +200,7 @@ func parsePerson(form url.Values, key string, isNew bool) (personSubmission, []f
 	person := personSubmission{
 		New:         isNew,
 		AsDependent: key == newDependentSlotKey,
+		WasAdult:    field("is_adult") == "true",
 		Given:       field("given"),
 		Surname:     field("surname"),
 		BirthName:   field("birth_name"),

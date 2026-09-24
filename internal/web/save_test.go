@@ -287,6 +287,34 @@ func TestAnnouncementRendersFromTheQueryString(t *testing.T) {
 	}
 }
 
+func TestAnnouncementLinksToTheMovedHousehold(t *testing.T) {
+	tests := []struct {
+		name       string
+		target     string
+		wantAnchor string
+	}{
+		{
+			// moved=h_clyde stands in for a promotion destination here; the
+			// assertion is on the anchor itself, which is what the Link/Label
+			// branch of announcementFor renders.
+			name: "a promotion's link points at the destination household",
+			target: "/h/h_clyde?said=" +
+				url.QueryEscape("Carl now has a household of their own, beneath Clyde/Doris.") +
+				"&moved=h_clyde",
+			wantAnchor: `<a href="/h/h_clyde">Go to Clyde/Doris</a>`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := get(t, sampleDocument(), tt.target)
+			require.Equal(t, http.StatusOK, rec.Code)
+
+			assert.Contains(t, rec.Body.String(), tt.wantAnchor)
+		})
+	}
+}
+
 func TestFormRendersEveryEditableField(t *testing.T) {
 	// Every field parseSubmission reads must appear in the rendered form. A
 	// field the template stops rendering would not come back in the next
@@ -312,6 +340,7 @@ func TestFormRendersEveryEditableField(t *testing.T) {
 				"person.p_clyd01.hidden.birth",
 				"person.p_clyd01.hidden.phone",
 				"person.p_clyd01.hidden.email",
+				"person.p_clyd01.is_adult",
 			},
 		},
 		{
@@ -369,6 +398,114 @@ func TestFormRendersEveryEditableField(t *testing.T) {
 				assert.Contains(t, body, `name="`+name+`"`,
 					"%s must be rendered as an input, or it will clear itself on the next save", name)
 			}
+		})
+	}
+}
+
+func TestRefusedFormRendersEveryEditableField(t *testing.T) {
+	// The 422 body is also a form the Editor submits next, so the same
+	// invariant TestFormRendersEveryEditableField checks on the GET path
+	// binds it with equal force. This is the divergence Important findings 1
+	// and 2 introduced: formViewFromSubmission dropped IsAdult and NewSlot,
+	// and this test exists to catch a repeat.
+	tests := []struct {
+		name  string
+		id    string
+		form  url.Values
+		names []string
+	}{
+		{
+			name: "an existing adult's every field is a named input on refusal",
+			id:   "h_clyde",
+			form: url.Values{
+				"person.p_clyd01.given":    {"Clyde"},
+				"person.p_clyd01.birth":    {"June-ish 1998"},
+				"person.p_clyd01.is_adult": {"true"},
+			},
+			names: []string{
+				"person.p_clyd01.given",
+				"person.p_clyd01.surname",
+				"person.p_clyd01.birth_name",
+				"person.p_clyd01.aka",
+				"person.p_clyd01.birth",
+				"person.p_clyd01.death",
+				"person.p_clyd01.phone",
+				"person.p_clyd01.email",
+				"person.p_clyd01.hidden.birth",
+				"person.p_clyd01.hidden.phone",
+				"person.p_clyd01.hidden.email",
+				"person.p_clyd01.is_adult",
+				"person.p_clyd01.remove",
+			},
+		},
+		{
+			// A refused submit must still offer the blank adult slot, or an
+			// Editor recovering from a typo loses the ability to add an
+			// adult without another round trip (Important finding 2).
+			name: "the blank adult slot survives a refusal",
+			id:   "h_clyde",
+			form: url.Values{
+				"person.p_clyd01.given":    {"Clyde"},
+				"person.p_clyd01.birth":    {"June-ish 1998"},
+				"person.p_clyd01.is_adult": {"true"},
+			},
+			names: []string{
+				"person.new1.given",
+				"person.new1.surname",
+				"person.new2.given",
+				"person.new2.surname",
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestServer(t, sampleDocument(), nil)
+
+			rec := post(t, srv, tt.id, tt.form)
+			require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+
+			body := rec.Body.String()
+
+			for _, name := range tt.names {
+				assert.Contains(t, body, `name="`+name+`"`,
+					"%s must be rendered as an input in the refused form", name)
+			}
+		})
+	}
+}
+
+func TestRefusedFormDoesNotOfferAnAdultPromoteControl(t *testing.T) {
+	// formViewFromSubmission never used to set IsAdult, so every person it
+	// built rendered with IsAdult == false, and the template's
+	// {{if not .IsAdult}} gate offered "Give them a household of their own"
+	// on adults — an operation applyToGroup silently ignores for an adult.
+	// Important finding 1.
+	tests := []struct {
+		name string
+		id   string
+		form url.Values
+	}{
+		{
+			name: "an adult refused for a bad birth date is not offered a promote control",
+			id:   "h_clyde",
+			form: url.Values{
+				"person.p_clyd01.given":    {"Clyde"},
+				"person.p_clyd01.birth":    {"June-ish 1998"},
+				"person.p_clyd01.is_adult": {"true"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestServer(t, sampleDocument(), nil)
+
+			rec := post(t, srv, tt.id, tt.form)
+			require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+
+			assert.NotContains(t, rec.Body.String(), `name="person.p_clyd01.promote"`,
+				"an adult must never be offered a promote control, refused or not")
 		})
 	}
 }

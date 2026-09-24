@@ -145,9 +145,14 @@ func formViewFromSubmission(
 		Anniversary:   sub.AnniversaryRaw,
 		Open:          sub.Open,
 		Pane:          sub.Pane,
-		Errors:        householdErrs,
-		NewDependent:  personFormView{Key: newDependentSlotKey, IsNew: true},
+		// Findings observe values that are stored, and the refusal path never
+		// consults the document — so there is nothing to observe here, unlike
+		// SharedWith above, which is left empty for the same reason.
+		Errors:       householdErrs,
+		NewDependent: personFormView{Key: newDependentSlotKey, IsNew: true},
 	}
+
+	haveNewAdult := false
 
 	for _, p := range sub.People {
 		form := personFormView{
@@ -164,6 +169,7 @@ func formViewFromSubmission(
 			HiddenEmail: p.Hidden.Email,
 			HiddenBirth: p.Hidden.Birth,
 			IsNew:       p.New,
+			IsAdult:     p.WasAdult,
 			Errors:      byPerson[p.ID],
 		}
 
@@ -171,17 +177,31 @@ func formViewFromSubmission(
 			// The slot keeps the name it arrived under, so a re-rendered
 			// Dependent addition is still a Dependent addition on the retry.
 			form.Key = newAdultSlotKey
+			form.IsAdult = true
+
 			if p.AsDependent {
 				form.Key = newDependentSlotKey
+				form.IsAdult = false
+			} else {
+				haveNewAdult = true
 			}
 		}
 
-		// The submission does not say which group an existing person came from,
-		// and the refusal path must not consult the document to find out — so
-		// everyone renders in the adult list. A refused submit is a corrective
-		// moment, not a navigation one, and the grouping returns on the next
-		// good save.
+		// The submission does not say which group an existing person came from
+		// for rendering position, and the refusal path must not consult the
+		// document to find out — so everyone renders in the adult list. A
+		// refused submit is a corrective moment, not a navigation one, and the
+		// grouping returns on the next good save. IsAdult, however, is carried
+		// through from the submission itself (see personSubmission.WasAdult),
+		// so the promote control still shows only for Dependents.
 		view.Adults = append(view.Adults, form)
+	}
+
+	// The blank adult slot is offered unless the submission already carries a
+	// new1 person: that person is already re-rendered above with their typing
+	// intact, and a second slot with the same field names would collide.
+	if !haveNewAdult {
+		view.NewSlot = &personFormView{Key: newAdultSlotKey, IsNew: true, IsAdult: true}
 	}
 
 	return view
