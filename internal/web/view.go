@@ -262,9 +262,13 @@ func (s *Server) joinIDsOrdered(open map[rolo.HouseholdID]bool) string {
 	return strings.Join(ids, ",")
 }
 
-// Private is what a withheld field renders as. §5.5 fixes the literal string in
-// preference to a lock glyph: it survives any font stack, needs no legend, and
-// reads correctly aloud to a screen reader.
+// Private is what a withheld field renders as in an export. §5.5 fixes the
+// literal string in preference to a lock glyph: it survives any font stack,
+// needs no legend, and reads correctly aloud to a screen reader.
+//
+// It is not used by this package's templates — ADR-0010 keeps masking out of
+// the editing UI. It lives here so item 8's tier filter imports the one place
+// the string is spelled rather than reinventing it.
 const Private = "[private]"
 
 // crumb is one step in the Path breadcrumb. Every crumb is navigable, because
@@ -275,9 +279,9 @@ type crumb struct {
 }
 
 // personView is one Person as the detail pane shows them. Every field is a
-// rendered string rather than a domain value: a withheld phone number must not
-// reach the template at all, so the substitution happens here where it is
-// testable without parsing HTML.
+// rendered string rather than a domain value, for consistency with the rest of
+// this package's view models — not because any value is withheld from it.
+// ADR-0010 keeps masking out of the editing UI.
 type personView struct {
 	Name     string
 	Birth    string
@@ -288,8 +292,7 @@ type personView struct {
 }
 
 // householdView is the detail pane. It holds strings, not rolo types, for the
-// same reason personView does: withheld values are replaced before rendering,
-// not hidden by the template.
+// same reason personView does.
 type householdView struct {
 	ID       rolo.HouseholdID
 	Title    string
@@ -298,11 +301,10 @@ type householdView struct {
 
 	AddressLines   []string
 	AddressPrivate bool
-	// AddressNote is the single-line form of the address row — the [private]
-	// marker or a Shared Address back-reference. It exists so the template
-	// interpolates one value instead of hardcoding the marker text, which would
-	// put a second copy of Private where drift is least likely to be noticed.
-	// Empty when the Household has ordinary address lines, or none at all.
+	// AddressNote is the single-line form of a Shared Address back-reference.
+	// It exists so the template interpolates one value instead of
+	// concatenating the reference text itself. Empty unless this is a Shared
+	// Address.
 	AddressNote string
 	// SharedWith is the label of the Household whose Address this one uses,
 	// empty unless this is a Shared Address. §3 makes it a reference rather than
@@ -367,28 +369,18 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 		Dependents:  peopleViews(h.Dependents),
 	}
 
-	// Order matters: Hidden is tested first, so a Household that both withholds
-	// its address and shares its parent's renders [private] rather than naming
-	// whose address it uses — which would itself disclose the withheld fact.
-	switch {
-	case h.AddressHidden():
-		// The lines are deliberately not copied into the view: a withheld value
-		// that never reaches the template cannot leak through a future change
-		// to the markup. AddressNote carries the marker so the Private constant
-		// stays the single source of that string.
-		view.AddressPrivate = true
-		view.AddressNote = Private
-	case h.SharesAddress():
-		// Unreachable with a loaded document: BuildTree rejects a dangling
-		// SharedWith, and web.New surfaces that as a startup error, so a broken
-		// reference never reaches a request. The check keeps the zero value
-		// meaningful for a Server built directly in a test.
+	// A withheld or Shared Address still renders its lines: ADR-0010 keeps
+	// masking out of this pane. AddressNote carries the Shared Address
+	// back-reference, which is information the Editor needs rather than a
+	// substitution for a value.
+	view.AddressLines = h.Address.Lines
+	view.AddressPrivate = h.AddressHidden()
+
+	if h.SharesAddress() {
 		if parent, found := s.tree.Get(h.Address.SharedWith); found {
 			view.SharedWith = parent.Label()
 			view.AddressNote = "Same address as " + parent.Label()
 		}
-	default:
-		view.AddressLines = h.Address.Lines
 	}
 
 	return view, true
@@ -407,57 +399,26 @@ func householdTitle(h rolo.Household) string {
 	return strings.Join(names, " & ")
 }
 
-// peopleViews renders a group of Persons, substituting Private for every field
-// the Editor has withheld and blanking a deceased person's contact details.
+// peopleViews renders a group of Persons for the detail pane.
+//
+// Every stored value is rendered as it stands. Withholding and suppression
+// (§5.5) are statements about what an audience receives, and the Editor is the
+// document's author rather than one of its audiences — a value they cannot see
+// is one they cannot correct or clear. Both rules belong to the tier filter.
+// See ADR-0010.
 func peopleViews(people []rolo.Person) []personView {
 	views := make([]personView, 0, len(people))
 
 	for _, p := range people {
-		view := personView{
+		views = append(views, personView{
 			Name:     p.DisplayName(),
-			Birth:    hide(p.Birth.String(), p.Hidden.Birth),
+			Birth:    p.Birth.String(),
 			Death:    p.Death.String(),
-			Phone:    hide(p.Phone, p.Hidden.Phone),
-			Email:    hide(p.Email, p.Hidden.Email),
+			Phone:    p.Phone,
+			Email:    p.Email,
 			Deceased: p.IsDeceased(),
-		}
-
-		// §5.4: a Memorial Household is a names-and-dates reference with no
-		// contact details. The rule is per-Person, not per-Household, because
-		// §5.4's reason for it is that there is nobody left to own them — and a
-		// Memorial Household can still list a living Dependent, whose number
-		// the Editor very much needs. Gating on the Household would hide it.
-		//
-		// Blanked rather than marked Private, because the two absences mean
-		// different things (§5.5): [private] announces that a value is held and
-		// withheld, which on a dead relative's phone number would advertise
-		// exactly what suppression exists to omit. There is nothing here to act
-		// on, so nothing is shown.
-		if p.IsDeceased() {
-			view.Phone = ""
-			view.Email = ""
-		}
-
-		views = append(views, view)
+		})
 	}
 
 	return views
-}
-
-// hide replaces a withheld value with Private, and leaves an absent one absent.
-//
-// Absence and withholding are different facts and must render differently: a
-// field nobody has recorded shows nothing, while one the Editor withheld shows
-// [private] so that nobody helpfully re-collects it next year (§5.5). A death
-// date is never withheld — the flags cover phone, email, and birth only.
-func hide(value string, hidden bool) string {
-	if value == "" {
-		return ""
-	}
-
-	if hidden {
-		return Private
-	}
-
-	return value
 }

@@ -163,26 +163,30 @@ func TestHouseholdView(t *testing.T) {
 			},
 		},
 		{
-			name:   "a withheld email renders as [private], never as the value",
+			name:   "a withheld email still shows its value; hiding is an export concern",
 			id:     "h_clyde",
 			wantOK: true,
 			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
 				t.Helper()
-				require.Len(t, v.Adults, 2)
-				assert.Equal(t, "[private]", v.Adults[1].Email)
-				assert.NotContains(t, v.Adults[1].Email, "@",
-					"the withheld address is replaced, not merely flagged alongside itself")
-				assert.Equal(t, "555-0143", v.Adults[1].Phone, "only the marked field is withheld")
+
+				// ADR-0010: the editing UI never masks. Doris's email is
+				// marked hidden in the fixture, which affects export only.
+				assert.Equal(t, "doris@example.com", v.Adults[1].Email)
+				assert.Equal(t, "555-0143", v.Adults[1].Phone)
 			},
 		},
 		{
-			name:   "a withheld address renders as [private]",
+			name:   "a withheld address still shows its lines",
 			id:     "h_reeve",
 			wantOK: true,
 			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
 				t.Helper()
+
+				// ADR-0010: the marker belongs to export, not to this pane.
+				// AddressPrivate still reflects the fixture's Hidden flag —
+				// it just no longer suppresses the lines below it.
 				assert.True(t, v.AddressPrivate)
-				assert.Empty(t, v.AddressLines, "a withheld address does not leak its lines into the view model")
+				assert.Equal(t, []string{"9 Elm St"}, v.AddressLines)
 			},
 		},
 		{
@@ -207,11 +211,10 @@ func TestHouseholdView(t *testing.T) {
 				assert.Equal(t, "1989-11-17", v.Adults[0].Death)
 				assert.True(t, v.Adults[0].Deceased)
 
-				// Aden carries a phone and an email in the fixture; §5.4 says
-				// a Memorial Household publishes neither, and §5.5 says the
-				// suppression is silent rather than marked.
-				assert.Empty(t, v.Adults[0].Phone, "§5.4: no contact details")
-				assert.Empty(t, v.Adults[0].Email, "§5.4: no contact details")
+				// ADR-0010: suppression is export-only. The Editor must be
+				// able to see and clear a deceased person's recorded details.
+				assert.Equal(t, "555-0100", v.Adults[0].Phone)
+				assert.Equal(t, "aden@example.com", v.Adults[0].Email)
 			},
 		},
 		{
@@ -308,24 +311,23 @@ func TestTreeMarksMemorialHouseholds(t *testing.T) {
 	}
 }
 
-// TestAddressPrecedence pins the order of householdView's address switch.
-// Hidden must be tested before SharesAddress: a Household that both withholds
-// its address and references a parent's must render [private], never the
-// back-reference. Reordering those two cases would leak the fact that the
-// Household lives at its parent's address, which is itself the withheld
-// information.
+// TestAddressPrecedence pins how householdView populates the address fields.
+// ADR-0010 removed masking from this pane, so AddressLines and SharedWith are
+// independent: a Household can carry both a Hidden flag and a Shared Address,
+// and the view renders lines and back-reference together rather than picking
+// one over the other.
 func TestAddressPrecedence(t *testing.T) {
 	tests := []struct {
 		name           string
 		address        rolo.Address
-		wantPrivate    bool
 		wantSharedWith string
 		wantLines      int
 	}{
 		{
-			name:        "hidden beats shared",
-			address:     rolo.Address{SharedWith: "h_root", Lines: []string{"1 Leak Ln"}, Hidden: true},
-			wantPrivate: true,
+			name:           "hidden no longer suppresses lines or the back-reference",
+			address:        rolo.Address{SharedWith: "h_root", Lines: []string{"1 Leak Ln"}, Hidden: true},
+			wantSharedWith: "Root",
+			wantLines:      1,
 		},
 		{
 			name:           "shared without hidden renders the back-reference",
@@ -355,14 +357,8 @@ func TestAddressPrecedence(t *testing.T) {
 			v, ok := srv.HouseholdViewForTest("h_kid")
 			require.True(t, ok)
 
-			assert.Equal(t, tt.wantPrivate, v.AddressPrivate)
 			assert.Equal(t, tt.wantSharedWith, v.SharedWith)
 			assert.Len(t, v.AddressLines, tt.wantLines)
-
-			if tt.wantPrivate {
-				assert.Empty(t, v.SharedWith, "a withheld address must not reveal whose it is")
-				assert.Empty(t, v.AddressLines, "a withheld address must not carry its lines")
-			}
 		})
 	}
 }
@@ -383,8 +379,8 @@ func TestDeceasedContactSuppressionIsPerPerson(t *testing.T) {
 			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
 				t.Helper()
 				require.Len(t, v.Adults, 1)
-				assert.Empty(t, v.Adults[0].Phone, "§5.4: nobody left to own it")
-				assert.Empty(t, v.Adults[0].Email)
+				assert.Equal(t, "555-DEAD", v.Adults[0].Phone)
+				assert.Equal(t, "dead@example.com", v.Adults[0].Email)
 			},
 		},
 		{
@@ -402,8 +398,8 @@ func TestDeceasedContactSuppressionIsPerPerson(t *testing.T) {
 			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
 				t.Helper()
 				require.Len(t, v.Dependents, 2)
-				assert.Empty(t, v.Dependents[1].Phone)
-				assert.Empty(t, v.Dependents[1].Email)
+				assert.Equal(t, "555-GONEDEP", v.Dependents[1].Phone)
+				assert.Equal(t, "gonedep@example.com", v.Dependents[1].Email)
 			},
 		},
 		{
