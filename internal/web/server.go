@@ -118,6 +118,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /status", s.handleStatus)
 	mux.HandleFunc("GET /{$}", s.handleDirectory)
 	mux.HandleFunc("GET /h/{id}", s.handleDirectory)
+
+	// The write path. It redirects rather than swapping a fragment, so the
+	// tree and the detail pane always re-render together. See ADR-0008.
+	mux.HandleFunc("POST /h/{id}", s.handleSave)
+
 	mux.HandleFunc("GET /tree", s.handleTree)
 	mux.HandleFunc("GET /search", s.handleSearch)
 

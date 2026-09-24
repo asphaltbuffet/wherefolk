@@ -106,3 +106,27 @@ func (s *Server) ApplySubmissionForTest(
 ) ([]change, error) {
 	return s.applySubmission(doc, id, sub)
 }
+
+// HouseholdFormViewForTest is householdFormView, exported for the external test
+// package.
+type HouseholdFormViewForTest = householdFormView
+
+// FormViewFromHouseholdForTest exposes formViewFromHousehold to the external
+// test package.
+func FormViewFromHouseholdForTest(
+	id rolo.HouseholdID,
+	h rolo.Household,
+	findings []rolo.Finding,
+) householdFormView {
+	return formViewFromHousehold(id, h, findings)
+}
+
+// FormViewFromSubmissionForTest exposes formViewFromSubmission to the external
+// test package.
+func FormViewFromSubmissionForTest(
+	id rolo.HouseholdID,
+	sub submission,
+	errs []fieldError,
+) householdFormView {
+	return formViewFromSubmission(id, sub, errs)
+}

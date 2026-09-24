@@ -315,6 +315,11 @@ type householdView struct {
 
 	Adults     []personView
 	Dependents []personView
+
+	// Form is the editable rendering of this Household. §4.4 makes the detail
+	// pane the form, so this is always populated on a GET; the refusal path
+	// replaces it with the Editor's own submission.
+	Form *householdFormView
 }
 
 // directoryView is the whole two-pane page. Household is nil when nothing is
@@ -338,6 +343,11 @@ type directoryView struct {
 	// PaneToggleURL reopens or closes the pane, preserving the current
 	// selection. Built with url.Values for the same reason as a tree toggle.
 	PaneToggleURL string
+
+	// Announcement reports a structural change the last save made (§4.4). It
+	// arrives in the query string because ADR-0001 left nowhere server-side to
+	// keep it.
+	Announcement announcement
 }
 
 // householdView builds the detail pane for one Household, reporting false if it
@@ -382,6 +392,20 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 			view.AddressNote = "Same address as " + parent.Label()
 		}
 	}
+
+	// Findings are computed for this Household alone. Whole-document findings
+	// are export pre-flight's job (§4.5, §5.7); reporting a problem with a
+	// Household the Editor is not looking at, on every save, is the nagging
+	// that trains them to ignore findings.
+	findings := rolo.ValidateHouseholds([]rolo.Household{h})
+
+	form := formViewFromHousehold(id, h, findings)
+	form.Title = view.Title
+	form.Crumbs = view.Crumbs
+	// The Shared Address back-reference is resolved against the tree, which the
+	// form builder does not have, so it is carried across here.
+	form.SharedWith = view.SharedWith
+	view.Form = &form
 
 	return view, true
 }

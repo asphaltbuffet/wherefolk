@@ -1,5 +1,7 @@
 {{define "detail"}}
 <section id="detail" aria-label="Household">
+  {{if .Announcement.Message}}{{template "announce" .Announcement}}{{end}}
+
   {{if .NotFound}}
     <h1>That household is not in the directory</h1>
     <p>It may have been removed, or the link may be out of date. Choose a household from the list
@@ -8,29 +10,62 @@
     {{with .Household}}
       <h1>{{.Title}}{{if .Memorial}} <span class="badge">Memorial</span>{{end}}</h1>
 
+      {{/* The breadcrumb sits outside the form: following a link must never
+           submit one. */}}
       <nav class="breadcrumb" aria-label="Path">
         {{range $i, $c := .Crumbs}}{{if $i}} › {{end}}<a href="/h/{{$c.ID}}">{{$c.Label}}</a>{{end}}
       </nav>
 
-      <dl class="household-facts">
-        {{if .AddressNote}}
-          <dt>Address</dt><dd>{{.AddressNote}}</dd>
-        {{else if .AddressLines}}
-          <dt>Address</dt>
-          <dd>{{range .AddressLines}}<span class="address-line">{{.}}</span>{{end}}</dd>
+      {{with .Form}}
+      <form class="household-form" method="post" action="/h/{{.ID}}">
+        <input type="hidden" name="open" value="{{.Open}}">
+        <input type="hidden" name="pane" value="{{.Pane}}">
+
+        {{with index .Errors ""}}
+          <p class="field-error" role="alert">{{.}}</p>
         {{end}}
-        {{with .Anniversary}}<dt>Anniversary</dt><dd>{{.}}</dd>{{end}}
-      </dl>
 
-      <ul class="people">
-        {{range .Adults}}{{template "person" .}}{{end}}
-      </ul>
+        <fieldset class="household-facts">
+          <legend>Household</legend>
 
-      {{if .Dependents}}
+          <label for="address">Address</label>
+          {{with .SharedWith}}
+            <p class="field-note">Same address as {{.}}</p>
+          {{end}}
+          <textarea id="address" name="address.lines" rows="3">{{.AddressText}}</textarea>
+
+          <label class="hide-toggle">
+            <input type="hidden" name="address.hidden" value="off">
+            <input type="checkbox" name="address.hidden" value="on"
+                   {{if .AddressHidden}}checked{{end}}>
+            Keep out of the printed directory
+          </label>
+
+          <label for="anniversary">Anniversary</label>
+          <input id="anniversary" name="anniversary" value="{{.Anniversary}}"
+                 placeholder="1998-06-14">
+          {{with index .Errors "anniversary"}}
+            <p class="field-error" role="alert">{{.}}</p>
+          {{end}}
+        </fieldset>
+
+        {{range .Adults}}{{template "person-fields" .}}{{end}}
+        {{with .NewSlot}}{{template "person-fields" .}}{{end}}
+
         <h2>Dependents</h2>
-        <ul class="people">
-          {{range .Dependents}}{{template "person" .}}{{end}}
-        </ul>
+        {{range .Dependents}}{{template "person-fields" .}}{{end}}
+        {{with .NewDependent}}{{if .Key}}{{template "person-fields" .}}{{end}}{{end}}
+
+        {{with .Findings}}
+          <ul class="findings">
+            {{range .}}
+              <li class="finding finding-{{.Severity}}">{{.Message}}</li>
+            {{end}}
+          </ul>
+        {{end}}
+
+        <button type="submit">Save</button>
+      </form>
       {{end}}
     {{end}}
   {{else}}
@@ -40,17 +75,71 @@
 </section>
 {{end}}
 
-{{define "person"}}
-<li class="person{{if .Deceased}} person-deceased{{end}}">
-  <span class="person-name">{{.Name}}</span>
-  <span class="person-dates">
-    {{with .Birth}}b. {{.}}{{end}}
-    {{with .Death}} · d. {{.}}{{end}}
-  </span>
-  {{if or .Phone .Email}}
-    <span class="person-contact">
-      {{with .Phone}}{{.}}{{end}}{{if and .Phone .Email}} · {{end}}{{with .Email}}{{.}}{{end}}
-    </span>
+{{define "person-fields"}}
+<fieldset class="person{{if .Deceased}} person-deceased{{end}}{{if .IsNew}} person-new{{end}}">
+  <legend>
+    {{if .IsNew}}Add someone{{else}}{{.Given}} {{.Surname}}{{end}}
+  </legend>
+
+  <label for="{{.Key}}-given">Given name</label>
+  <input id="{{.Key}}-given" name="person.{{.Key}}.given" value="{{.Given}}">
+
+  <label for="{{.Key}}-surname">Surname</label>
+  <input id="{{.Key}}-surname" name="person.{{.Key}}.surname" value="{{.Surname}}">
+
+  <label for="{{.Key}}-aka">Known as</label>
+  <input id="{{.Key}}-aka" name="person.{{.Key}}.aka" value="{{.Aka}}">
+
+  <label for="{{.Key}}-birth-name">Birth name</label>
+  <input id="{{.Key}}-birth-name" name="person.{{.Key}}.birth_name" value="{{.BirthName}}">
+
+  <label for="{{.Key}}-birth">Born</label>
+  <input id="{{.Key}}-birth" name="person.{{.Key}}.birth" value="{{.Birth}}"
+         placeholder="1971-03-02">
+  {{with index .Errors "birth"}}<p class="field-error" role="alert">{{.}}</p>{{end}}
+  <label class="hide-toggle">
+    <input type="hidden" name="person.{{.Key}}.hidden.birth" value="off">
+    <input type="checkbox" name="person.{{.Key}}.hidden.birth" value="on"
+           {{if .HiddenBirth}}checked{{end}}>
+    Keep out of the printed directory
+  </label>
+
+  <label for="{{.Key}}-death">Died</label>
+  <input id="{{.Key}}-death" name="person.{{.Key}}.death" value="{{.Death}}">
+  {{with index .Errors "death"}}<p class="field-error" role="alert">{{.}}</p>{{end}}
+
+  <label for="{{.Key}}-phone">Phone</label>
+  <input id="{{.Key}}-phone" name="person.{{.Key}}.phone" value="{{.Phone}}">
+  <label class="hide-toggle">
+    <input type="hidden" name="person.{{.Key}}.hidden.phone" value="off">
+    <input type="checkbox" name="person.{{.Key}}.hidden.phone" value="on"
+           {{if .HiddenPhone}}checked{{end}}>
+    Keep out of the printed directory
+  </label>
+
+  <label for="{{.Key}}-email">Email</label>
+  <input id="{{.Key}}-email" name="person.{{.Key}}.email" value="{{.Email}}">
+  <label class="hide-toggle">
+    <input type="hidden" name="person.{{.Key}}.hidden.email" value="off">
+    <input type="checkbox" name="person.{{.Key}}.hidden.email" value="on"
+           {{if .HiddenEmail}}checked{{end}}>
+    Keep out of the printed directory
+  </label>
+
+  {{if not .IsNew}}
+    {{if not .IsAdult}}
+      <label class="structural">
+        <input type="hidden" name="person.{{.Key}}.promote" value="off">
+        <input type="checkbox" name="person.{{.Key}}.promote" value="on">
+        Give them a household of their own
+      </label>
+    {{end}}
+
+    <label class="structural">
+      <input type="hidden" name="person.{{.Key}}.remove" value="off">
+      <input type="checkbox" name="person.{{.Key}}.remove" value="on">
+      Remove from the directory
+    </label>
   {{end}}
-</li>
+</fieldset>
 {{end}}
