@@ -3,6 +3,7 @@ package web
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
@@ -73,4 +74,19 @@ func (s *Server) JoinIDsOrderedForTest(open map[rolo.HouseholdID]bool) string {
 	defer s.mu.RUnlock()
 
 	return s.joinIDsOrdered(open)
+}
+
+// SubmissionForTest is submission, exported for the external test package.
+type SubmissionForTest = submission
+
+// PersonSubmissionForTest is personSubmission, exported for the external test
+// package.
+type PersonSubmissionForTest = personSubmission
+
+// FieldErrorForTest is fieldError, exported for the external test package.
+type FieldErrorForTest = fieldError
+
+// ParseSubmissionForTest exposes parseSubmission to the external test package.
+func ParseSubmissionForTest(form url.Values, h rolo.Household) (submission, []fieldError) {
+	return parseSubmission(form, h)
 }
