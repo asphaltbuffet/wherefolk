@@ -160,7 +160,7 @@ func TestOpenSet(t *testing.T) {
 		},
 	}
 
-	srv := newTestServer(t)
+	srv := newTestServer(t, sampleDocument(), nil)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -184,7 +184,7 @@ func TestOpenSet(t *testing.T) {
 // The danger is specific to hx-get: html/template percent-encodes into href
 // because it recognises it as a URL attribute, but hx-get is an attribute it
 // knows nothing about and receives HTML escaping only. Building the query with
-// url.Values is what closes that gap.
+// [url.Values] is what closes that gap.
 func TestToggleURLEncodesIDs(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -358,7 +358,7 @@ func TestOpenSetDropsChildlessNodes(t *testing.T) {
 		},
 	}
 
-	srv := newTestServer(t)
+	srv := newTestServer(t, sampleDocument(), nil)
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

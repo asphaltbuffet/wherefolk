@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
@@ -89,4 +90,19 @@ type FieldErrorForTest = fieldError
 // ParseSubmissionForTest exposes parseSubmission to the external test package.
 func ParseSubmissionForTest(form url.Values, h rolo.Household) (submission, []fieldError) {
 	return parseSubmission(form, h)
+}
+
+// ChangeForTest is change, exported for the external test package.
+type ChangeForTest = change
+
+// CloneDocumentForTest exposes cloneDocument to the external test package.
+func CloneDocumentForTest(doc *store.Document) *store.Document { return cloneDocument(doc) }
+
+// ApplySubmissionForTest exposes applySubmission to the external test package.
+func (s *Server) ApplySubmissionForTest(
+	doc *store.Document,
+	id rolo.HouseholdID,
+	sub submission,
+) ([]change, error) {
+	return s.applySubmission(doc, id, sub)
 }

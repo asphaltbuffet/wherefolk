@@ -128,6 +128,29 @@ func sequentialIDs(prefix string) func() string {
 	}
 }
 
+// newTestServer builds a Server with deterministic ID generation. saver may be
+// nil, in which case writes succeed and are discarded.
+func newTestServer(t *testing.T, doc *store.Document, saver *recordingSaver) *web.Server {
+	t.Helper()
+
+	if saver == nil {
+		saver = &recordingSaver{}
+	}
+
+	nextHousehold := sequentialIDs("h_new")
+	nextPerson := sequentialIDs("p_new")
+
+	srv, err := web.New(doc, config.Config{}, testLogger(),
+		web.Meta{DocumentPath: "/tmp/test/directory.json"},
+		saver.save,
+		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
+		func() (rolo.PersonID, error) { return rolo.PersonID(nextPerson()), nil },
+	)
+	require.NoError(t, err)
+
+	return srv
+}
+
 // get issues a request against the server and returns the recorder.
 func get(t *testing.T, doc *store.Document, target string) *httptest.ResponseRecorder {
 	t.Helper()
