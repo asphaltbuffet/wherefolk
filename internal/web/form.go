@@ -148,11 +148,10 @@ func formViewFromSubmission(
 		// Findings observe values that are stored, and the refusal path never
 		// consults the document — so there is nothing to observe here, unlike
 		// SharedWith above, which is left empty for the same reason.
-		Errors:       householdErrs,
-		NewDependent: personFormView{Key: newDependentSlotKey, IsNew: true},
+		Errors: householdErrs,
 	}
 
-	haveNewAdult := false
+	haveNewAdult, haveNewDependent := false, false
 
 	for _, p := range sub.People {
 		form := personFormView{
@@ -182,6 +181,7 @@ func formViewFromSubmission(
 			if p.AsDependent {
 				form.Key = newDependentSlotKey
 				form.IsAdult = false
+				haveNewDependent = true
 			} else {
 				haveNewAdult = true
 			}
@@ -197,11 +197,16 @@ func formViewFromSubmission(
 		view.Adults = append(view.Adults, form)
 	}
 
-	// The blank adult slot is offered unless the submission already carries a
-	// new1 person: that person is already re-rendered above with their typing
-	// intact, and a second slot with the same field names would collide.
+	// The blank new-person slots are offered unless the submission already
+	// carries that slot's person: that person is already re-rendered above
+	// with their typing intact, and a second slot with the same field names
+	// would collide. Both slots carry the same hazard, so both are guarded.
 	if !haveNewAdult {
 		view.NewSlot = &personFormView{Key: newAdultSlotKey, IsNew: true, IsAdult: true}
+	}
+
+	if !haveNewDependent {
+		view.NewDependent = personFormView{Key: newDependentSlotKey, IsNew: true}
 	}
 
 	return view

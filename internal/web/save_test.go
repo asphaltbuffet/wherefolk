@@ -475,6 +475,55 @@ func TestRefusedFormRendersEveryEditableField(t *testing.T) {
 	}
 }
 
+func TestRefusedFormDoesNotDuplicateANewPerson(t *testing.T) {
+	// The refusal path re-renders everyone in sub.People through view.Adults,
+	// then unconditionally offered the blank new-person slot alongside them.
+	// For new1 that slot was guarded (haveNewAdult); new2 was not, so a
+	// refused Dependent addition rendered twice — once from the submission
+	// loop, once as the blank NewDependent slot — with both fieldsets
+	// carrying the same name="person.new2.*" attributes. assert.Contains
+	// would not catch a duplicate; strings.Count does.
+	tests := []struct {
+		name  string
+		id    string
+		form  url.Values
+		field string
+	}{
+		{
+			name: "a refused new adult is rendered exactly once",
+			id:   "h_clyde",
+			form: url.Values{
+				"person.new1.given": {"Nadia"},
+				"person.new1.birth": {"not a date"},
+			},
+			field: "person.new1.given",
+		},
+		{
+			name: "a refused new dependent is rendered exactly once",
+			id:   "h_clyde",
+			form: url.Values{
+				"person.new2.given": {"Nadia"},
+				"person.new2.birth": {"not a date"},
+			},
+			field: "person.new2.given",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestServer(t, sampleDocument(), nil)
+
+			rec := post(t, srv, tt.id, tt.form)
+			require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+
+			body := rec.Body.String()
+
+			assert.Equal(t, 1, strings.Count(body, `name="`+tt.field+`"`),
+				"%s must appear exactly once in the refused form", tt.field)
+		})
+	}
+}
+
 func TestRefusedFormDoesNotOfferAnAdultPromoteControl(t *testing.T) {
 	// formViewFromSubmission never used to set IsAdult, so every person it
 	// built rendered with IsAdult == false, and the template's
