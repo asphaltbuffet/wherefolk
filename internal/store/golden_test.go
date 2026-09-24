@@ -21,10 +21,10 @@ func TestLoadExampleDirectory(t *testing.T) {
 		checkFunc func(t *testing.T, doc *store.Document, tree *rolo.Tree)
 	}{
 		{
-			name: "three households",
+			name: "four households",
 			checkFunc: func(t *testing.T, doc *store.Document, _ *rolo.Tree) {
 				t.Helper()
-				assert.Len(t, doc.Households, 3)
+				assert.Len(t, doc.Households, 4)
 			},
 		},
 		{
@@ -33,8 +33,8 @@ func TestLoadExampleDirectory(t *testing.T) {
 				t.Helper()
 				roots := tree.Roots()
 				require.Len(t, roots, 2)
-				assert.Equal(t, "Patricia", roots[0].Label(), "Patricia b. 1952 precedes Robert b. 1965")
-				assert.Equal(t, "Robert/Susan", roots[1].Label())
+				assert.Equal(t, "Harold/June", roots[0].Label(), "Harold b. 1928 precedes Patricia b. 1952")
+				assert.Equal(t, "Patricia", roots[1].Label())
 			},
 		},
 		{
@@ -52,7 +52,7 @@ func TestLoadExampleDirectory(t *testing.T) {
 				t.Helper()
 				path, err := tree.PathString("h_lang02")
 				require.NoError(t, err)
-				assert.Equal(t, "Robert/Susan › Daniel/Claire", path)
+				assert.Equal(t, "Harold/June › Robert/Susan › Daniel/Claire", path)
 			},
 		},
 		{
@@ -122,13 +122,27 @@ func TestLoadExampleDirectory(t *testing.T) {
 			},
 		},
 		{
-			name: "no household in the example is memorial",
+			name: "the memorial household anchors the langford branch",
 			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
 				t.Helper()
-				require.NoError(t, tree.Walk(func(h rolo.Household, _ int) error {
-					assert.False(t, h.IsMemorial(), "%s should not be memorial", h.Label())
-					return nil
-				}))
+				h, ok := tree.Get("h_meml01")
+				require.True(t, ok)
+				assert.True(t, h.IsMemorial(), "both adults are deceased")
+
+				kids := tree.Children("h_meml01")
+				require.Len(t, kids, 1)
+				assert.Equal(t, "Robert/Susan", kids[0].Label())
+			},
+		},
+		{
+			name: "a household may share its parent's address",
+			checkFunc: func(t *testing.T, _ *store.Document, tree *rolo.Tree) {
+				t.Helper()
+				h, ok := tree.Get("h_lang02")
+				require.True(t, ok)
+				assert.True(t, h.SharesAddress())
+				assert.Equal(t, rolo.HouseholdID("h_lang01"), h.Address.SharedWith)
+				assert.Empty(t, h.Address.Lines, "a shared address holds no lines of its own")
 			},
 		},
 	}
