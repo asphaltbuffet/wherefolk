@@ -26,6 +26,7 @@
             go
             gopls
             uv
+            typst
             nodejs
             pkgs.nur.repos.goreleaser.goreleaser-pro
           ];
