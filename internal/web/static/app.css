@@ -75,3 +75,73 @@ main { height: 100vh; }
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap;
 }
+
+/* The detail pane is a form (§4.4): every field is always editable, so the
+   inputs must read as calmly as the text they replaced. */
+.household-form fieldset {
+  border: 1px solid var(--rule, #ddd);
+  margin: 0 0 1rem;
+  padding: 0.75rem 1rem;
+}
+
+.household-form label {
+  display: block;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+}
+
+.household-form input[type="text"],
+.household-form input:not([type]),
+.household-form textarea {
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* A hide toggle sits with its field, not in a separate privacy panel: the
+   Editor decides per field, in place (§4.4). */
+.household-form .hide-toggle,
+.household-form .structural {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+.household-form .hide-toggle input,
+.household-form .structural input {
+  width: auto;
+  margin-right: 0.35rem;
+}
+
+/* Input that could not be stored. Distinct from a finding, which observes a
+   value that was (§4.5). */
+.field-error {
+  color: #a11;
+  font-size: 0.85rem;
+  margin: 0.25rem 0 0;
+}
+
+.field-note {
+  font-size: 0.85rem;
+  opacity: 0.75;
+  margin: 0.25rem 0;
+}
+
+.findings {
+  list-style: none;
+  padding: 0;
+}
+
+.finding {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.5rem;
+  border-left: 3px solid #ccc;
+  margin: 0.25rem 0;
+}
+
+.finding-warning { border-left-color: #c80; }
+
+.announce {
+  border: 1px solid #ccc;
+  background: rgba(0, 0, 0, 0.03);
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}

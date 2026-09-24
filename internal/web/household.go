@@ -14,6 +14,7 @@ func (s *Server) handleDirectory(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.RLock()
 	view := s.directoryView(id, q.Get("open"), q.Get("close"), q.Get("pane") == paneClosed)
+	view.Announcement = s.announcementFor(q.Get(saidKey), q.Get(movedKey))
 	s.mu.RUnlock()
 
 	// A selection that is not in the document is the Editor following a stale
@@ -33,11 +34,15 @@ func (s *Server) handleDirectory(w http.ResponseWriter, r *http.Request) {
 }
 
 // directoryView assembles the whole page. Callers hold at least a read lock.
-func (s *Server) directoryView(id rolo.HouseholdID, rawOpen, closing string, paneClosed bool) directoryView {
+func (s *Server) directoryView(
+	id rolo.HouseholdID,
+	rawOpen, closing string,
+	isPaneClosed bool,
+) directoryView {
 	view := directoryView{
 		Tree:          s.treeView(id, rawOpen, closing),
-		PaneClosed:    paneClosed,
-		PaneToggleURL: paneToggleURL(id, paneClosed),
+		PaneClosed:    isPaneClosed,
+		PaneToggleURL: paneToggleURL(id, isPaneClosed),
 	}
 
 	if id == "" {
@@ -51,6 +56,15 @@ func (s *Server) directoryView(id rolo.HouseholdID, rawOpen, closing string, pan
 	}
 
 	view.Household = &household
+
+	// The form posts the tree's state back, so a save or a refusal returns the
+	// Editor to the same expansion (ADR-0008).
+	if view.Household.Form != nil {
+		view.Household.Form.Open = s.joinIDsOrdered(s.openSet(id, rawOpen))
+		if isPaneClosed {
+			view.Household.Form.Pane = paneClosed
+		}
+	}
 
 	return view
 }

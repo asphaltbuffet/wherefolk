@@ -2,7 +2,6 @@ package web_test
 
 import (
 	"net/http"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,19 +48,18 @@ func TestDirectoryPage(t *testing.T) {
 			},
 		},
 		{
-			name:       "a withheld field shows [private], never its value",
+			name:       "a withheld field still shows its value; hiding is an export concern",
 			target:     "/h/h_reeve",
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				// h_reeve withholds two independent fields — the Household's
-				// address and Ray's phone. Counting rather than a bare
-				// Contains is what distinguishes them: with Contains, dropping
-				// one marker while keeping the other would still pass.
-				assert.Equal(t, 2, strings.Count(body, "[private]"),
-					"both the withheld address and the withheld phone are marked")
-				assert.NotContains(t, body, "9 Elm St", "a withheld address must not reach the page")
-				assert.NotContains(t, body, "555-0199")
+				// ADR-0010: the editing UI never masks. h_reeve withholds its
+				// address and Ray's phone in the fixture, which affects
+				// export only.
+				assert.NotContains(t, body, "[private]",
+					"the editing UI never substitutes the marker")
+				assert.Contains(t, body, "9 Elm St")
+				assert.Contains(t, body, "555-0199")
 			},
 		},
 		{
@@ -82,7 +80,7 @@ func TestDirectoryPage(t *testing.T) {
 			},
 		},
 		{
-			name:       "a Memorial Household carries no contact details",
+			name:       "a Memorial Household still shows its recorded contact details",
 			target:     "/h/h_aden",
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
@@ -90,14 +88,12 @@ func TestDirectoryPage(t *testing.T) {
 				assert.Contains(t, body, "Memorial")
 				assert.Contains(t, body, "1989-11-17", "§5.3: a deceased person's dates are whole")
 
-				// The fixture gives Aden a phone and an email precisely so
-				// these can fail. §5.4 suppresses them; §5.5 requires the
-				// suppression render as nothing, never as [private], because a
-				// marker would advertise that the value is still held.
-				assert.NotContains(t, body, "555-0100", "§5.4: no contact details")
-				assert.NotContains(t, body, "aden@example.com", "§5.4: no contact details")
+				// ADR-0010: suppression is export-only. The Editor must be
+				// able to see and clear a deceased person's recorded details.
+				assert.Contains(t, body, "555-0100")
+				assert.Contains(t, body, "aden@example.com")
 				assert.NotContains(t, body, "[private]",
-					"§5.5: tier-style suppression shows nothing, not a marker")
+					"the editing UI never substitutes the marker")
 			},
 		},
 		{

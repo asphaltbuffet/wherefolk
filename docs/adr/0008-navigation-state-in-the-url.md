@@ -15,6 +15,13 @@ re-added, so it cannot hide the Household the detail pane is showing — §4.3 m
 view that requirement exists to prevent. Because such a toggle can never act, those nodes render a
 plain marker rather than a control.
 
+A save follows the same rule. `POST /h/{id}` redirects rather than swapping a fragment: a save can
+rename a Household, and a Promotion can add one, so the tree and the detail pane must re-render
+together from a single code path or they disagree — the failure the server's own `doc`/`tree`
+comment warns about. Post/Redirect/Get makes the result reload-safe and leaves the address bar
+correct, which an htmx swap would not. A structural-change announcement therefore rides in the
+query string too (`?moved=`), because ADR-0001 removed sessions and left nowhere else to keep it.
+
 ## Consequences
 
 Every view is deep-linkable and the browser's back button retraces navigation exactly, which matters

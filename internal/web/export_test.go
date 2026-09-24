@@ -3,8 +3,10 @@ package web
 import (
 	"context"
 	"net/http"
+	"net/url"
 	"strings"
 
+	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
@@ -73,4 +75,58 @@ func (s *Server) JoinIDsOrderedForTest(open map[rolo.HouseholdID]bool) string {
 	defer s.mu.RUnlock()
 
 	return s.joinIDsOrdered(open)
+}
+
+// SubmissionForTest is submission, exported for the external test package.
+type SubmissionForTest = submission
+
+// PersonSubmissionForTest is personSubmission, exported for the external test
+// package.
+type PersonSubmissionForTest = personSubmission
+
+// FieldErrorForTest is fieldError, exported for the external test package.
+type FieldErrorForTest = fieldError
+
+// ParseSubmissionForTest exposes parseSubmission to the external test package.
+func ParseSubmissionForTest(form url.Values, h rolo.Household) (submission, []fieldError) {
+	return parseSubmission(form, h)
+}
+
+// ChangeForTest is change, exported for the external test package.
+type ChangeForTest = change
+
+// CloneDocumentForTest exposes cloneDocument to the external test package.
+func CloneDocumentForTest(doc *store.Document) *store.Document { return cloneDocument(doc) }
+
+// ApplySubmissionForTest exposes applySubmission to the external test package.
+func (s *Server) ApplySubmissionForTest(
+	doc *store.Document,
+	id rolo.HouseholdID,
+	sub submission,
+) ([]change, error) {
+	return s.applySubmission(doc, id, sub)
+}
+
+// HouseholdFormViewForTest is householdFormView, exported for the external test
+// package.
+type HouseholdFormViewForTest = householdFormView
+
+// FormViewFromHouseholdForTest exposes formViewFromHousehold to the external
+// test package.
+func FormViewFromHouseholdForTest(
+	id rolo.HouseholdID,
+	h rolo.Household,
+	findings []rolo.Finding,
+) householdFormView {
+	return formViewFromHousehold(id, h, findings)
+}
+
+// FormViewFromSubmissionForTest exposes formViewFromSubmission to the external
+// test package.
+func FormViewFromSubmissionForTest(
+	id rolo.HouseholdID,
+	sub submission,
+	errs []fieldError,
+) householdFormView {
+	return formViewFromSubmission(id, sub, errs)
 }

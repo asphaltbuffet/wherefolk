@@ -43,7 +43,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	// JavaScript unavailable — or before htmx has loaded — navigates the browser
 	// to a bare <ul> with no chrome, no stylesheet, and no way back: an
 	// unstyled orphan page, which for this Editor is an error screen.
-	if r.Header.Get("HX-Request") != "true" {
+	if r.Header.Get("Hx-Request") != "true" {
 		s.renderSearchPage(w, r, query)
 		return
 	}

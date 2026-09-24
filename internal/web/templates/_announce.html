@@ -1,0 +1,11 @@
+{{define "announce"}}
+{{/* §4.4 requires a structural change to be announced plainly. The undo that
+     belongs beside this sentence is item 6's; the empty .actions div is the
+     slot the Safety net fills. Until then the message must name the change
+     precisely enough for the Editor to reverse it by hand. */}}
+<aside class="announce" role="status">
+  <p>{{.Message}}</p>
+  {{if .Link}}<p><a href="{{.Link}}">Go to {{.Label}}</a></p>{{end}}
+  <div class="announce-actions"></div>
+</aside>
+{{end}}

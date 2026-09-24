@@ -311,15 +311,33 @@ editor. Search relocates the Editor within their mental model rather than bypass
 
 ### 4.4 Editing
 
-- Fields are edited in place in the detail pane. There is one Directory and no "save as"; edits are
-  live.
+- **The detail pane is the form.** There is no view mode and no Edit button: the pane always renders
+  its fields as inputs, and the Editor edits where they read. There is one Directory and no
+  "save as".
+- **One Household, one Save.** The pane submits as a whole, so a change that restructures the tree
+  — promoting a Dependent, adding or removing a person — is validated and announced once, rather
+  than firing halfway through the Editor's typing. Navigation controls (the Path breadcrumb, the
+  tree) sit outside the form so following a link is never a submit.
+- **Promotion is asked for, on the Dependent's row.** The pane governs one Household, so it cannot
+  grow a nested form for each Dependent's future spouse. The Editor marks the Dependent for a
+  household of their own; the new Household's own pane is where the spouse and Address are then
+  filled in. The trigger is still structural (§3) — what makes Dave a Household is that he now has
+  one — and nothing demotes (ADR-0009).
 - **Normalise on save, then display the normalised value.** `555.201.0001` becomes `555-201-0001`
   in front of the Editor, so they see the correction and absorb the house style without being
   scolded. Input is forgiving; storage is consistent.
 - **Structural changes are announced.** Adding Diane as Dave's spouse moves Dave out of his
-  parents' block into his own. The UI says so plainly and offers undo.
+  parents' block into his own. The UI says so plainly, names where he went, and links there.
+  The undo beside that sentence is item 6's: item 5 ships the announcement with a slot for the
+  control, and the Safety net fills it. Until then the Editor's recovery is the nightly snapshot,
+  which is why the announcement must name the change precisely enough to reverse by hand.
 - **Per-field hidden.** Any field can be marked hidden — not just whole people. Per-person exclusion
   is too blunt to get used; the realistic request is "my address stays out, my name is fine."
+- **The editing UI never masks.** Hidden is a checkbox beside a populated input, not a replaced
+  value: withholding and suppression are statements about *export*, and the Editor is the
+  document's author rather than one of its audiences. A value the Editor cannot see is one they
+  cannot correct or clear, so `[private]` and deceased-contact suppression (§5.5) belong to the
+  tier filter alone and never to this pane.
 
 ### 4.5 Validation
 
@@ -331,6 +349,15 @@ during editing.
 A Finding's message is **displayed verbatim to the Editor**, so it is written for them: plain
 English, no library internals, and a hint at what to change. "Check for a missing @ or a stray
 space" is the register; a parser's own error text is not.
+
+**Questionable data and unstorable input are different, and only one of them is a Finding.** A
+Finding is an observation about a value that *is* stored: an unrecognised phone number prints as
+written, a death before a birth is a warning, and neither stops a save. Input that cannot be
+represented at all — `June-ish 1998` in a date field, which yields no `Date` — is not a Finding,
+because there is nothing to observe. That submit is refused, the pane re-renders with every box
+exactly as the Editor left it, and the offending field carries a plain-English explanation. This
+is the more forgiving reading of §4.4: a save that silently dropped the words the Editor typed
+would discard their work to preserve a rule about not blocking.
 
 **There are two validation passes, and they want opposite answers about absence.** The
 editing-time pass (`ValidateHouseholds`) stays silent about every empty field, because nagging
@@ -425,6 +452,13 @@ These are distinct and must render differently:
 reads correctly aloud to a screen reader. A lock icon may accompany it only if verified to embed
 cleanly in the PDF.
 
+**Both kinds of absence belong to export, and neither appears in the editing UI** (ADR-0010). The
+rules above govern the tier filter and every rendered Directory; the detail pane shows the Editor
+every stored value, withheld or not, marked by a checkbox. §5.4's rule that a Memorial Household
+publishes no contact details is likewise a statement about what is *published* — the pane still
+shows a deceased person's recorded phone number, because the Editor must be able to correct or
+clear it. A value the Editor cannot see is a value they cannot fix.
+
 ### 5.6 Proof Sheets
 
 Relatives cannot correct what they have never seen, so the Directory renders a **Proof Sheet** per
@@ -481,8 +515,8 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 2 | ⏸️ **Migration** — *deferred until a schema 2 exists* (§2.1). The refuse-if-newer guard already shipped in item 1; there is no v0 data to convert. | 1 |
 | 3 | ✅ **Validation & normalisation** — dates, phones, emails; normalise-on-save | 1 |
 | 4 | ✅ **Tree + search navigation** — two-pane shell, Path breadcrumb, search-with-context. Navigation state lives in the URL (ADR-0008) | 1, 11 |
-| 5 | **Detail editing** — in-place fields, per-field hidden, structural-change announcements | 3, 4 |
-| 6 | **Safety net** — session undo, 30-day trash, nightly snapshots | 1 |
+| 5 | ✅ **Detail editing** — the pane is the form (§4.4), per-field hidden, add/remove a person, declared Promotion, structural-change announcements. Saves via Post/Redirect/Get (ADR-0008); masking moved to export (ADR-0010); Promotion is one-way (ADR-0009) | 3, 4 |
+| 6 | **Safety net** — session undo, 30-day trash, nightly snapshots. Inherits two slots from item 5: the `.announce-actions` div in `_announce.html` where the undo control belongs, and Household deletion, which item 5 left out because deleting with no recovery path contradicts §3 | 1 |
 | 7 | **Typst template & render engine** — flat Household blocks, Memorial blocks, fixed layout, shared-address back-references, PDF + SVG output | 1 |
 | 8 | **Tier filter** — field gating, age computation, date truncation, `[private]` vs. absence | 7 |
 | 9 | **Export UI** — tier chooser by description, SVG preview, pre-flight warnings, `pdfcpu` passphrase on Full | 8 |

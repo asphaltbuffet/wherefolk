@@ -45,6 +45,27 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     Editor withheld cannot reach a template and leak through a later markup change.
   - URLs bound for `hx-*` attributes are built with `url.Values` in the view model, never
     concatenated in a template: `html/template` percent-encodes into `href` but not into `hx-get`.
+  - The write path is `POST /h/{id}`: parse → refuse-if-unstorable → apply to a **deep clone** →
+    normalise → save → swap the clone in → redirect (ADR-0008). A shallow copy would share every
+    Household's `Adults`, `Dependents` and `Address.Lines`, so the clone must be deep or a failed
+    save corrupts the served Directory.
+  - `commit` holds the write lock for the mutation and renders nothing; `handleSave` holds no lock
+    and turns the outcome into a response; `refuse` takes its own read lock and releases it before
+    rendering. Rendering under the write lock would let one Editor on a slow connection block every
+    reader for the length of the response.
+  - **Two failure modes, deliberately different.** Input that cannot be stored — a date that will
+    not parse — refuses the submit with **422** and re-renders the form from the Editor's own
+    submission, so their typing survives; it is *not* a `rolo.Finding`. A `Finding` observes a value
+    that *is* stored and never blocks a save (§4.5).
+  - **Every field of every person must render as an input.** `parseSubmission` reads fields with
+    `url.Values.Get`, which cannot tell a field submitted empty from one absent, so a field the
+    template stops rendering would silently clear itself on the next save.
+    `TestFormRendersEveryEditableField` guards this. Each checkbox needs its paired hidden `off`
+    input for the same reason — without it a hidden flag could never be turned back off.
+  - `store.Save` is reached through an injected `Saver`, and IDs through injected generators, so
+    this package keeps no filesystem dependency and tests get deterministic identities.
+  - **The editing UI never masks** (ADR-0010). `[private]` and deceased-contact suppression belong
+    to export; `view.go` renders every stored value.
 - **`pkg/rolo/`** — domain types, no persistence
   - `Person` — a flat record with a stable `PersonID`, partial-precision `Date`s, and per-field `Hidden` flags
   - `Household` — adults, dependents, anniversary, address, and a `Parent` link. Children are **not** stored
@@ -89,6 +110,8 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
   Editor marked hidden — renders `[private]`, so nobody re-collects it next year. A *suppressed*
   field — one a tier omits, or any contact detail of a deceased person — renders as nothing at
   all, because a marker would advertise that the data exists.
+  Both rules apply to **export only** — the editing UI shows every stored value, because the Editor
+  is the document's author rather than one of its audiences (ADR-0010).
 - Normalisation is called explicitly by the editing layer, not by `store.Save` — a hand-repaired
   document is loaded and saved exactly as written.
 

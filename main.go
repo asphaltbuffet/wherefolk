@@ -49,12 +49,18 @@ func run(getenv func(string) string, logOut io.Writer) error {
 
 	// A document that will not load is fatal: a container that boots into an
 	// error page passes its own health check and hides the fault (§2.4).
-	doc, err := store.Load(cfg.DocumentPath())
+	docPath := cfg.DocumentPath()
+
+	doc, err := store.Load(docPath)
 	if err != nil {
 		return fmt.Errorf("load store: %w", err)
 	}
 
-	srv, err := web.New(doc, cfg, logger, web.Meta{DocumentPath: cfg.DocumentPath()})
+	srv, err := web.New(doc, cfg, logger, web.Meta{DocumentPath: docPath},
+		func(d *store.Document) error { return store.Save(docPath, d) },
+		store.NewHouseholdID,
+		store.NewPersonID,
+	)
 	if err != nil {
 		return fmt.Errorf("build server: %w", err)
 	}
@@ -73,7 +79,7 @@ func run(getenv func(string) string, logOut io.Writer) error {
 
 	logger.Info("serving",
 		"addr", ln.Addr().String(),
-		"document", cfg.DocumentPath(),
+		"document", docPath,
 		"households", len(doc.Households))
 
 	httpSrv := &http.Server{
