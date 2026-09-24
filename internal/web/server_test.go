@@ -61,12 +61,76 @@ func TestNew(t *testing.T) {
 				config.Config{},
 				testLogger(),
 				web.Meta{DocumentPath: "/tmp/test/directory.json"},
+				func(*store.Document) error { return nil },
+				func() (rolo.HouseholdID, error) { return "h_test01", nil },
+				func() (rolo.PersonID, error) { return "p_test01", nil },
 			)
 
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Nil(t, got)
 
+				return
+			}
+
+			require.NoError(t, err)
+			assert.NotNil(t, got)
+		})
+	}
+}
+
+func TestNewRejectsMissingDependencies(t *testing.T) {
+	tests := []struct {
+		name           string
+		save           web.Saver
+		newHouseholdID web.NewHouseholdIDFunc
+		newPersonID    web.NewPersonIDFunc
+		wantErr        bool
+	}{
+		{
+			name:           "all dependencies present",
+			save:           func(*store.Document) error { return nil },
+			newHouseholdID: func() (rolo.HouseholdID, error) { return "h_test01", nil },
+			newPersonID:    func() (rolo.PersonID, error) { return "p_test01", nil },
+		},
+		{
+			name:           "nil saver",
+			save:           nil,
+			newHouseholdID: func() (rolo.HouseholdID, error) { return "h_test01", nil },
+			newPersonID:    func() (rolo.PersonID, error) { return "p_test01", nil },
+			wantErr:        true,
+		},
+		{
+			name:           "nil household id generator",
+			save:           func(*store.Document) error { return nil },
+			newHouseholdID: nil,
+			newPersonID:    func() (rolo.PersonID, error) { return "p_test01", nil },
+			wantErr:        true,
+		},
+		{
+			name:           "nil person id generator",
+			save:           func(*store.Document) error { return nil },
+			newHouseholdID: func() (rolo.HouseholdID, error) { return "h_test01", nil },
+			newPersonID:    nil,
+			wantErr:        true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := web.New(
+				sampleDocument(),
+				config.Config{},
+				testLogger(),
+				web.Meta{DocumentPath: "/tmp/test/directory.json"},
+				tt.save,
+				tt.newHouseholdID,
+				tt.newPersonID,
+			)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Nil(t, got)
 				return
 			}
 
@@ -105,6 +169,9 @@ func TestRouting(t *testing.T) {
 		config.Config{},
 		testLogger(),
 		web.Meta{DocumentPath: "/tmp/test/directory.json"},
+		func(*store.Document) error { return nil },
+		func() (rolo.HouseholdID, error) { return "h_test01", nil },
+		func() (rolo.PersonID, error) { return "p_test01", nil },
 	)
 	require.NoError(t, err)
 	handler := srv.Handler()
@@ -164,7 +231,11 @@ func TestRenderFragmentOmitsLayout(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv, err := web.New(sampleDocument(), config.Config{}, testLogger(), web.Meta{})
+			srv, err := web.New(sampleDocument(), config.Config{}, testLogger(), web.Meta{},
+				func(*store.Document) error { return nil },
+				func() (rolo.HouseholdID, error) { return "h_test01", nil },
+				func() (rolo.PersonID, error) { return "p_test01", nil },
+			)
 			require.NoError(t, err)
 
 			rec := httptest.NewRecorder()
@@ -208,6 +279,9 @@ func TestConcurrentReads(t *testing.T) {
 				config.Config{},
 				testLogger(),
 				web.Meta{DocumentPath: "/tmp/test/directory.json"},
+				func(*store.Document) error { return nil },
+				func() (rolo.HouseholdID, error) { return "h_test01", nil },
+				func() (rolo.PersonID, error) { return "p_test01", nil },
 			)
 			require.NoError(t, err)
 			handler := srv.Handler()

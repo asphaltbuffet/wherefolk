@@ -34,6 +34,15 @@ type Server struct {
 	meta Meta
 	cfg  config.Config
 	log  *slog.Logger
+
+	// save persists the document. The write path calls it while holding the
+	// write lock, and swaps the saved copy into doc only once it returns nil,
+	// so a failed write leaves the served Directory matching the disk exactly.
+	save Saver
+	// newHouseholdID and newPersonID mint identities for records the Editor
+	// adds. Injected so tests get deterministic IDs; see deps.go.
+	newHouseholdID NewHouseholdIDFunc
+	newPersonID    NewPersonIDFunc
 }
 
 // Meta carries Operator-facing facts about the running service that the
@@ -50,7 +59,19 @@ type Meta struct {
 // The logger is injected rather than taken from slog's package default so that
 // nothing here depends on process-global state: main builds it at the level cfg
 // carries and owns where the output goes.
-func New(doc *store.Document, cfg config.Config, logger *slog.Logger, meta Meta) (*Server, error) {
+//
+// save, newHouseholdID and newPersonID are the write path's dependencies. They
+// are plain parameters rather than a struct so that a caller cannot leave one
+// unset by forgetting a field; every one is checked here.
+func New(
+	doc *store.Document,
+	cfg config.Config,
+	logger *slog.Logger,
+	meta Meta,
+	save Saver,
+	newHouseholdID NewHouseholdIDFunc,
+	newPersonID NewPersonIDFunc,
+) (*Server, error) {
 	if doc == nil {
 		return nil, errors.New("web: document is nil")
 	}
@@ -59,12 +80,33 @@ func New(doc *store.Document, cfg config.Config, logger *slog.Logger, meta Meta)
 		return nil, errors.New("web: logger is nil")
 	}
 
+	if save == nil {
+		return nil, errors.New("web: saver is nil")
+	}
+
+	if newHouseholdID == nil {
+		return nil, errors.New("web: household id generator is nil")
+	}
+
+	if newPersonID == nil {
+		return nil, errors.New("web: person id generator is nil")
+	}
+
 	tree, err := doc.Tree()
 	if err != nil {
 		return nil, fmt.Errorf("web: build tree: %w", err)
 	}
 
-	return &Server{doc: doc, tree: tree, meta: meta, cfg: cfg, log: logger}, nil
+	return &Server{
+		doc:            doc,
+		tree:           tree,
+		meta:           meta,
+		cfg:            cfg,
+		log:            logger,
+		save:           save,
+		newHouseholdID: newHouseholdID,
+		newPersonID:    newPersonID,
+	}, nil
 }
 
 // Handler returns the server's routes.

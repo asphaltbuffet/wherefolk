@@ -22,6 +22,9 @@ func newTestServer(t *testing.T) *web.Server {
 		config.Config{},
 		testLogger(),
 		web.Meta{DocumentPath: "/tmp/test/directory.json"},
+		func(*store.Document) error { return nil },
+		func() (rolo.HouseholdID, error) { return "h_test01", nil },
+		func() (rolo.PersonID, error) { return "p_test01", nil },
 	)
 	require.NoError(t, err)
 
@@ -351,7 +354,11 @@ func TestAddressPrecedence(t *testing.T) {
 				},
 			}}
 
-			srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{})
+			srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{},
+				func(*store.Document) error { return nil },
+				func() (rolo.HouseholdID, error) { return "h_test01", nil },
+				func() (rolo.PersonID, error) { return "p_test01", nil },
+			)
 			require.NoError(t, err)
 
 			v, ok := srv.HouseholdViewForTest("h_kid")
@@ -432,7 +439,11 @@ func TestDeceasedContactSuppressionIsPerPerson(t *testing.T) {
 		},
 	}}}
 
-	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{})
+	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{},
+		func(*store.Document) error { return nil },
+		func() (rolo.HouseholdID, error) { return "h_test01", nil },
+		func() (rolo.PersonID, error) { return "p_test01", nil },
+	)
 	require.NoError(t, err)
 
 	v, ok := srv.HouseholdViewForTest("h_mem")

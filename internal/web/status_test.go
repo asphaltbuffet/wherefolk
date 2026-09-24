@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -100,11 +101,45 @@ func sampleDocument() *store.Document {
 	}
 }
 
+// testServer builds a Server with recording stubs for the write path. The
+// returned saver captures the last document written, so a test can assert what
+// a save produced without touching a filesystem.
+type recordingSaver struct {
+	saved *store.Document
+	err   error
+	calls int
+}
+
+func (r *recordingSaver) save(doc *store.Document) error {
+	r.calls++
+	if r.err != nil {
+		return r.err
+	}
+	r.saved = doc
+	return nil
+}
+
+// sequentialIDs hands out predictable identities: h_new001, h_new002, and so on.
+func sequentialIDs(prefix string) func() string {
+	var n int
+	return func() string {
+		n++
+		return fmt.Sprintf("%s%03d", prefix, n)
+	}
+}
+
 // get issues a request against the server and returns the recorder.
 func get(t *testing.T, doc *store.Document, target string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{DocumentPath: "/tmp/test/directory.json"})
+	nextHousehold := sequentialIDs("h_new")
+	nextPerson := sequentialIDs("p_new")
+
+	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{DocumentPath: "/tmp/test/directory.json"},
+		func(*store.Document) error { return nil },
+		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
+		func() (rolo.PersonID, error) { return rolo.PersonID(nextPerson()), nil },
+	)
 	require.NoError(t, err)
 
 	rec := httptest.NewRecorder()
@@ -220,7 +255,14 @@ func TestStatusPage(t *testing.T) {
 func getHTMX(t *testing.T, doc *store.Document, target string) *httptest.ResponseRecorder {
 	t.Helper()
 
-	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{DocumentPath: "/tmp/test/directory.json"})
+	nextHousehold := sequentialIDs("h_new")
+	nextPerson := sequentialIDs("p_new")
+
+	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{DocumentPath: "/tmp/test/directory.json"},
+		func(*store.Document) error { return nil },
+		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
+		func() (rolo.PersonID, error) { return rolo.PersonID(nextPerson()), nil },
+	)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest(http.MethodGet, target, nil)
