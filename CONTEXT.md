@@ -57,16 +57,30 @@ is restructured; it is never a storage identity.
 The transition of a Dependent into a Household, triggered by gaining a spouse, a Dependent, or an
 Address. Structural rather than declared — the act of adding a spouse *is* the promotion.
 
+Promotion is **one-way**. The three triggers say when a Dependent *becomes* a Household; they are
+not a condition a Household must keep satisfying. A Household that loses its Address stays a
+Household, because its identity is stable, it may anchor a Branch beneath it, and silently
+dissolving a record to undo a typo is precisely the surprise the announcement exists to prevent.
+There is no demotion.
+
+In the editing UI the Editor asks for a Promotion directly, on the Dependent's row, and then fills
+in the spouse or Address in the new Household's own pane. The trigger is still structural — what
+makes Dave a Household is that he now *has* one — but the editing pane governs one Household at a
+time, so it cannot grow a nested form for each Dependent's future spouse.
+
 **Shared Address**:
 A Household whose Address is a reference to its parent Household's Address rather than its own
 text. Stays in sync when the parent's Address changes and renders as a back-reference instead of a
 repeated Address.
 
 **Withheld field**:
-A field the Editor has marked hidden. Renders as `[private]` in the editing UI and in every
-Directory tier, so nobody re-collects it next year. Distinct from a **Suppressed field**,
-which renders as nothing at all. Phone, email, and birth date are withheld per Person; an Address
-is withheld per Household.
+A field the Editor has marked hidden. Renders as `[private]` in every Directory tier, so nobody
+re-collects it next year. Distinct from a **Suppressed field**, which renders as nothing at all.
+Phone, email, and birth date are withheld per Person; an Address is withheld per Household.
+
+Withholding is a statement about **export only**. The editing UI always shows the stored value,
+marked withheld by a checkbox beside it — the Editor is the document's author, not one of its
+audiences, and a value they cannot see is a value they cannot correct or clear.
 _Avoid_: Private field, redacted, suppressed
 
 **Suppressed field**:
@@ -75,6 +89,10 @@ Mail tier, a minor's details outside Full, or a deceased person's contact detail
 Renders as **nothing at all**, never as a marker: a placeholder would advertise that the data
 exists, leaking exactly what the suppression is meant to omit. Contrast a **Withheld field**,
 which the Editor marked hidden and which renders as `[private]`.
+
+Suppression, like withholding, applies to **export only**. The editing UI shows a deceased
+person's recorded contact details like any other field, because the Editor must be able to correct
+or clear them.
 _Avoid_: Tier-suppressed (suppression is not always a tier rule), filtered, hidden, redacted
 
 ### Dates

@@ -311,15 +311,33 @@ editor. Search relocates the Editor within their mental model rather than bypass
 
 ### 4.4 Editing
 
-- Fields are edited in place in the detail pane. There is one Directory and no "save as"; edits are
-  live.
+- **The detail pane is the form.** There is no view mode and no Edit button: the pane always renders
+  its fields as inputs, and the Editor edits where they read. There is one Directory and no
+  "save as".
+- **One Household, one Save.** The pane submits as a whole, so a change that restructures the tree
+  — promoting a Dependent, adding or removing a person — is validated and announced once, rather
+  than firing halfway through the Editor's typing. Navigation controls (the Path breadcrumb, the
+  tree) sit outside the form so following a link is never a submit.
+- **Promotion is asked for, on the Dependent's row.** The pane governs one Household, so it cannot
+  grow a nested form for each Dependent's future spouse. The Editor marks the Dependent for a
+  household of their own; the new Household's own pane is where the spouse and Address are then
+  filled in. The trigger is still structural (§3) — what makes Dave a Household is that he now has
+  one — and nothing demotes (ADR-0009).
 - **Normalise on save, then display the normalised value.** `555.201.0001` becomes `555-201-0001`
   in front of the Editor, so they see the correction and absorb the house style without being
   scolded. Input is forgiving; storage is consistent.
 - **Structural changes are announced.** Adding Diane as Dave's spouse moves Dave out of his
-  parents' block into his own. The UI says so plainly and offers undo.
+  parents' block into his own. The UI says so plainly, names where he went, and links there.
+  The undo beside that sentence is item 6's: item 5 ships the announcement with a slot for the
+  control, and the Safety net fills it. Until then the Editor's recovery is the nightly snapshot,
+  which is why the announcement must name the change precisely enough to reverse by hand.
 - **Per-field hidden.** Any field can be marked hidden — not just whole people. Per-person exclusion
   is too blunt to get used; the realistic request is "my address stays out, my name is fine."
+- **The editing UI never masks.** Hidden is a checkbox beside a populated input, not a replaced
+  value: withholding and suppression are statements about *export*, and the Editor is the
+  document's author rather than one of its audiences. A value the Editor cannot see is one they
+  cannot correct or clear, so `[private]` and deceased-contact suppression (§5.5) belong to the
+  tier filter alone and never to this pane.
 
 ### 4.5 Validation
 
@@ -331,6 +349,15 @@ during editing.
 A Finding's message is **displayed verbatim to the Editor**, so it is written for them: plain
 English, no library internals, and a hint at what to change. "Check for a missing @ or a stray
 space" is the register; a parser's own error text is not.
+
+**Questionable data and unstorable input are different, and only one of them is a Finding.** A
+Finding is an observation about a value that *is* stored: an unrecognised phone number prints as
+written, a death before a birth is a warning, and neither stops a save. Input that cannot be
+represented at all — `June-ish 1998` in a date field, which yields no `Date` — is not a Finding,
+because there is nothing to observe. That submit is refused, the pane re-renders with every box
+exactly as the Editor left it, and the offending field carries a plain-English explanation. This
+is the more forgiving reading of §4.4: a save that silently dropped the words the Editor typed
+would discard their work to preserve a rule about not blocking.
 
 **There are two validation passes, and they want opposite answers about absence.** The
 editing-time pass (`ValidateHouseholds`) stays silent about every empty field, because nagging
@@ -424,6 +451,13 @@ These are distinct and must render differently:
 `[private]` is used in preference to a lock glyph: it survives any font stack, needs no legend, and
 reads correctly aloud to a screen reader. A lock icon may accompany it only if verified to embed
 cleanly in the PDF.
+
+**Both kinds of absence belong to export, and neither appears in the editing UI** (ADR-0010). The
+rules above govern the tier filter and every rendered Directory; the detail pane shows the Editor
+every stored value, withheld or not, marked by a checkbox. §5.4's rule that a Memorial Household
+publishes no contact details is likewise a statement about what is *published* — the pane still
+shows a deceased person's recorded phone number, because the Editor must be able to correct or
+clear it. A value the Editor cannot see is a value they cannot fix.
 
 ### 5.6 Proof Sheets
 
