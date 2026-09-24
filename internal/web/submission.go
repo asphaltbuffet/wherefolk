@@ -11,8 +11,8 @@ import (
 
 // Form field names are ID-keyed: person.{personID}.{field}. The Household's own
 // fields carry no person segment. A new person uses a slot name in place of an
-// ID — person.new1.given — and is given a real identity only when the
-// submission is applied.
+// ID — person.new1.given — matched exactly against newSlotKey — and is given a
+// real identity only when the submission is applied.
 const (
 	personPrefix   = "person."
 	addressLines   = "address.lines"
@@ -96,6 +96,21 @@ type fieldError struct {
 // underneath them, which is an ordinary occurrence and not an attack. A person
 // in the Household but absent from the form keeps their stored values, so a
 // stale form cannot silently blank someone.
+//
+// Absence is meaningful per person, not per field. For a person the form does
+// carry, every one of their fields is read with [url.Values.Get], which returns
+// "" both for a key that was submitted empty and for one that is missing
+// entirely — so an omitted field reads as a cleared field. That is safe only
+// because the form renders every field of every person it shows as an input,
+// and a browser submits every non-disabled input in the form it posts. The one
+// control that breaks that rule is the checkbox, which submits nothing when
+// unticked; the paired hidden input exists precisely to restore it.
+//
+// The invariant therefore lives in the template, not here, and is tested
+// directly there: every field the form model carries must appear as a named
+// input. If a future change renders a field conditionally — or disables an
+// input — that field silently starts clearing itself, and this is the comment
+// that says why.
 func parseSubmission(form url.Values, h rolo.Household) (submission, []fieldError) {
 	var (
 		sub  submission
