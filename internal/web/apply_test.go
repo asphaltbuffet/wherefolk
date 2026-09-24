@@ -53,7 +53,14 @@ func TestCloneDocumentIsDeep(t *testing.T) {
 			},
 		},
 		{
-			name: "appending a household does not touch the original",
+			// This case cannot detect a shared Households backing array:
+			// cloneDocument sizes the slice with make(…, len), so len == cap
+			// and any append reallocates regardless. What it does guard is a
+			// clone that reuses the original's slice header with spare
+			// capacity, where an append would write into the original's
+			// storage. The three cases around it are what prove the copy is
+			// deep.
+			name: "appending a household writes into the clone's own storage",
 			mutate: func(clone *store.Document) {
 				clone.Households = append(clone.Households, rolo.Household{ID: "h_extra"})
 			},
@@ -252,6 +259,46 @@ func TestApplySubmission(t *testing.T) {
 
 				require.Error(t, err,
 					"a Household with no adults is malformed and the store rejects it at load")
+			},
+		},
+		{
+			name: "a new dependent joins the dependents, not the adults",
+			id:   "h_clyde",
+			form: map[string][]string{
+				"person.p_clyd01.given": {"Clyde"},
+				"person.p_dori01.given": {"Doris"},
+				"person.p_carl01.given": {"Carl"},
+				"person.new2.given":     {"Ellie"},
+				"person.new2.surname":   {"Whitlock"},
+			},
+			check: func(t *testing.T, doc *store.Document, _ []web.ChangeForTest, err error) {
+				t.Helper()
+
+				require.NoError(t, err)
+
+				h := findHousehold(t, doc, "h_clyde")
+				require.Len(t, h.Adults, 2, "a full household still accepts a dependent")
+				require.Len(t, h.Dependents, 2)
+				assert.Equal(t, "Ellie", h.Dependents[1].Given)
+				assert.Equal(t, rolo.PersonID("p_new001"), h.Dependents[1].ID)
+			},
+		},
+		{
+			name: "a single-adult household can gain a dependent",
+			id:   "h_reeve",
+			form: map[string][]string{
+				"person.p_reev01.given": {"Ray"},
+				"person.new2.given":     {"Sam"},
+			},
+			check: func(t *testing.T, doc *store.Document, _ []web.ChangeForTest, err error) {
+				t.Helper()
+
+				require.NoError(t, err)
+
+				h := findHousehold(t, doc, "h_reeve")
+				require.Len(t, h.Adults, 1, "gaining a dependent does not consume the adult slot")
+				require.Len(t, h.Dependents, 1)
+				assert.Equal(t, "Sam", h.Dependents[0].Given)
 			},
 		},
 		{

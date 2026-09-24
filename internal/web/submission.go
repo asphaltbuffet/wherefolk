@@ -11,8 +11,9 @@ import (
 
 // Form field names are ID-keyed: person.{personID}.{field}. The Household's own
 // fields carry no person segment. A new person uses a slot name in place of an
-// ID — person.new1.given — matched exactly against newSlotKey — and is given a
-// real identity only when the submission is applied.
+// ID — person.new1.given for an adult, person.new2.given for a Dependent —
+// matched exactly against the slot keys, and is given a real identity only when
+// the submission is applied.
 const (
 	personPrefix   = "person."
 	addressLines   = "address.lines"
@@ -22,13 +23,26 @@ const (
 	paneKey        = "pane"
 )
 
-// newSlotKey is the one name a blank person slot uses. It is matched
-// exactly rather than by prefix: store.Load accepts a hand-repaired
-// document as written and validation here observes rather than rejects
-// (§4.5), so a PersonID could legitimately begin with "new" — and a
-// prefix test would treat that person as a blank slot and mint them a
-// second identity.
-const newSlotKey = "new1"
+// The blank person slots. There are two, because a person can join a
+// Household as an adult or as a Dependent and the form must offer both:
+// a Household with one adult still needs to be able to gain a Dependent.
+// The name says which, so the apply step routes without guessing.
+//
+// Both are matched exactly rather than by prefix: store.Load accepts a
+// hand-repaired document as written and validation here observes rather
+// than rejects (§4.5), so a PersonID could legitimately begin with "new" —
+// and a prefix test would treat that person as a blank slot and mint them
+// a second identity.
+const (
+	newAdultSlotKey     = "new1"
+	newDependentSlotKey = "new2"
+)
+
+// isNewSlot reports whether a person key names a blank slot rather than an
+// existing PersonID.
+func isNewSlot(key string) bool {
+	return key == newAdultSlotKey || key == newDependentSlotKey
+}
 
 // checkedValue is what a ticked checkbox submits. Every checkbox is preceded by
 // a hidden input carrying "off", because a browser submits nothing at all for an
@@ -59,6 +73,11 @@ type personSubmission struct {
 
 	Remove  bool
 	Promote bool
+
+	// AsDependent marks a new person who arrived in the Dependent slot. The
+	// field name is the only thing that says where they belong, because §3
+	// makes the distinction structural rather than something the Editor types.
+	AsDependent bool
 }
 
 // submission is one Household's form, parsed but not yet applied.
@@ -145,7 +164,7 @@ func parseSubmission(form url.Values, h rolo.Household) (submission, []fieldErro
 	}
 
 	for _, key := range personKeys(form) {
-		isNew := key == newSlotKey
+		isNew := isNewSlot(key)
 		if !isNew && !known[rolo.PersonID(key)] {
 			continue
 		}
@@ -174,15 +193,16 @@ func parsePerson(form url.Values, key string, isNew bool) (personSubmission, []f
 	}
 
 	person := personSubmission{
-		New:       isNew,
-		Given:     field("given"),
-		Surname:   field("surname"),
-		BirthName: field("birth_name"),
-		Aka:       field("aka"),
-		Phone:     field("phone"),
-		Email:     field("email"),
-		BirthRaw:  field("birth"),
-		DeathRaw:  field("death"),
+		New:         isNew,
+		AsDependent: key == newDependentSlotKey,
+		Given:       field("given"),
+		Surname:     field("surname"),
+		BirthName:   field("birth_name"),
+		Aka:         field("aka"),
+		Phone:       field("phone"),
+		Email:       field("email"),
+		BirthRaw:    field("birth"),
+		DeathRaw:    field("death"),
 		Hidden: rolo.HiddenFields{
 			Phone: checkbox(form[personPrefix+key+".hidden.phone"]),
 			Email: checkbox(form[personPrefix+key+".hidden.email"]),
@@ -265,11 +285,11 @@ func personKeys(form url.Values) []string {
 	// Existing people sort before new slots, each group ordered
 	// lexicographically, so an existing person's position never shifts
 	// depending on how many new-person slots the form also carried. A plain
-	// lexicographic sort would put "new1" ahead of "p_clyd01" and attach a
-	// minted ID to the wrong record, so we must separate them.
+	// lexicographic sort would put "new1" and "new2" ahead of "p_clyd01" and
+	// attach a minted ID to the wrong record, so we must separate them.
 	sort.Slice(keys, func(i, j int) bool {
-		iNew := keys[i] == newSlotKey
-		jNew := keys[j] == newSlotKey
+		iNew := isNewSlot(keys[i])
+		jNew := isNewSlot(keys[j])
 		if iNew != jNew {
 			return !iNew
 		}

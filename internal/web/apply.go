@@ -123,24 +123,28 @@ func (s *Server) applySubmission(
 	h.Adults = adults
 	h.Dependents = dependents
 
-	// A new person joins the adults while there is room, and becomes a
-	// Dependent otherwise. §3 caps a Household at two adults, so a third is a
-	// submission that cannot be stored rather than a silent demotion.
+	// A new person joins the group their slot named. §3 makes that distinction
+	// structural rather than something the Editor types, and a Household capped
+	// at two adults must still be able to gain a Dependent.
 	for _, add := range additions {
-		// The room check comes before the mint: minting first would burn an ID
-		// on a submission that is about to be refused, which makes the IDs a
-		// test sees depend on how many earlier submissions failed.
-		if len(h.Adults) >= maxAdults {
-			return nil, errors.New("apply: a household holds at most two adults")
-		}
-
 		newID, idErr := s.newPersonID()
 		if idErr != nil {
 			return nil, fmt.Errorf("apply: mint person id: %w", idErr)
 		}
 
 		person := applyPerson(rolo.Person{ID: newID}, add)
-		h.Adults = append(h.Adults, person)
+
+		if add.AsDependent {
+			h.Dependents = append(h.Dependents, person)
+		} else {
+			// A Dependent never consumes an adult slot, so the room check
+			// belongs inside this branch rather than ahead of the mint.
+			if len(h.Adults) >= maxAdults {
+				return nil, errors.New("apply: a household holds at most two adults")
+			}
+
+			h.Adults = append(h.Adults, person)
+		}
 
 		changes = append(changes, change{
 			Kind:      changeAdded,
