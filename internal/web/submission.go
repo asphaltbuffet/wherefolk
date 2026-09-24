@@ -15,7 +15,6 @@ import (
 // submission is applied.
 const (
 	personPrefix   = "person."
-	newSlotPrefix  = "new"
 	addressLines   = "address.lines"
 	addressHidden  = "address.hidden"
 	anniversaryKey = "anniversary"
@@ -23,14 +22,19 @@ const (
 	paneKey        = "pane"
 )
 
+// newSlotKey is the one name a blank person slot uses. It is matched
+// exactly rather than by prefix: store.Load accepts a hand-repaired
+// document as written and validation here observes rather than rejects
+// (§4.5), so a PersonID could legitimately begin with "new" — and a
+// prefix test would treat that person as a blank slot and mint them a
+// second identity.
+const newSlotKey = "new1"
+
 // checkedValue is what a ticked checkbox submits. Every checkbox is preceded by
-// a hidden input carrying uncheckedValue, because a browser submits nothing at
-// all for an unticked box — without the pair, "unticked" and "not in this form"
-// would be the same absence and a hidden flag could never be turned off.
-const (
-	checkedValue   = "on"
-	uncheckedValue = "off"
-)
+// a hidden input carrying "off", because a browser submits nothing at all for an
+// unticked box — without the pair, "unticked" and "not in this form" would be the
+// same absence and a hidden flag could never be turned off.
+const checkedValue = "on"
 
 // personSubmission is one person as the form submitted them. Dates carry both
 // the parsed value and the raw text: a value that would not parse must survive
@@ -126,7 +130,7 @@ func parseSubmission(form url.Values, h rolo.Household) (submission, []fieldErro
 	}
 
 	for _, key := range personKeys(form) {
-		isNew := strings.HasPrefix(key, newSlotPrefix)
+		isNew := key == newSlotKey
 		if !isNew && !known[rolo.PersonID(key)] {
 			continue
 		}
@@ -245,10 +249,12 @@ func personKeys(form url.Values) []string {
 
 	// Existing people sort before new slots, each group ordered
 	// lexicographically, so an existing person's position never shifts
-	// depending on how many new-person slots the form also carried.
+	// depending on how many new-person slots the form also carried. A plain
+	// lexicographic sort would put "new1" ahead of "p_clyd01" and attach a
+	// minted ID to the wrong record, so we must separate them.
 	sort.Slice(keys, func(i, j int) bool {
-		iNew := strings.HasPrefix(keys[i], newSlotPrefix)
-		jNew := strings.HasPrefix(keys[j], newSlotPrefix)
+		iNew := keys[i] == newSlotKey
+		jNew := keys[j] == newSlotKey
 		if iNew != jNew {
 			return !iNew
 		}
@@ -258,8 +264,8 @@ func personKeys(form url.Values) []string {
 	return keys
 }
 
-// checkbox resolves a checkbox's paired inputs. The hidden "off" is always
-// submitted; a ticked box adds "on" after it, so the last value wins.
+// checkbox resolves a checkbox's paired inputs. A hidden input carrying "off"
+// is always submitted; a ticked box adds "on" after it, so the last value wins.
 func checkbox(values []string) bool {
 	return len(values) > 0 && values[len(values)-1] == checkedValue
 }
