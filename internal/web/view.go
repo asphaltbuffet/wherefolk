@@ -278,21 +278,8 @@ type crumb struct {
 	Label string
 }
 
-// personView is one Person as the detail pane shows them. Every field is a
-// rendered string rather than a domain value, for consistency with the rest of
-// this package's view models — not because any value is withheld from it.
-// ADR-0010 keeps masking out of the editing UI.
-type personView struct {
-	Name     string
-	Birth    string
-	Death    string
-	Phone    string
-	Email    string
-	Deceased bool
-}
-
-// householdView is the detail pane. It holds strings, not rolo types, for the
-// same reason personView does.
+// householdView is the detail pane. It holds strings, not rolo types, so
+// values are rendered exactly once.
 type householdView struct {
 	ID       rolo.HouseholdID
 	Title    string
@@ -312,9 +299,6 @@ type householdView struct {
 	SharedWith string
 
 	Anniversary string
-
-	Adults     []personView
-	Dependents []personView
 
 	// Form is the editable rendering of this Household. §4.4 makes the detail
 	// pane the form, so this is always populated on a GET; the refusal path
@@ -375,8 +359,6 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 		Crumbs:      crumbs,
 		Memorial:    h.IsMemorial(),
 		Anniversary: h.Anniversary.String(),
-		Adults:      peopleViews(h.Adults),
-		Dependents:  peopleViews(h.Dependents),
 	}
 
 	// A withheld or Shared Address still renders its lines: ADR-0010 keeps
@@ -421,28 +403,4 @@ func householdTitle(h rolo.Household) string {
 	}
 
 	return strings.Join(names, " & ")
-}
-
-// peopleViews renders a group of Persons for the detail pane.
-//
-// Every stored value is rendered as it stands. Withholding and suppression
-// (§5.5) are statements about what an audience receives, and the Editor is the
-// document's author rather than one of its audiences — a value they cannot see
-// is one they cannot correct or clear. Both rules belong to the tier filter.
-// See ADR-0010.
-func peopleViews(people []rolo.Person) []personView {
-	views := make([]personView, 0, len(people))
-
-	for _, p := range people {
-		views = append(views, personView{
-			Name:     p.DisplayName(),
-			Birth:    p.Birth.String(),
-			Death:    p.Death.String(),
-			Phone:    p.Phone,
-			Email:    p.Email,
-			Deceased: p.IsDeceased(),
-		})
-	}
-
-	return views
 }

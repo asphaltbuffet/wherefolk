@@ -123,6 +123,78 @@ func TestFormViewFromHousehold(t *testing.T) {
 	}
 }
 
+// TestDeceasedContactSuppressionIsPerPerson pins ADR-0010 against the form
+// layer: the editing UI never masks, and that is a per-person fact rather
+// than a per-household one. A Memorial Household (every adult deceased)
+// still shows a living Dependent's contact details untouched, while a
+// deceased person's own details remain visible and editable rather than
+// blanked.
+func TestDeceasedContactSuppressionIsPerPerson(t *testing.T) {
+	tests := []struct {
+		name  string
+		check func(t *testing.T, got web.HouseholdFormViewForTest)
+	}{
+		{
+			name: "a deceased adult's details are shown, not suppressed",
+			check: func(t *testing.T, got web.HouseholdFormViewForTest) {
+				t.Helper()
+				require.Len(t, got.Adults, 1)
+				assert.Equal(t, "555-DEAD", got.Adults[0].Phone)
+				assert.Equal(t, "dead@example.com", got.Adults[0].Email)
+				assert.True(t, got.Adults[0].Deceased)
+			},
+		},
+		{
+			name: "a living Dependent keeps theirs, even in a Memorial Household",
+			check: func(t *testing.T, got web.HouseholdFormViewForTest) {
+				t.Helper()
+				require.Len(t, got.Dependents, 2)
+				assert.Equal(t, "555-LIVING", got.Dependents[0].Phone,
+					"a living relative's number is exactly what the Editor needs")
+				assert.Equal(t, "living@example.com", got.Dependents[0].Email)
+			},
+		},
+		{
+			name: "a deceased Dependent's details are shown, not suppressed",
+			check: func(t *testing.T, got web.HouseholdFormViewForTest) {
+				t.Helper()
+				require.Len(t, got.Dependents, 2)
+				assert.Equal(t, "555-GONEDEP", got.Dependents[1].Phone)
+				assert.Equal(t, "gonedep@example.com", got.Dependents[1].Email)
+			},
+		},
+	}
+
+	h := rolo.Household{
+		ID: "h_mem",
+		Adults: []rolo.Person{{
+			ID: "p_dead", Given: "Gone", Surname: "X",
+			Birth: rolo.Date{Year: 1910}, Death: rolo.Date{Year: 1990},
+			Phone: "555-DEAD", Email: "dead@example.com",
+		}},
+		Dependents: []rolo.Person{
+			{
+				ID: "p_living", Given: "Living", Surname: "X",
+				Birth: rolo.Date{Year: 2010},
+				Phone: "555-LIVING", Email: "living@example.com",
+			},
+			{
+				ID: "p_gonedep", Given: "GoneDep", Surname: "X",
+				Birth: rolo.Date{Year: 1950}, Death: rolo.Date{Year: 1975},
+				Phone: "555-GONEDEP", Email: "gonedep@example.com",
+			},
+		},
+	}
+
+	got := web.FormViewFromHouseholdForTest(h.ID, h, nil)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.check(t, got)
+		})
+	}
+}
+
 func TestFormViewFromSubmission(t *testing.T) {
 	tests := []struct {
 		name  string
