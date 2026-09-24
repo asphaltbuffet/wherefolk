@@ -5,7 +5,7 @@
      precisely enough for the Editor to reverse it by hand. */}}
 <aside class="announce" role="status">
   <p>{{.Message}}</p>
-  <p><a href="{{.Link}}">Go to {{.Label}}</a></p>
+  {{if .Link}}<p><a href="{{.Link}}">Go to {{.Label}}</a></p>{{end}}
   <div class="announce-actions"></div>
 </aside>
 {{end}}

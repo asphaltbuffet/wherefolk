@@ -8,10 +8,16 @@ import (
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
-// movedKey carries a structural-change announcement through the redirect.
-// ADR-0001 removed sessions, so there is nowhere server-side to keep it and
-// ADR-0008 puts navigation state in the URL regardless.
-const movedKey = "moved"
+// movedKey carries a promotion's destination Household ID through the
+// redirect, so the banner can link there. saidKey carries the announcement
+// text itself: every kind of structural change has one, but only a promotion
+// has a Household to re-resolve it from. ADR-0001 removed sessions, so there
+// is nowhere server-side to keep either and ADR-0008 puts navigation state in
+// the URL regardless.
+const (
+	movedKey = "moved"
+	saidKey  = "said"
+)
 
 // handleSave applies one Household's form.
 //
@@ -187,10 +193,15 @@ func redirectAfterSave(id rolo.HouseholdID, sub submission, changes []change) st
 		q.Set("pane", paneClosed)
 	}
 
-	for _, c := range changes {
-		if c.Kind == changePromoted {
-			q.Set(movedKey, string(c.Household))
-			break
+	if len(changes) > 0 {
+		// Only the first change is announced. A save that both adds and
+		// removes shows one sentence rather than a list.
+		first := changes[0]
+
+		q.Set(saidKey, first.Message)
+
+		if first.Kind == changePromoted {
+			q.Set(movedKey, string(first.Household))
 		}
 	}
 
@@ -204,26 +215,35 @@ func redirectAfterSave(id rolo.HouseholdID, sub submission, changes []change) st
 }
 
 // announcementFor reads a structural-change announcement back off the query
-// string and renders it for display. It returns an empty string when there is
-// nothing to announce, or when the named Household is not in the document —
-// a stale link rather than an error.
+// string and renders it for display. said is the message text itself, carried
+// verbatim from apply.go; moved is a promotion's destination Household ID,
+// present only for that one kind of change. It returns a zero announcement
+// when there is nothing to say.
+//
+// When moved is set but does not resolve in the tree — a stale link — the
+// message still renders, just without a destination to link to.
 //
 // Callers hold at least a read lock.
-func (s *Server) announcementFor(raw string) announcement {
-	if raw == "" {
+func (s *Server) announcementFor(said, moved string) announcement {
+	if said == "" {
 		return announcement{}
 	}
 
-	moved, ok := s.tree.Get(rolo.HouseholdID(raw))
+	a := announcement{Message: said}
+
+	if moved == "" {
+		return a
+	}
+
+	household, ok := s.tree.Get(rolo.HouseholdID(moved))
 	if !ok {
-		return announcement{}
+		return a
 	}
 
-	return announcement{
-		Message: fmt.Sprintf("%s now has a household of their own.", moved.Label()),
-		Link:    "/h/" + url.PathEscape(raw),
-		Label:   moved.Label(),
-	}
+	a.Link = "/h/" + url.PathEscape(moved)
+	a.Label = household.Label()
+
+	return a
 }
 
 // announcement is a structural change as the page reports it.

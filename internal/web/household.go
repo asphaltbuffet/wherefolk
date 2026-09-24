@@ -14,7 +14,7 @@ func (s *Server) handleDirectory(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.RLock()
 	view := s.directoryView(id, q.Get("open"), q.Get("close"), q.Get("pane") == paneClosed)
-	view.Announcement = s.announcementFor(q.Get(movedKey))
+	view.Announcement = s.announcementFor(q.Get(saidKey), q.Get(movedKey))
 	s.mu.RUnlock()
 
 	// A selection that is not in the document is the Editor following a stale

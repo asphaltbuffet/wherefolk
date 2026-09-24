@@ -129,6 +129,51 @@ func TestHandleSave(t *testing.T) {
 
 				assert.Equal(t, "h_new001", location.Query().Get("moved"),
 					"ADR-0008: the announcement rides in the URL")
+				assert.Contains(t, location.Query().Get("said"), "household of their own",
+					"a promotion carries its message alongside the destination id")
+			},
+		},
+		{
+			name: "removing a dependent announces itself in the redirect",
+			id:   "h_clyde",
+			form: url.Values{
+				"person.p_clyd01.given":  {"Clyde"},
+				"person.p_carl01.given":  {"Carl"},
+				"person.p_carl01.remove": {"on"},
+			},
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, _ *recordingSaver) {
+				t.Helper()
+
+				assert.Equal(t, http.StatusSeeOther, rec.Code)
+
+				location, err := url.Parse(rec.Header().Get("Location"))
+				require.NoError(t, err)
+
+				assert.Contains(t, location.Query().Get("said"), "removed from the directory",
+					"a removal must announce itself even though it has no household to link to")
+				assert.Empty(t, location.Query().Get("moved"),
+					"a removal has no destination household")
+			},
+		},
+		{
+			name: "adding a person announces itself in the redirect",
+			id:   "h_reeve",
+			form: url.Values{
+				"person.new1.given":   {"Nadia"},
+				"person.new1.surname": {"Reeve"},
+			},
+			check: func(t *testing.T, rec *httptest.ResponseRecorder, _ *recordingSaver) {
+				t.Helper()
+
+				assert.Equal(t, http.StatusSeeOther, rec.Code)
+
+				location, err := url.Parse(rec.Header().Get("Location"))
+				require.NoError(t, err)
+
+				assert.Contains(t, location.Query().Get("said"), "was added to",
+					"an addition must announce itself")
+				assert.Empty(t, location.Query().Get("moved"),
+					"an addition has no destination household")
 			},
 		},
 		{
@@ -208,6 +253,36 @@ func TestSaveRebuildsTheTree(t *testing.T) {
 			require.Equal(t, http.StatusSeeOther, rec.Code)
 
 			tt.check(t, srv)
+		})
+	}
+}
+
+func TestAnnouncementRendersFromTheQueryString(t *testing.T) {
+	tests := []struct {
+		name   string
+		target string
+		want   string
+	}{
+		{
+			name:   "a removal's message renders without a link",
+			target: "/h/h_clyde?said=" + url.QueryEscape("Carl was removed from the directory."),
+			want:   "Carl was removed from the directory.",
+		},
+		{
+			name: "a promotion's message renders alongside its link",
+			target: "/h/h_clyde?said=" +
+				url.QueryEscape("Carl now has a household of their own, beneath Clyde/Doris.") +
+				"&moved=h_clyde",
+			want: "Carl now has a household of their own, beneath Clyde/Doris.",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := get(t, sampleDocument(), tt.target)
+			require.Equal(t, http.StatusOK, rec.Code)
+
+			assert.Contains(t, rec.Body.String(), tt.want)
 		})
 	}
 }
