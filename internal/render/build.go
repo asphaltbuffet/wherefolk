@@ -68,67 +68,72 @@ func (f filter) household(h rolo.Household) Household {
 	}
 
 	if !memorial {
-		out.AddressLines, out.SharedWith = f.address(h, map[rolo.HouseholdID]bool{})
+		out.AddressLines, out.SharedWith = f.address(h)
 	}
 
 	return out
 }
 
 // address is what h's block prints for its Address when h is not Memorial:
-// its lines, a back-reference label, [private], or nothing (nil, "").
+// a back-reference label, resolved lines, [private], or nothing (nil, "").
 //
-// The Editor's hidden flag is applied last, and only to something that would
-// otherwise print, for the same reason as withhold.
-func (f filter) address(h rolo.Household, seen map[rolo.HouseholdID]bool) ([]string, string) {
-	lines, shared := f.ownAddress(h, seen)
+// A back-reference is printed only when the target's own block prints lines
+// of its own (CONTEXT.md, Shared Address). Anything else — a withheld target, a
+// Memorial one, or a target that is itself a back-reference — would send the
+// reader to a block that holds no address, so the sharer prints what the
+// reference resolves to instead.
+func (f filter) address(h rolo.Household) ([]string, string) {
+	if h.SharesAddress() && !h.AddressHidden() {
+		target, ok := f.tree.Get(h.Address.SharedWith)
+		if !ok {
+			// BuildTree guarantees the target exists, so this is a corrupt tree
+			// rather than bad data; the raw ID keeps the block printable.
+			return nil, string(h.Address.SharedWith)
+		}
 
-	if h.AddressHidden() && (len(lines) > 0 || shared != "") {
-		return []string{Private}, ""
+		if printsOwnLines(target) {
+			return nil, target.Label()
+		}
 	}
 
-	return lines, shared
+	return f.resolve(h, map[rolo.HouseholdID]bool{}), ""
 }
 
-// ownAddress resolves h's Address before h's own hidden flag is considered.
-//
-// A back-reference is printed only when the target's block shows a real
-// address (CONTEXT.md, Shared Address). A target that shows [private] makes
-// the sharer show [private] rather than point at a marker; a Memorial target
-// shows nothing, so the sharer prints what the target would have printed had
-// it been live, because someone still lives there.
+// printsOwnLines reports whether h's block shows address lines of its own.
+func printsOwnLines(h rolo.Household) bool {
+	return !h.IsMemorial() && !h.SharesAddress() && !h.AddressHidden() && len(h.Address.Lines) > 0
+}
+
+// resolve follows h's Address to the lines it stands for. A withheld hop with
+// anything behind it yields [private]; the hidden flag applies only to
+// something that would otherwise print, for the same reason as withhold.
 //
 // seen guards a cycle of Shared Addresses. BuildTree checks only that the
 // target exists, so a hand-edited document could loop.
-func (f filter) ownAddress(h rolo.Household, seen map[rolo.HouseholdID]bool) ([]string, string) {
-	if !h.SharesAddress() {
-		return h.Address.Lines, ""
-	}
-
-	if seen[h.ID] {
-		return nil, ""
-	}
-
-	seen[h.ID] = true
-
-	target, ok := f.tree.Get(h.Address.SharedWith)
-	if !ok {
-		// BuildTree guarantees the target exists, so this is a corrupt tree
-		// rather than bad data; the raw ID keeps the block printable.
-		return nil, string(h.Address.SharedWith)
-	}
-
-	lines, shared := f.address(target, seen)
+func (f filter) resolve(h rolo.Household, seen map[rolo.HouseholdID]bool) []string {
+	var lines []string
 
 	switch {
-	case target.IsMemorial():
-		return lines, shared
-	case len(lines) == 0 && shared == "":
-		return nil, ""
-	case len(lines) == 1 && lines[0] == Private:
-		return lines, ""
+	case !h.SharesAddress():
+		lines = h.Address.Lines
+	case seen[h.ID]:
+		return nil
 	default:
-		return nil, target.Label()
+		seen[h.ID] = true
+		if target, ok := f.tree.Get(h.Address.SharedWith); ok {
+			lines = f.resolve(target, seen)
+		}
 	}
+
+	if h.AddressHidden() && len(lines) > 0 {
+		return []string{Private}
+	}
+
+	if len(lines) == 0 {
+		return nil
+	}
+
+	return lines
 }
 
 // people renders a slice of people, preserving order.
