@@ -267,8 +267,8 @@ func (s *Server) joinIDsOrdered(open map[rolo.HouseholdID]bool) string {
 // needs no legend, and reads correctly aloud to a screen reader.
 //
 // It is not used by this package's templates — ADR-0010 keeps masking out of
-// the editing UI. It lives here so item 8's tier filter imports the one place
-// the string is spelled rather than reinventing it.
+// the editing UI. It lives here so render.Build imports the one place the
+// string is spelled rather than reinventing it.
 const Private = "[private]"
 
 // crumb is one step in the Path breadcrumb. Every crumb is navigable, because

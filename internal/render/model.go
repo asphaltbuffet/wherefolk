@@ -4,9 +4,10 @@
 // a generator that emits Typst markup from that model, and a wrapper around the
 // typst binary that compiles the markup to PDF or SVG (ADR-0004).
 //
-// The package applies no tier rules. It renders exactly the strings it is
-// handed; withholding, suppression and date truncation (§5.2, §5.3, §5.5) act
-// upstream by constructing a different [Directory].
+// Tier rules — withholding, suppression, age gating and date truncation (§5.2,
+// §5.3, §5.5, §5.7) — are applied in exactly one place: [Build], while the
+// values are still rolo types. Markup and the template render exactly the
+// strings they are handed.
 //
 // Every value reaches Typst inside a string literal, so quote in markup.go is
 // the only escaper the package needs: within a literal, Typst's markup
