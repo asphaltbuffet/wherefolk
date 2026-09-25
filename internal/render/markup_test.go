@@ -139,6 +139,23 @@ func TestMarkup(t *testing.T) {
 			},
 		},
 		{
+			name: "names the tier for the footer",
+			in:   render.Directory{GeneratedAt: "September 24, 2026", Tier: "Mail"},
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				assert.Contains(t, got, `tier: "Mail"`, "every export names its tier (§5.8)")
+				assert.Contains(t, got, `restricted: false`)
+			},
+		},
+		{
+			name: "marks a restricted directory",
+			in:   render.Directory{GeneratedAt: "September 24, 2026", Tier: "Full", Restricted: true},
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				assert.Contains(t, got, `restricted: true`, "Full carries DO NOT DISTRIBUTE (§5.2)")
+			},
+		},
+		{
 			name: "an empty directory still produces compilable markup",
 			in:   render.Directory{GeneratedAt: "2026-09-24"},
 			checkFunc: func(t *testing.T, got string) {

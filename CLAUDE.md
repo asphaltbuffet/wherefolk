@@ -86,9 +86,14 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - `Directory`/`Household`/`Person` in `model.go` hold rendered **strings**, not `rolo` values,
     for the same reason `web/view.go` does: a tier rule cannot be forgotten about a value that
     never arrives here as a date or a flag.
-  - **This package applies no tier rules.** No `[private]`, no truncation, no age computation.
-    `Build` copies every stored value through as written; item 8's tier filter replaces that
-    constructor rather than wrapping it, so withholding and suppression live in exactly one place.
+  - **`Build(tree, tier, asOf)` is the tier filter, and the only constructor.** Every audience
+    rule — tier gating, the 18+ rule (missing birth date fails closed), deceased and Memorial
+    suppression, Truncated vs. Whole dates, `[private]`, Shared Address resolution — is applied
+    there, while values are still `rolo` types. Suppression is decided before withholding, so
+    `[private]` never appears where the audience would not have seen a value anyway. `Markup` and
+    `template/directory.typ` apply no rules. There is deliberately no unfiltered constructor.
+  - Export dates are spelled out (`March 12, 1965`, truncated `March 12`) by `dates.go`.
+    `rolo.Date.String()` stays ISO because the store and the editing form depend on it.
   - **Every value reaches Typst inside a string literal**, so `quote` escapes the backslash and the
     quotation mark and nothing else. Typst's markup metacharacters (`#`, `@`, `*`, `_`, `[`, `$`,
     `<`) are ordinary text in that context — escaping them would print a literal backslash, turning

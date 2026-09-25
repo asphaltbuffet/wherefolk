@@ -9,13 +9,17 @@
 // and one block format, on purpose: the Editor wants a directory that looks
 // right, not a document to design.
 
-#let directory(generated: "", body) = {
+#let directory(generated: "", tier: "", restricted: false, body) = {
   set page(
     paper: "us-letter",
     margin: (x: 2cm, y: 2cm),
     footer: context [
       #set text(size: 8pt, fill: luma(100))
-      Generated #generated
+      #if restricted {
+        text(weight: "bold", fill: luma(0), "DO NOT DISTRIBUTE")
+        h(0.8em)
+      }
+      #if tier != "" { tier + " tier · " }Generated #generated
       #h(1fr)
       #counter(page).display("1 of 1", both: true)
     ],

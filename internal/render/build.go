@@ -6,28 +6,37 @@ import (
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
-// dateStamp is how GeneratedAt is formatted: ISO order, matching rolo.Date.
-const dateStamp = "2006-01-02"
-
-// Build renders every Household in t, in the depth-first order the printed
-// Directory uses.
+// Private is what a withheld field prints: the Editor marked it hidden, and
+// the marker stops anyone "helpfully" re-collecting it next year (§5.5).
 //
-// It applies no tier rules: every stored value is copied through as written.
-// Item 8's tier filter replaces this constructor rather than wrapping it, so
-// that withholding, suppression and truncation live in exactly one place and
-// the markup generator can never see an unfiltered value by accident.
+// §5.5 fixes the literal string in preference to a lock glyph: it survives any
+// font stack, needs no legend, and reads correctly aloud to a screen reader.
+const Private = "[private]"
+
+// Build renders every Household in t for one audience, in the depth-first
+// order the printed Directory uses.
+//
+// This is the tier filter (§5.2–§5.5, §5.7). Every rule about what an audience
+// may see is applied here, while the values are still rolo types; what leaves
+// is strings, so Markup and the template cannot see an unfiltered value by
+// accident. There is deliberately no unfiltered constructor.
 //
 // asOf is a parameter rather than [time.Now] so the caller owns the time
-// dependency; §5.7 makes that dependency the reason exports are
-// non-reproducible.
-func Build(t *rolo.Tree, asOf time.Time) Directory {
-	d := Directory{GeneratedAt: asOf.Format(dateStamp)}
+// dependency: age gating makes exports non-reproducible (§5.7).
+func Build(t *rolo.Tree, tier Tier, asOf time.Time) Directory {
+	f := filter{tree: t, tier: tier, asOf: asOf}
+
+	d := Directory{
+		GeneratedAt: asOf.Format(dateStamp),
+		Tier:        tier.String(),
+		Restricted:  tier.full(),
+	}
 
 	// Walk visits roots in sibling order and descends depth-first, which is
 	// precisely §5.1's ordering. The callback never errors, so the returned
 	// error is always nil.
 	_ = t.Walk(func(h rolo.Household, _ int) error {
-		d.Households = append(d.Households, buildHousehold(t, h))
+		d.Households = append(d.Households, f.household(h))
 
 		return nil
 	})
@@ -35,56 +44,164 @@ func Build(t *rolo.Tree, asOf time.Time) Directory {
 	return d
 }
 
-// buildHousehold renders one Household block.
-func buildHousehold(t *rolo.Tree, h rolo.Household) Household {
+// filter carries what every rule needs: the tree for Shared Address lookups,
+// the audience, and the date ages are computed at.
+type filter struct {
+	tree *rolo.Tree
+	tier Tier
+	asOf time.Time
+}
+
+// household renders one Household block.
+//
+// A Memorial Household's Anniversary is Whole because every adult it concerns
+// has died, and it publishes no contact details for anyone in it (§5.4).
+func (f filter) household(h rolo.Household) Household {
+	memorial := h.IsMemorial()
+
 	out := Household{
 		Label:       h.Label(),
-		Memorial:    h.IsMemorial(),
-		Anniversary: h.Anniversary.String(),
-		Adults:      buildPeople(h.Adults),
-		Dependents:  buildPeople(h.Dependents),
+		Memorial:    memorial,
+		Anniversary: f.date(h.Anniversary, memorial),
+		Adults:      f.people(h.Adults, memorial),
+		Dependents:  f.people(h.Dependents, memorial),
 	}
 
-	switch {
-	case h.SharesAddress():
-		out.SharedWith = sharedLabel(t, h.Address.SharedWith)
-	default:
-		out.AddressLines = h.Address.Lines
+	if !memorial {
+		out.AddressLines, out.SharedWith = f.address(h)
 	}
 
 	return out
 }
 
-// sharedLabel names the Household whose address is being shared.
+// address is what h's block prints for its Address when h is not Memorial:
+// a back-reference label, resolved lines, [private], or nothing (nil, "").
 //
-// BuildTree guarantees the target exists, so a lookup failure here would be a
-// corrupt tree rather than bad data; falling back to the raw ID keeps the block
-// printable instead of dropping the address entirely.
-func sharedLabel(t *rolo.Tree, id rolo.HouseholdID) string {
-	target, ok := t.Get(id)
-	if !ok {
-		return string(id)
+// A back-reference is printed only when the target's own block prints lines
+// of its own (CONTEXT.md, Shared Address). Anything else — a withheld target, a
+// Memorial one, or a target that is itself a back-reference — would send the
+// reader to a block that holds no address, so the sharer prints what the
+// reference resolves to instead.
+func (f filter) address(h rolo.Household) ([]string, string) {
+	if h.SharesAddress() && !h.AddressHidden() {
+		target, ok := f.tree.Get(h.Address.SharedWith)
+		if !ok {
+			// BuildTree guarantees the target exists, so this is a corrupt tree
+			// rather than bad data; the raw ID keeps the block printable.
+			return nil, string(h.Address.SharedWith)
+		}
+
+		if printsOwnLines(target) {
+			return nil, target.Label()
+		}
 	}
 
-	return target.Label()
+	return f.resolve(h, map[rolo.HouseholdID]bool{}), ""
 }
 
-// buildPeople renders a slice of people, preserving order.
-func buildPeople(people []rolo.Person) []Person {
-	if len(people) == 0 {
+// printsOwnLines reports whether h's block shows address lines of its own.
+func printsOwnLines(h rolo.Household) bool {
+	return !h.IsMemorial() && !h.SharesAddress() && !h.AddressHidden() && len(h.Address.Lines) > 0
+}
+
+// resolve follows h's Address to the lines it stands for. A withheld hop with
+// anything behind it yields [private]; the hidden flag applies only to
+// something that would otherwise print, for the same reason as withhold.
+//
+// seen guards a cycle of Shared Addresses. BuildTree checks only that the
+// target exists, so a hand-edited document could loop.
+func (f filter) resolve(h rolo.Household, seen map[rolo.HouseholdID]bool) []string {
+	var lines []string
+
+	switch {
+	case !h.SharesAddress():
+		lines = h.Address.Lines
+	case seen[h.ID]:
+		return nil
+	default:
+		seen[h.ID] = true
+		if target, ok := f.tree.Get(h.Address.SharedWith); ok {
+			lines = f.resolve(target, seen)
+		}
+	}
+
+	if h.AddressHidden() && len(lines) > 0 {
+		return []string{Private}
+	}
+
+	if len(lines) == 0 {
 		return nil
 	}
 
-	out := make([]Person, 0, len(people))
-	for _, p := range people {
-		out = append(out, Person{
-			Name:  p.DisplayName(),
-			Birth: p.Birth.String(),
-			Death: p.Death.String(),
-			Phone: p.Phone,
-			Email: p.Email,
-		})
+	return lines
+}
+
+// people renders a slice of people, preserving order.
+func (f filter) people(ps []rolo.Person, memorial bool) []Person {
+	if len(ps) == 0 {
+		return nil
+	}
+
+	out := make([]Person, 0, len(ps))
+	for _, p := range ps {
+		out = append(out, f.person(p, memorial))
 	}
 
 	return out
+}
+
+// person renders one person for this audience.
+//
+// Suppression is decided first and prints nothing; withholding is applied only
+// to what survives it, so [private] never appears where the audience would not
+// have seen a value anyway (CONTEXT.md, Withheld field).
+func (f filter) person(p rolo.Person, memorial bool) Person {
+	deceased := p.IsDeceased()
+
+	out := Person{
+		Name:  p.DisplayName(),
+		Birth: withhold(f.date(p.Birth, deceased), p.Hidden.Birth),
+		Death: wholeDate(p.Death),
+	}
+
+	// Contact details belong to the living, and outside Full only to adults.
+	// IsMinor treats a missing birth date as a minor, which fails closed (§5.7).
+	reachable := !memorial && !deceased && (f.tier.full() || !p.IsMinor(f.asOf))
+	if !reachable {
+		return out
+	}
+
+	if f.tier.admitsPhone() {
+		out.Phone = withhold(p.Phone, p.Hidden.Phone)
+	}
+
+	if f.tier.admitsEmail() {
+		out.Email = withhold(p.Email, p.Hidden.Email)
+	}
+
+	return out
+}
+
+// date renders d Whole when it concerns only the dead or the tier is Full, and
+// Truncated otherwise: a date is truncated while the person it concerns is
+// living (§5.3).
+func (f filter) date(d rolo.Date, concernsOnlyTheDead bool) string {
+	if concernsOnlyTheDead || f.tier.full() {
+		return wholeDate(d)
+	}
+
+	return truncatedDate(d)
+}
+
+// withhold replaces a value the Editor marked hidden with Private.
+//
+// An empty value stays empty even when hidden: the marker says "we have this
+// and are not sharing it", which would be untrue of a field never recorded or
+// of a year-only date that truncation has already emptied.
+func withhold(v string, hidden bool) string {
+	if v == "" || !hidden {
+		return v
+	}
+
+	return Private
 }

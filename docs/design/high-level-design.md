@@ -428,6 +428,10 @@ Named for what the recipient will do with the document, not by an abstract sensi
 | **Digital** | Email and messaging | Truncated | 18+ only | 18+ only | — |
 | **Full** | The inner circle | Whole | All | All | Included |
 
+"Minors' details" is the phone and email that the 18+ columns gate, not an additional rule: a
+minor's name and Truncated birth date appear in every tier, because the Directory is how the family
+knows when to send a birthday card.
+
 All four include full mailing addresses and the names of every family member, living and deceased.
 **Full** is additionally passphrase-protected (a `pdfcpu` post-processing step, since Typst cannot
 encrypt) and carries a `DO NOT DISTRIBUTE` footer on every page; its audience is small enough that
@@ -450,8 +454,10 @@ Stated in one line: *a date is truncated while the person it concerns is living.
 
 ### 5.4 Memorial Households
 
-A Memorial Household appears in **every** tier as a names-and-dates reference, with all dates Whole
-and no contact details. It renders more compactly than a live Household — a heading with dates
+A Memorial Household appears in **every** tier as a names-and-dates reference, with no contact
+details. Its adults' dates and its Anniversary are Whole, because they concern only the dead; a
+Dependent who is still living keeps §5.3's rule, so their birth date is Truncated outside Full like
+anyone else's. It renders more compactly than a live Household — a heading with dates
 rather than a full entry — since there is nothing in it to act on, but it must appear so that
 descendants group correctly beneath it and no Path points at a node missing from the document.
 
@@ -515,7 +521,7 @@ warning listing them by name, turning a silent data-quality problem into a visib
 An exported file cannot be protected from a recipient who is meant to read it. PDF permission flags
 are advisory and stripped in one command; rasterising text merely invites OCR while destroying
 searchability and accessibility. **Disclosure is controlled by what enters the file**, which is why
-tiers and hidden flags are the whole mechanism. Every export carries a footer naming its audience
+tiers and hidden flags are the whole mechanism. Every export carries a footer naming its tier
 and date — weak social pressure, but free, and honest that distribution is the real control.
 
 ---
@@ -534,7 +540,7 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 5 | ✅ **Detail editing** — the pane is the form (§4.4), per-field hidden, add/remove a person, declared Promotion, structural-change announcements. Saves via Post/Redirect/Get (ADR-0008); masking moved to export (ADR-0010); Promotion is one-way (ADR-0009) | 3, 4 |
 | 6 | **Safety net** — session undo, 30-day trash, nightly snapshots. Inherits two slots from item 5: the `.announce-actions` div in `_announce.html` where the undo control belongs, and Household deletion, which item 5 left out because deleting with no recovery path contradicts §3 | 1 |
 | 7 | ✅ **Typst template & render engine** — flat Household blocks, Memorial blocks, fixed layout, shared-address back-references, PDF + SVG output. The render model is strings only, so item 8's filter replaces its constructor rather than threading a tier through the markup generator | 1 |
-| 8 | **Tier filter** — field gating, age computation, date truncation, `[private]` vs. absence | 7 |
+| 8 | ✅ **Tier filter** — field gating, age computation, date truncation, `[private]` vs. absence. `render.Build(tree, tier, asOf)` is the only constructor of the render model; the footer names the tier, and Full carries `DO NOT DISTRIBUTE`. Suppression beats withholding; Shared Addresses resolve through withheld and Memorial targets | 7 |
 | 9 | **Export UI** — tier chooser by description, SVG preview, pre-flight warnings, `pdfcpu` passphrase on Full | 8 |
 | 10 | **Proof Sheets** — per-Household pagination, withheld-field disclosure, Branch selection | 8 |
 | 11 | ✅ **Web shell** — Go templates, htmx, embedded assets, loopback binding, `WHEREFOLK_DATA`/`WHEREFOLK_PORT`, Operator `/status` page as the tracer bullet. Foundational: every UI item (4, 5, 9, 10) is built on it, so it ships first | — |

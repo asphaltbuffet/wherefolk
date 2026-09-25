@@ -262,15 +262,6 @@ func (s *Server) joinIDsOrdered(open map[rolo.HouseholdID]bool) string {
 	return strings.Join(ids, ",")
 }
 
-// Private is what a withheld field renders as in an export. §5.5 fixes the
-// literal string in preference to a lock glyph: it survives any font stack,
-// needs no legend, and reads correctly aloud to a screen reader.
-//
-// It is not used by this package's templates — ADR-0010 keeps masking out of
-// the editing UI. It lives here so item 8's tier filter imports the one place
-// the string is spelled rather than reinventing it.
-const Private = "[private]"
-
 // crumb is one step in the Path breadcrumb. Every crumb is navigable, because
 // walking back up the Path is how the Editor gets from a cousin to an uncle.
 type crumb struct {
