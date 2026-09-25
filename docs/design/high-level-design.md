@@ -426,7 +426,7 @@ Named for what the recipient will do with the document, not by an abstract sensi
 | **Mail** | Sending cards | Truncated | — | — | — |
 | **Call** | Phoning relatives | Truncated | 18+ only | — | — |
 | **Digital** | Email and messaging | Truncated | 18+ only | 18+ only | — |
-| **Full** | The inner circle | Whole | All | All | Included |
+| **Full** | Full details | Whole | All | All | Included |
 
 "Minors' details" is the phone and email that the 18+ columns gate, not an additional rule: a
 minor's name and Truncated birth date appear in every tier, because the Directory is how the family
@@ -541,12 +541,13 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 6 | **Safety net** — session undo, 30-day trash, nightly snapshots. Inherits two slots from item 5: the `.announce-actions` div in `_announce.html` where the undo control belongs, and Household deletion, which item 5 left out because deleting with no recovery path contradicts §3 | 1 |
 | 7 | ✅ **Typst template & render engine** — flat Household blocks, Memorial blocks, fixed layout, shared-address back-references, PDF + SVG output. The render model is strings only, so item 8's filter replaces its constructor rather than threading a tier through the markup generator | 1 |
 | 8 | ✅ **Tier filter** — field gating, age computation, date truncation, `[private]` vs. absence. `render.Build(tree, tier, asOf)` is the only constructor of the render model; the footer names the tier, and Full carries `DO NOT DISTRIBUTE`. Suppression beats withholding; Shared Addresses resolve through withheld and Memorial targets | 7 |
-| 9 | **Export UI** — tier chooser by description, SVG preview, pre-flight warnings, `pdfcpu` passphrase on Full | 8 |
+| 9 | **Export UI** — tier chooser by description, SVG preview, `pdfcpu` passphrase on Full. Pre-flight warnings split out to item 15 | 8 |
 | 10 | **Proof Sheets** — per-Household pagination, withheld-field disclosure, Branch selection | 8 |
 | 11 | ✅ **Web shell** — Go templates, htmx, embedded assets, loopback binding, `WHEREFOLK_DATA`/`WHEREFOLK_PORT`, Operator `/status` page as the tracer bullet. Foundational: every UI item (4, 5, 9, 10) is built on it, so it ships first | — |
 | 12 | **Container image** — Debian slim, pinned Typst, compose file with Tailscale sidecar, volumes | 11 |
 | 13 | **Tailnet setup** — OAuth client, `tag:wherefolk`, ACL, Serve with HTTPS, Funnel assertion, agenix-managed `.env` | 12 |
 | 14 | **Health & snapshots** — `/healthz`, Docker `HEALTHCHECK`, verified snapshot job, two Healthchecks.io dead-man's switches | 6, 12 |
+| 15 | **Export pre-flight warnings** (§5.7) — on the export page, list each living person whose missing birth date removes something from *that* tier's export (a recorded phone in Call; a phone or email in Digital; nobody in Mail or Full), with their Path and a link to their Household. A warning, never a block. Computed by the same code in `internal/render` that applies the rule, so the warning and the PDF cannot disagree. Split from item 9 as a usability improvement rather than a prerequisite | 9 |
 
 ### Fate of the existing code
 
