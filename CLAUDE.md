@@ -116,16 +116,21 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
 ## Testing
 
 - All tests must be table-driven: a `tests []struct{ name string; ... }` slice iterated with `t.Run(tt.name, ...)`.
-- Test data lives in `testdata/directory.json` — three Households (one Branch two levels deep, one standalone root) covering: a birth name, an anniversary, living and deceased Dependents, an `aka`, and multiple address lines. `TestExampleDirectoryIsCanonicallyFormatted` pins this file's byte-level formatting, so hand edits must match its exact indentation and key order or that test fails.
+- Test data lives in `testdata/directory.json` — **four Households and ten people**: a Memorial root
+  (`h_meml01`, both adults deceased) anchoring a Branch two levels deep, plus one standalone root.
+  Between them they cover a birth name, an anniversary, living and deceased Dependents, an `aka`,
+  multiple address lines, and a Shared Address (`h_lang02` points at `h_lang01`). The Memorial and
+  Shared Address cases exist so the canonical example exercises `internal/render`'s two special
+  paths. `TestExampleDirectoryIsCanonicallyFormatted` pins this file's byte-level formatting, so
+  hand edits must match its exact indentation and key order or that test fails — re-pin by running
+  the document back through `store.Save` rather than hand-matching, since `Save` emits Go struct
+  field order and no formatter can infer it.
 - Use a `checkFunc func(t *testing.T, ...)` field in table rows that need assertions beyond simple field comparisons.
 - Tests that invoke `typst` call `requireTypst(t)`, which **skips** when the binary is absent.
   Typst is a host dependency (ADR-0004) provided by the devShell in `flake.nix`, so inside
   `nix develop` (or any shell with `typst` on `PATH`) `go test ./...` runs everything, and outside
-  it the render tests skip rather than fail. A skipped render test is not a passing one — check the
-  output for `SKIP` before believing the pipeline works.
-- `testdata/directory.json` has **four** Households: a Memorial root (`h_meml01`) anchoring the
-  Langford Branch, and `h_lang02` sharing `h_lang01`'s address. Both cases exist so that item 7's
-  two special render paths are covered by the canonical example.
+  it exactly seven render tests skip rather than fail. A skipped render test is not a passing one —
+  check the output for `SKIP` before believing the pipeline works.
 
 ## Notes
 

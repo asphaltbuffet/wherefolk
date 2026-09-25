@@ -17,6 +17,7 @@ environment.
 | Variable | Default | Meaning |
 |---|---|---|
 | `WHEREFOLK_DATA` | `/var/lib/wherefolk` | Directory holding `directory.json` |
+| `WHEREFOLK_TEMPLATE` | `/var/lib/wherefolk/template` | Directory holding `directory.typ`, the Typst layout. On disk rather than embedded so a layout tweak is a file edit and a restart — see [ADR-0004](docs/adr/0004-typst-for-rendering.md) |
 | `WHEREFOLK_PORT` | `8080` | Port to listen on (the interface is fixed — see [ADR-0007](docs/adr/0007-configurable-port-fixed-interface.md)) |
 | `WHEREFOLK_LOG_LEVEL` | `info` | Log threshold: `debug`, `info`, `warn`, or `error` |
 
