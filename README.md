@@ -63,6 +63,9 @@ mise run build         # build with version ldflags
 mise run snapshot      # goreleaser build + container image, no push
 ```
 
+Rendering needs the `typst` binary. `nix develop` provides it; outside that shell the
+render tests skip rather than fail.
+
 ### Releasing
 
 Changes are described as [changie](https://changie.dev) fragments rather than edited into the
