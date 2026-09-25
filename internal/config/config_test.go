@@ -144,6 +144,25 @@ func TestLoad(t *testing.T) {
 				assert.Equal(t, "/tmp/wf/directory.json", got.DocumentPath())
 			},
 		},
+		{
+			name: "template directory defaults to the volume",
+			vars: map[string]string{},
+			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
+				assert.Equal(t, "/var/lib/wherefolk/template", got.TemplateDir)
+			},
+		},
+		{
+			name: "template directory is overridden",
+			vars: map[string]string{"WHEREFOLK_TEMPLATE": "./template"},
+			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
+				assert.Equal(t, "./template", got.TemplateDir)
+				assert.Equal(t, "/var/lib/wherefolk", got.DataDir, "data directory keeps its default")
+			},
+		},
 	}
 
 	for _, tt := range tests {

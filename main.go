@@ -19,6 +19,7 @@ import (
 	"time"
 
 	"github.com/asphaltbuffet/wherefolk/internal/config"
+	"github.com/asphaltbuffet/wherefolk/internal/render"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/internal/web"
 )
@@ -56,7 +57,21 @@ func run(getenv func(string) string, logOut io.Writer) error {
 		return fmt.Errorf("load store: %w", err)
 	}
 
-	srv, err := web.New(doc, cfg, logger, web.Meta{DocumentPath: docPath},
+	// Typst is a host dependency, not vendored (ADR-0004). Verifying it here
+	// means a missing or unreadable renderer is an Operator-facing startup
+	// failure in the logs, rather than an opaque error the Editor meets
+	// halfway through an export (§5.1a).
+	_, typstVersion, err := verifyRenderer(cfg.TemplateDir)
+	if err != nil {
+		return err
+	}
+
+	srv, err := web.New(doc, cfg, logger,
+		web.Meta{
+			DocumentPath: docPath,
+			TypstVersion: typstVersion,
+			TemplatePath: cfg.TemplateDir,
+		},
 		func(d *store.Document) error { return store.Save(docPath, d) },
 		store.NewHouseholdID,
 		store.NewPersonID,
@@ -80,6 +95,7 @@ func run(getenv func(string) string, logOut io.Writer) error {
 	logger.Info("serving",
 		"addr", ln.Addr().String(),
 		"document", docPath,
+		"typst", typstVersion,
 		"households", len(doc.Households))
 
 	httpSrv := &http.Server{
@@ -143,4 +159,19 @@ func serve(ctx context.Context, stop func(), httpSrv *http.Server, ln net.Listen
 
 		return nil
 	}
+}
+
+// verifyRenderer resolves the Typst renderer and reports its version.
+func verifyRenderer(templateDir string) (render.Renderer, string, error) {
+	renderer, err := render.NewRenderer(templateDir)
+	if err != nil {
+		return render.Renderer{}, "", fmt.Errorf("renderer: %w", err)
+	}
+
+	version, err := renderer.Typst.Version(context.Background())
+	if err != nil {
+		return render.Renderer{}, "", fmt.Errorf("renderer: %w", err)
+	}
+
+	return renderer, version, nil
 }

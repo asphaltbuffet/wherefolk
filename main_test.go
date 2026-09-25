@@ -86,6 +86,14 @@ func TestRunStartupFailures(t *testing.T) {
 			vars:    map[string]string{"WHEREFOLK_DATA": unreadable},
 			wantErr: "permission denied",
 		},
+		{
+			name: "missing typst template",
+			vars: map[string]string{
+				"WHEREFOLK_DATA":     "testdata",
+				"WHEREFOLK_TEMPLATE": filepath.Join(t.TempDir(), "absent"),
+			},
+			wantErr: "renderer",
+		},
 	}
 
 	for _, tt := range tests {
