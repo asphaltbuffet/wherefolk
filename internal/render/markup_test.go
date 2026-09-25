@@ -175,7 +175,13 @@ func TestMarkupOverExampleDirectory(t *testing.T) {
 			checkFunc: func(t *testing.T, got string) {
 				t.Helper()
 				assert.Contains(t, got, `shared: "Robert/Susan"`)
-				assert.NotContains(t, got, `"17 Birch Lane"`,
+
+				// The invariant is that the target's address appears ONCE — in
+				// its own block — and is not repeated into the sharer's. A
+				// NotContains on some address absent from the fixture would be
+				// vacuously true and would survive deleting the SharesAddress
+				// branch entirely, which is the regression this guards.
+				assert.Equal(t, 1, strings.Count(got, `"42 Elm Street"`),
 					"a shared address is never repeated as lines (§3)")
 			},
 		},

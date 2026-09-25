@@ -87,12 +87,17 @@ func TestRunStartupFailures(t *testing.T) {
 			wantErr: "permission denied",
 		},
 		{
+			// wantErr names "template", not merely "renderer": verifyRenderer
+			// wraps both of its failure modes with the same "renderer:" prefix,
+			// so asserting on that alone would also pass on a machine with no
+			// typst binary at all — going green without ever reaching the
+			// template check this row is named for.
 			name: "missing typst template",
 			vars: map[string]string{
 				"WHEREFOLK_DATA":     "testdata",
 				"WHEREFOLK_TEMPLATE": filepath.Join(t.TempDir(), "absent"),
 			},
-			wantErr: "renderer",
+			wantErr: "template",
 		},
 	}
 

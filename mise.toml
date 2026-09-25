@@ -85,7 +85,7 @@ run = "go mod tidy"
 
 [tasks.run]
 description = "run the service against the example data"
-run = "WHEREFOLK_DATA=./testdata WHEREFOLK_PORT=8099 go run ."
+run = "WHEREFOLK_DATA=./testdata WHEREFOLK_TEMPLATE=./template WHEREFOLK_PORT=8099 go run ."
 
 [tasks.snapshot]
 description = "goreleaser build snapshot"

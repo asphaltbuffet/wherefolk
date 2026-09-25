@@ -56,7 +56,7 @@ func NewTypst() (Typst, error) {
 }
 
 // Version returns the binary's self-reported version, e.g.
-// "typst 0.13.1 (unknown hash)".
+// "typst 0.14.2 (b33de9de)".
 //
 // The application verifies presence and version at startup rather than at
 // export time, so a missing or wrong binary fails with an Operator-facing

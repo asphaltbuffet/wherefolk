@@ -20,7 +20,7 @@ go test ./pkg/rolo/ -run TestBuildTree
 
 # Run the server against the example data, then visit http://127.0.0.1:8099/status
 # (bare `go run .` looks for /var/lib/wherefolk/directory.json and exits non-zero)
-WHEREFOLK_DATA=./testdata WHEREFOLK_PORT=8099 go run .
+WHEREFOLK_DATA=./testdata WHEREFOLK_TEMPLATE=./template WHEREFOLK_PORT=8099 go run .
 
 # Render the example Directory to a PDF (needs typst; `nix develop` provides it)
 WHEREFOLK_TEMPLATE=./template go test ./internal/render/ -run TestRenderer -v
