@@ -1,6 +1,7 @@
 package render
 
 import (
+	"strconv"
 	"strings"
 )
 
@@ -21,6 +22,10 @@ func Markup(d Directory) string {
 	b.WriteString(templateImport)
 	b.WriteString("\n\n#directory(generated: ")
 	b.WriteString(quote(d.GeneratedAt))
+	b.WriteString(", tier: ")
+	b.WriteString(quote(d.Tier))
+	b.WriteString(", restricted: ")
+	b.WriteString(strconv.FormatBool(d.Restricted))
 	b.WriteString(")[\n")
 
 	for _, h := range d.Households {

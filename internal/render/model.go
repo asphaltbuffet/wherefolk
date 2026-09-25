@@ -63,5 +63,13 @@ type Directory struct {
 	// turn 18 — the date is what makes that legible (§5.7).
 	GeneratedAt string
 
+	// Tier names the audience in the footer (§5.8). Distribution is the real
+	// control over an exported file, and a named tier is the social pressure
+	// that goes with it.
+	Tier string
+
+	// Restricted puts DO NOT DISTRIBUTE on every page. Only Full sets it (§5.2).
+	Restricted bool
+
 	Households []Household
 }
