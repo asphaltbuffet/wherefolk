@@ -152,6 +152,12 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
 - **`template/directory.typ` is not embedded**, deliberately (ADR-0004). It is an Operator
   affordance: "the addresses look cramped" is a file edit and a restart, not a rebuild. Nothing in
   `internal/render` may start embedding it without revisiting that ADR.
+- **The Typst version is pinned in three places and they must agree**: `mise.toml` (which supplies
+  it to CI, so the render tests run rather than skip), `Dockerfile`'s `TYPST_VERSION` plus its
+  per-architecture sha256, and `flake.nix` (which takes whatever nixpkgs provides). Bumping the
+  version means updating the first two together — including **both** checksums, which are for the
+  `x86_64` and `aarch64` musl tarballs. An unpinned upgrade could silently reflow the Directory,
+  which is the whole reason the version is pinned inside the image (§2.1).
 
 ## Agent skills
 
