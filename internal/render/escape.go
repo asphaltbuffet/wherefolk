@@ -20,7 +20,17 @@ import "strings"
 // would double-escape the backslashes this function itself introduces.
 var typstSpecials = []string{`\`, `#`, `$`, `*`, `_`, `@`, `<`, `>`, `[`, `]`}
 
-// escape renders s as literal Typst text.
+// escape renders s as literal Typst text in MARKUP context.
+//
+// Typst has two syntactic contexts with different rules, and this function
+// serves only the first. In markup, the characters above are metacharacters.
+// Inside a string literal ("..."), they are ordinary text, and the only escapes
+// recognised are \\, \", \n, \t and \u{}. Verified against typst 0.14.2:
+// `"#1 Elm St".len()` is 9, while `"\#1 Elm St".at(0)` is a backslash.
+//
+// Do not call this on a value bound for a string literal — it would put a
+// literal backslash into the printed Directory. The markup generator quotes its
+// values instead; see quote in markup.go.
 func escape(s string) string {
 	if s == "" {
 		return ""
