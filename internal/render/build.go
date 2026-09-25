@@ -8,6 +8,9 @@ import (
 
 // Private is what a withheld field prints: the Editor marked it hidden, and
 // the marker stops anyone "helpfully" re-collecting it next year (§5.5).
+//
+// §5.5 fixes the literal string in preference to a lock glyph: it survives any
+// font stack, needs no legend, and reads correctly aloud to a screen reader.
 const Private = "[private]"
 
 // Build renders every Household in t for one audience, in the depth-first
