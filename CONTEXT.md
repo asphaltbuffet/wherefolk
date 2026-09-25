@@ -77,6 +77,11 @@ A Household whose Address is a reference to its parent Household's Address rathe
 text. Stays in sync when the parent's Address changes and renders as a back-reference instead of a
 repeated Address.
 
+The back-reference is printed only when the referenced Household's own block shows a real address.
+When that block shows `[private]` the sharer shows `[private]` too, rather than pointing the reader
+at a marker. When it shows nothing because it is a Memorial Household, the sharer prints the lines
+itself: someone still lives there, and the Memorial block is only declining to say so.
+
 **Render model**:
 The Directory as a flat sequence of already-rendered strings, one step before it becomes Typst
 markup. It holds no dates, no flags and no domain types, so that every decision about what a
@@ -89,6 +94,11 @@ A field the Editor has marked hidden. Renders as `[private]` in every Directory 
 re-collects it next year. Distinct from a **Suppressed field**, which renders as nothing at all.
 Phone, email, and birth date are withheld per Person; an Address is withheld per Household.
 
+Suppression takes precedence: `[private]` appears only where the audience would otherwise have seen
+the value. A withheld phone in the Mail tier prints nothing, like every other phone there, because
+a lone marker would single that person out. A withheld field with nothing recorded also prints
+nothing — the marker says "we have this and are not sharing it", which would be untrue.
+
 Withholding is a statement about **export only**. The editing UI always shows the stored value,
 marked withheld by a checkbox beside it — the Editor is the document's author, not one of its
 audiences, and a value they cannot see is a value they cannot correct or clear.
@@ -96,7 +106,9 @@ _Avoid_: Private field, redacted, suppressed
 
 **Suppressed field**:
 A field omitted for a whole audience rather than by the Editor's choice — a phone number in the
-Mail tier, a minor's details outside Full, or a deceased person's contact details anywhere.
+Mail tier, a minor's phone and email outside Full, or a deceased person's contact details anywhere.
+A minor's birth date is not suppressed: it is Truncated like any living person's, because the
+Directory is how the family knows when to send a birthday card.
 Renders as **nothing at all**, never as a marker: a placeholder would advertise that the data
 exists, leaking exactly what the suppression is meant to omit. Contrast a **Withheld field**,
 which the Editor marked hidden and which renders as `[private]`.
@@ -110,12 +122,17 @@ _Avoid_: Tier-suppressed (suppression is not always a tier rule), filtered, hidd
 
 **Truncated Date**:
 A date rendered as month and day, omitting the year, to keep a living person's full date of birth
-or marriage out of wide circulation. The default for living people outside the Full tier.
+or marriage out of wide circulation — `March 12`. The default for living people outside the Full
+tier. A date known only to the month truncates to the month alone (`March`); a date known only to
+the year truncates to nothing, because the year is all it holds.
 
 **Whole Date**:
-A date rendered in full, with year. Used for any date concerning only deceased people — a death, a
-deceased person's birth, or an Anniversary where both adults have died — and for every date in the
-Full tier.
+A date rendered in full, with year — `March 12, 1965`, or `March 1938` and `1938` at lesser
+precision. Used for any date concerning only deceased people — a death, a deceased person's birth,
+or an Anniversary where both adults have died — and for every date in the Full tier.
+
+Both forms spell the month out. A printed Directory is read by relatives, not parsed, and `03-12`
+cannot say whether it means March or December.
 
 ### Flagged ambiguities
 

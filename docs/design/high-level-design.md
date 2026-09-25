@@ -428,6 +428,10 @@ Named for what the recipient will do with the document, not by an abstract sensi
 | **Digital** | Email and messaging | Truncated | 18+ only | 18+ only | — |
 | **Full** | The inner circle | Whole | All | All | Included |
 
+"Minors' details" is the phone and email that the 18+ columns gate, not an additional rule: a
+minor's name and Truncated birth date appear in every tier, because the Directory is how the family
+knows when to send a birthday card.
+
 All four include full mailing addresses and the names of every family member, living and deceased.
 **Full** is additionally passphrase-protected (a `pdfcpu` post-processing step, since Typst cannot
 encrypt) and carries a `DO NOT DISTRIBUTE` footer on every page; its audience is small enough that
@@ -515,7 +519,7 @@ warning listing them by name, turning a silent data-quality problem into a visib
 An exported file cannot be protected from a recipient who is meant to read it. PDF permission flags
 are advisory and stripped in one command; rasterising text merely invites OCR while destroying
 searchability and accessibility. **Disclosure is controlled by what enters the file**, which is why
-tiers and hidden flags are the whole mechanism. Every export carries a footer naming its audience
+tiers and hidden flags are the whole mechanism. Every export carries a footer naming its tier
 and date — weak social pressure, but free, and honest that distribution is the real control.
 
 ---
