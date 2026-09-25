@@ -454,8 +454,10 @@ Stated in one line: *a date is truncated while the person it concerns is living.
 
 ### 5.4 Memorial Households
 
-A Memorial Household appears in **every** tier as a names-and-dates reference, with all dates Whole
-and no contact details. It renders more compactly than a live Household — a heading with dates
+A Memorial Household appears in **every** tier as a names-and-dates reference, with no contact
+details. Its adults' dates and its Anniversary are Whole, because they concern only the dead; a
+Dependent who is still living keeps §5.3's rule, so their birth date is Truncated outside Full like
+anyone else's. It renders more compactly than a live Household — a heading with dates
 rather than a full entry — since there is nothing in it to act on, but it must appear so that
 descendants group correctly beneath it and no Path points at a node missing from the document.
 

@@ -77,10 +77,12 @@ A Household whose Address is a reference to its parent Household's Address rathe
 text. Stays in sync when the parent's Address changes and renders as a back-reference instead of a
 repeated Address.
 
-The back-reference is printed only when the referenced Household's own block shows a real address.
-When that block shows `[private]` the sharer shows `[private]` too, rather than pointing the reader
-at a marker. When it shows nothing because it is a Memorial Household, the sharer prints the lines
-itself: someone still lives there, and the Memorial block is only declining to say so.
+The back-reference is printed only when the referenced Household's own block shows address lines.
+Otherwise the sharer prints what its Address actually resolves to, following the references to
+their end. When the referenced block shows `[private]` the sharer shows `[private]` too, rather
+than pointing the reader at a marker. When it shows nothing because it is a Memorial Household, or
+shows a back-reference of its own — three generations under one roof — the sharer prints the lines
+itself, so the reader never follows a pointer to a block that holds no address.
 
 **Render model**:
 The Directory as a flat sequence of already-rendered strings, one step before it becomes Typst
