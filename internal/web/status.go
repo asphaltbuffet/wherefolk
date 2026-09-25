@@ -18,6 +18,8 @@ type statusView struct {
 	Roots        int
 	RootLabels   []string
 	DocumentPath string
+	TypstVersion string
+	TemplatePath string
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -55,5 +57,7 @@ func (s *Server) statusView() statusView {
 		Roots:        len(roots),
 		RootLabels:   labels,
 		DocumentPath: s.meta.DocumentPath,
+		TypstVersion: s.meta.TypstVersion,
+		TemplatePath: s.meta.TemplatePath,
 	}
 }

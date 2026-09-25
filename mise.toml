@@ -4,6 +4,10 @@ changie = "latest"
 "go:golang.org/x/tools/cmd/goimports" = "latest"
 "go:golang.org/x/tools/cmd/stringer" = "latest"
 golangci-lint = "latest"
+# Pinned, not "latest": Typst is the renderer, and an unpinned upgrade could
+# silently reflow the Directory (§2.1). This must match the version in
+# flake.nix and the one the Dockerfile installs, so CI exercises what ships.
+typst = "0.14.2"
 
 [tasks.build]
 description = "go build"
@@ -85,7 +89,7 @@ run = "go mod tidy"
 
 [tasks.run]
 description = "run the service against the example data"
-run = "WHEREFOLK_DATA=./testdata WHEREFOLK_PORT=8099 go run ."
+run = "WHEREFOLK_DATA=./testdata WHEREFOLK_TEMPLATE=./template WHEREFOLK_PORT=8099 go run ."
 
 [tasks.snapshot]
 description = "goreleaser build snapshot"

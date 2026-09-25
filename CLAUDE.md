@@ -20,7 +20,10 @@ go test ./pkg/rolo/ -run TestBuildTree
 
 # Run the server against the example data, then visit http://127.0.0.1:8099/status
 # (bare `go run .` looks for /var/lib/wherefolk/directory.json and exits non-zero)
-WHEREFOLK_DATA=./testdata WHEREFOLK_PORT=8099 go run .
+WHEREFOLK_DATA=./testdata WHEREFOLK_TEMPLATE=./template WHEREFOLK_PORT=8099 go run .
+
+# Render the example Directory to a PDF (needs typst; `nix develop` provides it)
+WHEREFOLK_TEMPLATE=./template go test ./internal/render/ -run TestRenderer -v
 ```
 
 There is no CLI. The binary is a service: `main` loads the store and starts the web server.
@@ -30,7 +33,7 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
 ## Architecture
 
 - **`main.go`** — entry point: reads config, loads the store, starts the web server
-- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`)
+- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_TEMPLATE`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`)
   - `Config` carries the log *level*; `main` builds the `*slog.Logger` from it and injects it.
     Nothing outside `main` touches slog's package default — constructors take a `*slog.Logger`.
 - **`internal/web/`** — HTTP handlers and embedded templates
@@ -79,6 +82,25 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - `Load` validates the schema version and the tree, refusing a document newer than `CurrentSchema`
   - `Save` writes atomically (temp → fsync → rename) with `0600` permissions
   - `NewPersonID`/`NewHouseholdID` generate prefixed nanoids over a Crockford base32 alphabet
+- **`internal/render/`** — the Directory as a printed document
+  - `Directory`/`Household`/`Person` in `model.go` hold rendered **strings**, not `rolo` values,
+    for the same reason `web/view.go` does: a tier rule cannot be forgotten about a value that
+    never arrives here as a date or a flag.
+  - **This package applies no tier rules.** No `[private]`, no truncation, no age computation.
+    `Build` copies every stored value through as written; item 8's tier filter replaces that
+    constructor rather than wrapping it, so withholding and suppression live in exactly one place.
+  - **Every value reaches Typst inside a string literal**, so `quote` escapes the backslash and the
+    quotation mark and nothing else. Typst's markup metacharacters (`#`, `@`, `*`, `_`, `[`, `$`,
+    `<`) are ordinary text in that context — escaping them would print a literal backslash, turning
+    an address into `\#1 P.O. Box 212`. Verified against typst 0.14.2: `"#1 Elm St".len()` is 9,
+    while `"\#1 Elm St".at(0)` is a backslash. Interpolating into *markup* context instead would
+    need a different escaper; there isn't one, because nothing does that.
+  - `Markup` emits **data and calls into the template's functions**, never a margin or a font.
+    Every layout decision is in `template/directory.typ`.
+  - `Typst.CompilePDF`/`CompileSVG` stage the template and generated source into a scratch
+    directory, because the generated markup imports `directory.typ` as a sibling. They are separate
+    methods because Typst's CLI is asymmetric: a PDF is one file, an SVG export is **one file per
+    page** and needs a `{p}` placeholder in the output name, so `SVG` returns `[][]byte`.
 - **`internal/buildmeta/`** — build metadata (`Version`, `GitCommit`, `BuildDate`) injected via ldflags.
   The package is deliberately not named `version` or `buildinfo`: both collide with stdlib
   (`go/version`, `debug/buildinfo`). The ldflag paths in `mise.toml` and `.goreleaser.yml` are
@@ -97,8 +119,21 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
 ## Testing
 
 - All tests must be table-driven: a `tests []struct{ name string; ... }` slice iterated with `t.Run(tt.name, ...)`.
-- Test data lives in `testdata/directory.json` — three Households (one Branch two levels deep, one standalone root) covering: a birth name, an anniversary, living and deceased Dependents, an `aka`, and multiple address lines. `TestExampleDirectoryIsCanonicallyFormatted` pins this file's byte-level formatting, so hand edits must match its exact indentation and key order or that test fails.
+- Test data lives in `testdata/directory.json` — **four Households and ten people**: a Memorial root
+  (`h_meml01`, both adults deceased) anchoring a Branch two levels deep, plus one standalone root.
+  Between them they cover a birth name, an anniversary, living and deceased Dependents, an `aka`,
+  multiple address lines, and a Shared Address (`h_lang02` points at `h_lang01`). The Memorial and
+  Shared Address cases exist so the canonical example exercises `internal/render`'s two special
+  paths. `TestExampleDirectoryIsCanonicallyFormatted` pins this file's byte-level formatting, so
+  hand edits must match its exact indentation and key order or that test fails — re-pin by running
+  the document back through `store.Save` rather than hand-matching, since `Save` emits Go struct
+  field order and no formatter can infer it.
 - Use a `checkFunc func(t *testing.T, ...)` field in table rows that need assertions beyond simple field comparisons.
+- Tests that invoke `typst` call `requireTypst(t)`, which **skips** when the binary is absent.
+  Typst is a host dependency (ADR-0004) provided by the devShell in `flake.nix`, so inside
+  `nix develop` (or any shell with `typst` on `PATH`) `go test ./...` runs everything, and outside
+  it exactly seven render tests skip rather than fail. A skipped render test is not a passing one —
+  check the output for `SKIP` before believing the pipeline works.
 
 ## Notes
 
@@ -114,6 +149,15 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
   is the document's author rather than one of its audiences (ADR-0010).
 - Normalisation is called explicitly by the editing layer, not by `store.Save` — a hand-repaired
   document is loaded and saved exactly as written.
+- **`template/directory.typ` is not embedded**, deliberately (ADR-0004). It is an Operator
+  affordance: "the addresses look cramped" is a file edit and a restart, not a rebuild. Nothing in
+  `internal/render` may start embedding it without revisiting that ADR.
+- **The Typst version is pinned in three places and they must agree**: `mise.toml` (which supplies
+  it to CI, so the render tests run rather than skip), `Dockerfile`'s `TYPST_VERSION` plus its
+  per-architecture sha256, and `flake.nix` (which takes whatever nixpkgs provides). Bumping the
+  version means updating the first two together — including **both** checksums, which are for the
+  `x86_64` and `aarch64` musl tarballs. An unpinned upgrade could silently reflow the Directory,
+  which is the whole reason the version is pinned inside the image (§2.1).
 
 ## Agent skills
 

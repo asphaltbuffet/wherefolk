@@ -41,6 +41,12 @@ archives:
 dockers_v2:
   - id: wherefolk
     dockerfile: Dockerfile
+    # The build context holds only the cross-compiled binaries unless told
+    # otherwise, so the Typst layout must be named here or the image's
+    # `COPY template/` finds nothing. The binary refuses to start without a
+    # template (ADR-0004), so this is not optional packaging.
+    extra_files:
+      - template
     images:
       - ghcr.io/asphaltbuffet/wherefolk
     tags:

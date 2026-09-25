@@ -165,7 +165,12 @@ func get(t *testing.T, doc *store.Document, target string) *httptest.ResponseRec
 	nextHousehold := sequentialIDs("h_new")
 	nextPerson := sequentialIDs("p_new")
 
-	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{DocumentPath: "/tmp/test/directory.json"},
+	srv, err := web.New(doc, config.Config{}, testLogger(),
+		web.Meta{
+			DocumentPath: "/tmp/test/directory.json",
+			TypstVersion: "typst 0.13.1 (test)",
+			TemplatePath: "/srv/template",
+		},
 		func(*store.Document) error { return nil },
 		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
 		func() (rolo.PersonID, error) { return rolo.PersonID(nextPerson()), nil },
@@ -264,6 +269,28 @@ func TestStatusPage(t *testing.T) {
 				t.Helper()
 
 				assert.Contains(t, body, `data-field="document">/tmp/test/directory.json<`)
+			},
+		},
+		{
+			name:   "reports the typst version",
+			target: "/status",
+			check: func(t *testing.T, body string) {
+				t.Helper()
+
+				assert.Contains(t, body,
+					`data-field="typst">typst 0.13.1 (test)<`,
+					"the operator can see the renderer was found (§2.4)")
+			},
+		},
+		{
+			name:   "reports the template path",
+			target: "/status",
+			check: func(t *testing.T, body string) {
+				t.Helper()
+
+				assert.Contains(t, body,
+					`data-field="template">/srv/template<`,
+					"the operator needs to know which template is in force (ADR-0004)")
 			},
 		},
 	}

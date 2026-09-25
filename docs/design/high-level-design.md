@@ -91,8 +91,19 @@ version inside the image, so a host upgrade can never silently reflow the Direct
 ```
 
 **Base image:** Debian slim, with Typst installed from its official release tarball at a pinned
-version and checksum. Alpine is avoided because Typst ships glibc binaries and musl is a real risk
-with a Rust binary the Operator did not build.
+version and checksum, fetched in a builder stage so that neither `curl` nor the tarball reaches the
+final image.
+
+The original rationale here — "Alpine is avoided because Typst ships glibc binaries and musl is a
+real risk" — no longer holds: as of 0.14.2 upstream publishes **only** musl builds for amd64 and
+arm64, and they are `static-pie` linked, so they carry no libc dependency and run unchanged on
+Debian. Debian slim is kept for the reason that survives — it is an ordinary base the Operator can
+shell into and add a font to — not for libc compatibility.
+
+Typst embeds `Libertinus Serif`, the template's primary typeface, so the Directory renders
+correctly with no system fonts installed. A template that reaches for a font Typst does not embed
+would need one added to the image; the template's `DejaVu Serif` fallback is currently unresolved
+and unused, which Typst reports as a warning rather than an error.
 
 **Frontend:** server-rendered Go templates with htmx, embedded in the binary via `embed`. No
 JavaScript build step, no `node_modules`, no separate asset serving — the interaction budget here
@@ -400,6 +411,11 @@ as an opaque error mid-export.
 The template on disk, rather than embedded in the binary, is a deliberate Operator affordance:
 "the addresses look cramped" is a template edit and a restart, not a rebuild and redeploy.
 
+The template's location is `WHEREFOLK_TEMPLATE`, defaulting to `template/` beneath the data volume
+so the Operator edits it through the mount they already have. The renderer is verified at startup —
+binary present, version readable, `directory.typ` in place — and reported on `/status` beside the
+document path (§2.4).
+
 ### 5.2 Tiers
 
 Named for what the recipient will do with the document, not by an abstract sensitivity scale
@@ -517,7 +533,7 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 4 | ✅ **Tree + search navigation** — two-pane shell, Path breadcrumb, search-with-context. Navigation state lives in the URL (ADR-0008) | 1, 11 |
 | 5 | ✅ **Detail editing** — the pane is the form (§4.4), per-field hidden, add/remove a person, declared Promotion, structural-change announcements. Saves via Post/Redirect/Get (ADR-0008); masking moved to export (ADR-0010); Promotion is one-way (ADR-0009) | 3, 4 |
 | 6 | **Safety net** — session undo, 30-day trash, nightly snapshots. Inherits two slots from item 5: the `.announce-actions` div in `_announce.html` where the undo control belongs, and Household deletion, which item 5 left out because deleting with no recovery path contradicts §3 | 1 |
-| 7 | **Typst template & render engine** — flat Household blocks, Memorial blocks, fixed layout, shared-address back-references, PDF + SVG output | 1 |
+| 7 | ✅ **Typst template & render engine** — flat Household blocks, Memorial blocks, fixed layout, shared-address back-references, PDF + SVG output. The render model is strings only, so item 8's filter replaces its constructor rather than threading a tier through the markup generator | 1 |
 | 8 | **Tier filter** — field gating, age computation, date truncation, `[private]` vs. absence | 7 |
 | 9 | **Export UI** — tier chooser by description, SVG preview, pre-flight warnings, `pdfcpu` passphrase on Full | 8 |
 | 10 | **Proof Sheets** — per-Household pagination, withheld-field disclosure, Branch selection | 8 |

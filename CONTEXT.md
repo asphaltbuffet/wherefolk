@@ -77,6 +77,13 @@ A Household whose Address is a reference to its parent Household's Address rathe
 text. Stays in sync when the parent's Address changes and renders as a back-reference instead of a
 repeated Address.
 
+**Render model**:
+The Directory as a flat sequence of already-rendered strings, one step before it becomes Typst
+markup. It holds no dates, no flags and no domain types, so that every decision about what a
+given audience may see has already been made by the time anything is printed. Constructing the
+render model is where tier filtering happens; rendering it is not.
+_Avoid_: View model (that is the editing UI's, in `internal/web`), DTO
+
 **Withheld field**:
 A field the Editor has marked hidden. Renders as `[private]` in every Directory tier, so nobody
 re-collects it next year. Distinct from a **Suppressed field**, which renders as nothing at all.

@@ -50,6 +50,13 @@ type Server struct {
 // resolve: internal/web must stay free of filesystem concerns.
 type Meta struct {
 	DocumentPath string
+
+	// TypstVersion and TemplatePath are what main learned when it verified the
+	// renderer at startup. They are strings rather than a render.Renderer
+	// because this package never invokes Typst: /status reports the fact, and
+	// item 9's export UI is where the renderer itself arrives.
+	TypstVersion string
+	TemplatePath string
 }
 
 // New builds a Server over an already-loaded document. It takes a document

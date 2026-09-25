@@ -2,7 +2,29 @@
   "schema": 1,
   "households": [
     {
+      "id": "h_meml01",
+      "adults": [
+        {
+          "id": "p_har001",
+          "given": "Harold",
+          "surname": "Langford",
+          "birth": "1928-02-14",
+          "death": "2011-09-30"
+        },
+        {
+          "id": "p_jun001",
+          "given": "June",
+          "surname": "Langford",
+          "birth_name": "Whitfield",
+          "birth": "1931-11-02",
+          "death": "2019-04-17"
+        }
+      ],
+      "anniversary": "1953-05-23"
+    },
+    {
       "id": "h_lang01",
+      "parent": "h_meml01",
       "adults": [
         {
           "id": "p_rob001",
@@ -85,10 +107,7 @@
       ],
       "anniversary": "2019-09-07",
       "address": {
-        "lines": [
-          "17 Birch Lane",
-          "Springfield, IL 62704"
-        ]
+        "shared_with": "h_lang01"
       }
     },
     {

@@ -24,6 +24,11 @@ const (
 	// Item 6's snapshots/ directory lives beside it, which is why WHEREFOLK_DATA
 	// names a directory rather than a file (§2.1).
 	DocumentName = "directory.json"
+	// DefaultTemplateDir is where the Typst layout lives inside the container.
+	// It is a directory under the same volume as the document, so the Operator
+	// edits the template through the same mount they already have (§2.1,
+	// ADR-0004).
+	DefaultTemplateDir = "/var/lib/wherefolk/template"
 )
 
 // Config is the service's runtime configuration.
@@ -35,6 +40,11 @@ type Config struct {
 	// logger itself is not configuration: only the level is read from the
 	// environment, because only main knows where the log output goes.
 	LogLevel slog.Level
+
+	// TemplateDir holds the on-disk Typst layout. The template is not embedded
+	// in the binary, so that "the addresses look cramped" is a template edit and
+	// a restart rather than a rebuild (ADR-0004).
+	TemplateDir string
 }
 
 // DocumentPath is the JSON store's location on disk.
@@ -44,10 +54,19 @@ func (c Config) DocumentPath() string { return filepath.Join(c.DataDir, Document
 // map lookup in tests. An unset variable takes its default; an invalid one is an
 // error, never a silent fallback.
 func Load(getenv func(string) string) (Config, error) {
-	cfg := Config{DataDir: DefaultDataDir, Port: DefaultPort, LogLevel: DefaultLogLevel}
+	cfg := Config{
+		DataDir:     DefaultDataDir,
+		Port:        DefaultPort,
+		LogLevel:    DefaultLogLevel,
+		TemplateDir: DefaultTemplateDir,
+	}
 
 	if dir := getenv("WHEREFOLK_DATA"); dir != "" {
 		cfg.DataDir = dir
+	}
+
+	if dir := getenv("WHEREFOLK_TEMPLATE"); dir != "" {
+		cfg.TemplateDir = dir
 	}
 
 	if raw := getenv("WHEREFOLK_PORT"); raw != "" {
