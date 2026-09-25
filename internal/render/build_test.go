@@ -449,3 +449,153 @@ func TestBuildStamp(t *testing.T) {
 		})
 	}
 }
+
+func TestBuildAddress(t *testing.T) {
+	elm := []string{"42 Elm Street", "Springfield, IL 62701"}
+
+	living := func(id rolo.PersonID, given string) rolo.Person {
+		return rolo.Person{ID: id, Given: given, Surname: "Test", Birth: adultBirth}
+	}
+	dead := func(id rolo.PersonID, given string) rolo.Person {
+		p := living(id, given)
+		p.Death = deathDate
+		return p
+	}
+
+	// parent is the Household whose address a child shares. Rows vary it.
+	parent := func(addr rolo.Address, adult rolo.Person) rolo.Household {
+		return rolo.Household{ID: "h_par001", Adults: []rolo.Person{adult}, Address: addr}
+	}
+	// child shares the parent's address unless a row overrides Address.
+	child := func(addr rolo.Address) rolo.Household {
+		return rolo.Household{
+			ID: "h_kid001", Parent: "h_par001",
+			Adults:  []rolo.Person{living("p_kid001", "Daniel")},
+			Address: addr,
+		}
+	}
+	sharesParent := rolo.Address{SharedWith: "h_par001"}
+
+	tests := []struct {
+		name        string
+		households  []rolo.Household
+		index       int // which rendered Household to check
+		wantLines   []string
+		wantSharedW string
+	}{
+		{
+			name:       "own address keeps its lines",
+			households: []rolo.Household{parent(rolo.Address{Lines: elm}, living("p_par001", "Robert"))},
+			index:      0,
+			wantLines:  elm,
+		},
+		{
+			name:       "withheld own address is private",
+			households: []rolo.Household{parent(rolo.Address{Lines: elm, Hidden: true}, living("p_par001", "Robert"))},
+			index:      0,
+			wantLines:  []string{render.Private},
+		},
+		{
+			name:       "withheld but empty address prints nothing",
+			households: []rolo.Household{parent(rolo.Address{Hidden: true}, living("p_par001", "Robert"))},
+			index:      0,
+		},
+		{
+			name:       "a memorial household prints no address (§5.4)",
+			households: []rolo.Household{parent(rolo.Address{Lines: elm}, dead("p_par001", "Harold"))},
+			index:      0,
+		},
+		{
+			name: "a shared address is a back-reference to a live target's label",
+			households: []rolo.Household{
+				parent(rolo.Address{Lines: elm}, living("p_par001", "Robert")),
+				child(sharesParent),
+			},
+			index:       1,
+			wantSharedW: "Robert",
+		},
+		{
+			name: "a shared address whose target is withheld is private, not a pointer to a marker",
+			households: []rolo.Household{
+				parent(rolo.Address{Lines: elm, Hidden: true}, living("p_par001", "Robert")),
+				child(sharesParent),
+			},
+			index:     1,
+			wantLines: []string{render.Private},
+		},
+		{
+			name: "a sharer that withholds its own address is private",
+			households: []rolo.Household{
+				parent(rolo.Address{Lines: elm}, living("p_par001", "Robert")),
+				child(rolo.Address{SharedWith: "h_par001", Hidden: true}),
+			},
+			index:     1,
+			wantLines: []string{render.Private},
+		},
+		{
+			name: "a shared address whose target is memorial is resolved into lines",
+			households: []rolo.Household{
+				parent(rolo.Address{Lines: elm}, dead("p_par001", "Harold")),
+				child(sharesParent),
+			},
+			index:     1,
+			wantLines: elm,
+		},
+		{
+			name: "a shared address whose memorial target is withheld is private",
+			households: []rolo.Household{
+				parent(rolo.Address{Lines: elm, Hidden: true}, dead("p_par001", "Harold")),
+				child(sharesParent),
+			},
+			index:     1,
+			wantLines: []string{render.Private},
+		},
+		{
+			name: "a shared address whose target has no address prints nothing",
+			households: []rolo.Household{
+				parent(rolo.Address{}, living("p_par001", "Robert")),
+				child(sharesParent),
+			},
+			index: 1,
+		},
+		{
+			name: "a withheld sharer whose target has no address prints nothing",
+			households: []rolo.Household{
+				parent(rolo.Address{}, living("p_par001", "Robert")),
+				child(rolo.Address{SharedWith: "h_par001", Hidden: true}),
+			},
+			index: 1,
+		},
+		{
+			name: "a memorial sharer prints nothing",
+			households: []rolo.Household{
+				parent(rolo.Address{Lines: elm}, living("p_par001", "Robert")),
+				{
+					ID: "h_kid001", Parent: "h_par001",
+					Adults:  []rolo.Person{dead("p_kid001", "Daniel")},
+					Address: sharesParent,
+				},
+			},
+			index: 1,
+		},
+		{
+			name: "a cycle of shared addresses prints nothing rather than looping",
+			households: []rolo.Household{
+				parent(rolo.Address{SharedWith: "h_kid001"}, living("p_par001", "Robert")),
+				child(sharesParent),
+			},
+			index: 1,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := build(t, render.Full, tt.households...)
+			require.Len(t, d.Households, len(tt.households))
+
+			h := d.Households[tt.index]
+			assert.Equal(t, tt.wantLines, h.AddressLines, "address lines")
+			assert.Equal(t, tt.wantSharedW, h.SharedWith, "back-reference")
+		})
+	}
+}

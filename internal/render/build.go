@@ -64,28 +64,68 @@ func (f filter) household(h rolo.Household) Household {
 		Dependents:  f.people(h.Dependents, memorial),
 	}
 
-	switch {
-	case h.SharesAddress():
-		out.SharedWith = sharedLabel(f.tree, h.Address.SharedWith)
-	default:
-		out.AddressLines = h.Address.Lines
+	if !memorial {
+		out.AddressLines, out.SharedWith = f.address(h, map[rolo.HouseholdID]bool{})
 	}
 
 	return out
 }
 
-// sharedLabel names the Household whose address is being shared.
+// address is what h's block prints for its Address when h is not Memorial:
+// its lines, a back-reference label, [private], or nothing (nil, "").
 //
-// BuildTree guarantees the target exists, so a lookup failure here would be a
-// corrupt tree rather than bad data; falling back to the raw ID keeps the block
-// printable instead of dropping the address entirely.
-func sharedLabel(t *rolo.Tree, id rolo.HouseholdID) string {
-	target, ok := t.Get(id)
-	if !ok {
-		return string(id)
+// The Editor's hidden flag is applied last, and only to something that would
+// otherwise print, for the same reason as withhold.
+func (f filter) address(h rolo.Household, seen map[rolo.HouseholdID]bool) ([]string, string) {
+	lines, shared := f.ownAddress(h, seen)
+
+	if h.AddressHidden() && (len(lines) > 0 || shared != "") {
+		return []string{Private}, ""
 	}
 
-	return target.Label()
+	return lines, shared
+}
+
+// ownAddress resolves h's Address before h's own hidden flag is considered.
+//
+// A back-reference is printed only when the target's block shows a real
+// address (CONTEXT.md, Shared Address). A target that shows [private] makes
+// the sharer show [private] rather than point at a marker; a Memorial target
+// shows nothing, so the sharer prints what the target would have printed had
+// it been live, because someone still lives there.
+//
+// seen guards a cycle of Shared Addresses. BuildTree checks only that the
+// target exists, so a hand-edited document could loop.
+func (f filter) ownAddress(h rolo.Household, seen map[rolo.HouseholdID]bool) ([]string, string) {
+	if !h.SharesAddress() {
+		return h.Address.Lines, ""
+	}
+
+	if seen[h.ID] {
+		return nil, ""
+	}
+
+	seen[h.ID] = true
+
+	target, ok := f.tree.Get(h.Address.SharedWith)
+	if !ok {
+		// BuildTree guarantees the target exists, so this is a corrupt tree
+		// rather than bad data; the raw ID keeps the block printable.
+		return nil, string(h.Address.SharedWith)
+	}
+
+	lines, shared := f.address(target, seen)
+
+	switch {
+	case target.IsMemorial():
+		return lines, shared
+	case len(lines) == 0 && shared == "":
+		return nil, ""
+	case len(lines) == 1 && lines[0] == Private:
+		return lines, ""
+	default:
+		return nil, target.Label()
+	}
 }
 
 // people renders a slice of people, preserving order.
