@@ -60,7 +60,7 @@ func TestBuild(t *testing.T) {
 				t.Helper()
 				assert.Equal(
 					t,
-					"2026-09-24",
+					"September 24, 2026",
 					d.GeneratedAt,
 					"exports are non-reproducible and must say when they were made (§5.7)",
 				)

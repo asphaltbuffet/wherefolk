@@ -6,9 +6,6 @@ import (
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
-// dateStamp is how GeneratedAt is formatted: ISO order, matching rolo.Date.
-const dateStamp = "2006-01-02"
-
 // Build renders every Household in t, in the depth-first order the printed
 // Directory uses.
 //
