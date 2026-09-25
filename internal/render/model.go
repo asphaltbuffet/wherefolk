@@ -1,3 +1,16 @@
+// Package render turns a Directory into a printable document.
+//
+// It holds three separable things: a render model of already-rendered strings,
+// a generator that emits Typst markup from that model, and a wrapper around the
+// typst binary that compiles the markup to PDF or SVG (ADR-0004).
+//
+// The package applies no tier rules. It renders exactly the strings it is
+// handed; withholding, suppression and date truncation (§5.2, §5.3, §5.5) act
+// upstream by constructing a different [Directory].
+//
+// Every value reaches Typst inside a string literal, so quote in markup.go is
+// the only escaper the package needs: within a literal, Typst's markup
+// metacharacters are ordinary text. See quote's doc comment for the evidence.
 package render
 
 // Person is one person as the Directory prints them.

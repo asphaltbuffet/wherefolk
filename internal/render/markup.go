@@ -10,11 +10,6 @@ import (
 // Operator edits (ADR-0004, §5.1).
 const templateImport = `#import "directory.typ": directory, household, memorial`
 
-// NOTE for the implementer: this file must NOT call escape. See quote's doc
-// comment below. escape is the markup-context escaper and remains correct for
-// that context; the generator emits string literals exclusively, which follow
-// different rules. Task 2 shipped escape with its own tests; leave it alone.
-
 // Markup renders d as Typst source.
 //
 // The output is deterministic for a given Directory: nothing here reads the
@@ -110,16 +105,19 @@ func quoteList(items []string) string {
 
 // quote renders s as a Typst string literal.
 //
-// It deliberately does NOT call escape. Typst has two syntactic contexts and
-// they have different rules: in markup, "#", "@", "*", "_", "[", "$" and "<"
-// are metacharacters, but inside a string literal they are ordinary text. The
-// only escapes a string literal recognises are \\, \", \n, \t and \u{}.
+// It escapes the backslash and the quotation mark, and nothing else — those are
+// the only characters a string literal treats as special, alongside \n, \t and
+// \u{}. Typst's markup metacharacters ("#", "@", "*", "_", "[", "$", "<") are
+// ordinary text in this context, and escaping them would put a literal
+// backslash into the printed Directory: an address would come out as
+// "\#1 P.O. Box 212".
 //
-// Verified against typst 0.14.2: `"#1 Elm St".len()` is 9 and
-// `"\#1 Elm St".at(0)` is a backslash. Running escape here would therefore put
-// a literal backslash into the document — Patricia's address would print as
-// "\#1 P.O. Box 212". Every value this generator emits is a string literal, so
-// string-literal rules are the correct ones and escape stays unused here.
+// Verified against typst 0.14.2: `"#1 Elm St".len()` is 9, while
+// `"\#1 Elm St".at(0)` is a backslash and its length is 10.
+//
+// Every value this generator emits is a string literal, so these are the only
+// rules that apply. If a later change ever interpolates a value into markup
+// context instead, it needs a different escaper — this one is not it.
 //
 // DisplayName produces quotation marks for any Person with a nickname, so the
 // quote case is a live path, not a defensive one.

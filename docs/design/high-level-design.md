@@ -91,8 +91,19 @@ version inside the image, so a host upgrade can never silently reflow the Direct
 ```
 
 **Base image:** Debian slim, with Typst installed from its official release tarball at a pinned
-version and checksum. Alpine is avoided because Typst ships glibc binaries and musl is a real risk
-with a Rust binary the Operator did not build.
+version and checksum, fetched in a builder stage so that neither `curl` nor the tarball reaches the
+final image.
+
+The original rationale here — "Alpine is avoided because Typst ships glibc binaries and musl is a
+real risk" — no longer holds: as of 0.14.2 upstream publishes **only** musl builds for amd64 and
+arm64, and they are `static-pie` linked, so they carry no libc dependency and run unchanged on
+Debian. Debian slim is kept for the reason that survives — it is an ordinary base the Operator can
+shell into and add a font to — not for libc compatibility.
+
+Typst embeds `Libertinus Serif`, the template's primary typeface, so the Directory renders
+correctly with no system fonts installed. A template that reaches for a font Typst does not embed
+would need one added to the image; the template's `DejaVu Serif` fallback is currently unresolved
+and unused, which Typst reports as a warning rather than an error.
 
 **Frontend:** server-rendered Go templates with htmx, embedded in the binary via `embed`. No
 JavaScript build step, no `node_modules`, no separate asset serving — the interaction budget here

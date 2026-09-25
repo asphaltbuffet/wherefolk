@@ -89,9 +89,12 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - **This package applies no tier rules.** No `[private]`, no truncation, no age computation.
     `Build` copies every stored value through as written; item 8's tier filter replaces that
     constructor rather than wrapping it, so withholding and suppression live in exactly one place.
-  - `escape` handles Typst's markup characters (`#`, `@`, `*`, `_`, `[`, `$`, `<`, `\`) at every
-    interpolation point. Go assembles markup by hand with no template engine auto-escaping it, so
-    an address line reading `#1 Elm St` would otherwise parse as a Typst code expression.
+  - **Every value reaches Typst inside a string literal**, so `quote` escapes the backslash and the
+    quotation mark and nothing else. Typst's markup metacharacters (`#`, `@`, `*`, `_`, `[`, `$`,
+    `<`) are ordinary text in that context — escaping them would print a literal backslash, turning
+    an address into `\#1 P.O. Box 212`. Verified against typst 0.14.2: `"#1 Elm St".len()` is 9,
+    while `"\#1 Elm St".at(0)` is a backslash. Interpolating into *markup* context instead would
+    need a different escaper; there isn't one, because nothing does that.
   - `Markup` emits **data and calls into the template's functions**, never a margin or a font.
     Every layout decision is in `template/directory.typ`.
   - `Typst.CompilePDF`/`CompileSVG` stage the template and generated source into a scratch
