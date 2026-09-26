@@ -37,7 +37,8 @@ var disableConfigDir = sync.OnceFunc(api.DisableConfigDir)
 //
 // Passphrases are ordinary phrases and may contain spaces and accents.
 // pdfcpu encrypts them correctly; do not use its Decrypt function to verify
-// a real passphrase, as it incorrectly applies PRECIS instead of SASLprep.
+// a real passphrase, as it incorrectly applies PRECIS instead of SASLprep,
+// which rejects spaces (its NFKC normalisation accepts accents fine).
 func Encrypt(pdf []byte, passphrase string) ([]byte, error) {
 	if passphrase == "" {
 		return nil, errors.New("render: refusing to encrypt with an empty passphrase")

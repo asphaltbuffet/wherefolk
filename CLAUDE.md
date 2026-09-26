@@ -127,10 +127,11 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - `Encrypt` wraps the pdfcpu **library** (ADR-0011), not a binary: encryption is a pure
     `[]byte → []byte` step with nothing to pin in the image. It calls `api.DisableConfigDir()` once,
     because pdfcpu otherwise writes a config directory under `$HOME` on first use.
-  - pdfcpu's own `api.Decrypt` wrongly rejects passphrases containing spaces or accents (it applies
-    the PRECIS Identifier profile instead of SASLprep), though its encryption handles them — verified
-    with mupdf — so tests that decrypt use a space-free passphrase; and the owner password is 130
-    random bits because a PDF owner password also opens the file.
+  - pdfcpu's own `api.Decrypt` wrongly rejects passphrases containing spaces (it applies the PRECIS
+    Identifier profile instead of SASLprep, and that profile's NFKC normalisation accepts accents —
+    "cafécrèmebrûlée" decrypts fine — but rejects the space in "café crème"), though its encryption
+    handles both cases — verified with mupdf — so tests that decrypt use a space-free passphrase; and
+    the owner password is 130 random bits because a PDF owner password also opens the file.
 - **`internal/buildmeta/`** — build metadata (`Version`, `GitCommit`, `BuildDate`) injected via ldflags.
   The package is deliberately not named `version` or `buildinfo`: both collide with stdlib
   (`go/version`, `debug/buildinfo`). The ldflag paths in `mise.toml` and `.goreleaser.yml` are

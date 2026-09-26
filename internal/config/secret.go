@@ -30,5 +30,9 @@ func (s Secret) GoString() string { return `config.Secret("` + s.String() + `")`
 // LogValue implements [slog.LogValuer].
 func (s Secret) LogValue() slog.Value { return slog.StringValue(s.String()) }
 
+// MarshalText implements [encoding.TextMarshaler], so encoding/json and slog's
+// JSONHandler print the redacted form too.
+func (s Secret) MarshalText() ([]byte, error) { return []byte(s.String()), nil }
+
 // Reveal returns the secret itself. Call it only where the value is consumed.
 func (s Secret) Reveal() string { return string(s) }

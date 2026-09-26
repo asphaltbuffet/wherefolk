@@ -1,6 +1,7 @@
 package config_test
 
 import (
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -185,7 +186,7 @@ func TestLoad(t *testing.T) {
 		},
 		{
 			name:    "a short passphrase is fatal",
-			vars:    map[string]string{"WHEREFOLK_FULL_PASSPHRASE": "short"},
+			vars:    map[string]string{"WHEREFOLK_FULL_PASSPHRASE": "abc1234"},
 			wantErr: "WHEREFOLK_FULL_PASSPHRASE: shorter than 8 characters",
 		},
 		{
@@ -203,12 +204,7 @@ func TestLoad(t *testing.T) {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
 
-				if p := tt.vars["WHEREFOLK_FULL_PASSPHRASE"]; p != "" && !strings.Contains(tt.wantErr, p) {
-					// Skipped when wantErr itself contains p: for the short-passphrase
-					// case p is "short", which is a substring of the fixed wording
-					// "shorter than 8 characters" by coincidence, not because the
-					// value was echoed. The whitespace case still exercises the
-					// real guard, since its value never appears in that wording.
+				if p := tt.vars["WHEREFOLK_FULL_PASSPHRASE"]; p != "" {
 					assert.NotContains(t, err.Error(), p, "the passphrase never reaches an error message")
 				}
 
@@ -241,6 +237,17 @@ func TestSecretNeverPrints(t *testing.T) {
 		{name: "slog", out: func() string {
 			var b strings.Builder
 			slog.New(slog.NewTextHandler(&b, nil)).Info("cfg", "passphrase", cfg.FullPassphrase)
+			return b.String()
+		}()},
+		{name: "json.Marshal", out: func() string {
+			//nolint:musttag // Config is never serialized in production; this only checks redaction.
+			b, err := json.Marshal(cfg)
+			require.NoError(t, err)
+			return string(b)
+		}()},
+		{name: "slog JSONHandler", out: func() string {
+			var b strings.Builder
+			slog.New(slog.NewJSONHandler(&b, nil)).Info("cfg", "passphrase", cfg.FullPassphrase)
 			return b.String()
 		}()},
 	}

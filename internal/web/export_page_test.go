@@ -177,10 +177,26 @@ func TestExportPDF(t *testing.T) {
 				require.NoError(t, api.Decrypt(bytes.NewReader(body), &out,
 					model.NewAESConfiguration(passphrase, "", 256)), "the family passphrase opens it")
 				require.Error(t, api.Decrypt(bytes.NewReader(body), &out,
-					model.NewAESConfiguration("wrong horse battery", "", 256)))
+					model.NewAESConfiguration("wronghorsebattery", "", 256)))
 
 				require.Len(t, ex.got, 1)
 				assert.Equal(t, "Full", ex.got[0].Tier)
+			},
+		},
+		{
+			name:   "a failed encryption sends nothing, not the unencrypted pdf",
+			target: "/export/pdf?tier=full",
+			cfg:    config.Config{FullPassphrase: passphrase},
+			exporter: func(*testing.T) *fakeExporter {
+				return &fakeExporter{pdf: []byte("not a pdf")}
+			},
+			wantStatus: http.StatusInternalServerError,
+			checkFunc: func(t *testing.T, rec *httptest.ResponseRecorder, _ *fakeExporter) {
+				t.Helper()
+				body := rec.Body.String()
+				assert.NotContains(t, body, "not a pdf")
+				assert.Empty(t, rec.Header().Get("Content-Disposition"))
+				assert.Contains(t, body, "Please try again")
 			},
 		},
 		{
@@ -389,6 +405,7 @@ func TestExportPage(t *testing.T) {
 			checkFunc: func(t *testing.T, rec *httptest.ResponseRecorder, ex *fakeExporter) {
 				t.Helper()
 				assert.NotContains(t, rec.Body.String(), "<img")
+				assert.NotContains(t, rec.Body.String(), `value="full" checked`)
 				assert.Empty(t, ex.got)
 			},
 		},

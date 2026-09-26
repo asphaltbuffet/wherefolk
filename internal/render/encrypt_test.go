@@ -14,8 +14,9 @@ import (
 )
 
 // passphrase is limited to space-free ASCII because our test oracle, pdfcpu's
-// api.Decrypt, wrongly applies PRECIS instead of SASLprep and rejects spaces.
-// Real passphrases may contain spaces and accents (verified independently with mupdf).
+// api.Decrypt, wrongly applies PRECIS instead of SASLprep and rejects spaces
+// (its NFKC normalisation accepts accents fine). Real passphrases may contain
+// spaces and accents (verified independently with mupdf).
 const passphrase = "correcthorsebattery"
 
 // decrypt tries to open pdf with pw and reports pdfcpu's verdict.
@@ -89,11 +90,14 @@ func TestEncrypt(t *testing.T) {
 			},
 		},
 		{
-			name:       "each export gets a different owner password",
+			name:       "encryption is randomised per export",
 			pdf:        fixture,
 			passphrase: passphrase,
 			checkFunc: func(t *testing.T, out []byte) {
 				t.Helper()
+				// AES-256 R6 randomises the file key, salts and IVs on every
+				// call (not just the owner password), so two encryptions of
+				// the same input must not be byte-identical.
 				again, encErr := render.Encrypt(fixture, passphrase)
 				require.NoError(t, encErr)
 				assert.False(t, bytes.Equal(out, again),
