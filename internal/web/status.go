@@ -20,6 +20,8 @@ type statusView struct {
 	DocumentPath string
 	TypstVersion string
 	TemplatePath string
+
+	FullPassphraseSet bool
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
@@ -59,5 +61,7 @@ func (s *Server) statusView() statusView {
 		DocumentPath: s.meta.DocumentPath,
 		TypstVersion: s.meta.TypstVersion,
 		TemplatePath: s.meta.TemplatePath,
+
+		FullPassphraseSet: s.cfg.FullPassphrase.Reveal() != "",
 	}
 }

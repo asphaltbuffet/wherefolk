@@ -1,0 +1,31 @@
+{{define "title"}}Make a Directory{{end}}
+
+{{define "body"}}
+<!-- The previews below are the family's data, and responses here are no-store;
+     hx-history="false" stops htmx from snapshotting this page into localStorage
+     when it pushes the URL, so Back re-fetches from the server instead of
+     restoring a cached preview — which is why wantsFragment excludes history
+     restores. -->
+<div class="export" hx-history="false">
+  <p class="export-back"><a href="/">← Back to the family list</a></p>
+  <h1>Make a Directory to send</h1>
+
+  <form class="export-tiers" action="/export" method="get"
+        hx-get="/export" hx-trigger="change" hx-target="#export-result"
+        hx-swap="outerHTML" hx-push-url="true">
+    <fieldset>
+      <legend>Who is this Directory for?</legend>
+      {{range .Options}}
+      <label class="tier{{if .Disabled}} tier-disabled{{end}}">
+        <input type="radio" name="tier" value="{{.Key}}"{{if .Checked}} checked{{end}}{{if .Disabled}} disabled{{end}}>
+        <span class="tier-description">{{.Description}}</span>
+        <span class="tier-detail">{{.Detail}}</span>
+      </label>
+      {{end}}
+    </fieldset>
+    <noscript><button type="submit">Show this Directory</button></noscript>
+  </form>
+
+  {{template "export_result" .Result}}
+</div>
+{{end}}

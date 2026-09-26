@@ -145,3 +145,45 @@ main { height: 100vh; }
   padding: 0.75rem 1rem;
   margin-bottom: 1rem;
 }
+
+/* Export (§5). One column that reads top to bottom: choose, download, look. */
+.export { max-width: 60rem; margin: 0 auto; padding: var(--gap); }
+.export-link { margin: 0 0 var(--gap); text-align: right; }
+
+.export-tiers fieldset { border: 1px solid var(--rule); padding: var(--gap); }
+.export-tiers legend { font-weight: 600; padding: 0 .25rem; }
+
+.tier {
+  display: grid;
+  grid-template-columns: 1.5rem 14rem 1fr;
+  align-items: baseline;
+  padding: .35rem 0;
+  cursor: pointer;
+}
+.tier-description { font-weight: 600; }
+.tier-detail { color: var(--muted); }
+.tier-disabled { cursor: not-allowed; opacity: .6; }
+
+.export-download {
+  display: inline-block;
+  padding: .5rem 1rem;
+  border: 1px solid #333;
+  border-radius: 4px;
+  text-decoration: none;
+  color: #000;
+  background: #f4f4f4;
+}
+.export-download:hover { background: #e8e8e8; }
+
+.export-error { color: #a00; }
+.export-hint { color: var(--muted); }
+
+/* Page-shaped previews, several to a row. */
+.preview {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
+  gap: var(--gap);
+}
+.preview img { width: 100%; border: 1px solid var(--rule); box-shadow: 0 1px 3px rgba(0,0,0,.15); }

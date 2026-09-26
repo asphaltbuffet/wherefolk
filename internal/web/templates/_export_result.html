@@ -1,0 +1,17 @@
+{{define "export_result"}}<section id="export-result" class="export-result">
+{{- if .}}
+  {{- if .Error}}
+  <p class="export-error" role="alert">{{.Error}}</p>
+  {{- else}}
+  <p><a class="export-download" href="{{.DownloadURL}}">Download the Directory (PDF)</a></p>
+  <h2>Preview — {{len .Pages}} {{if eq (len .Pages) 1}}page{{else}}pages{{end}}</h2>
+  <ol class="preview">
+    {{- range .Pages}}
+    <li><img src="{{.Src}}" alt="{{.Alt}}"></li>
+    {{- end}}
+  </ol>
+  {{- end}}
+{{- else}}
+  <p class="export-hint">Choose who the Directory is for to see a preview.</p>
+{{- end}}
+</section>{{end}}

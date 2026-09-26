@@ -308,6 +308,7 @@ func TestAddressPrecedence(t *testing.T) {
 				func(*store.Document) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_test01", nil },
 				func() (rolo.PersonID, error) { return "p_test01", nil },
+				&fakeExporter{}, testClock,
 			)
 			require.NoError(t, err)
 
