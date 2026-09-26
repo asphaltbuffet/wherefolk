@@ -33,9 +33,12 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
 ## Architecture
 
 - **`main.go`** — entry point: reads config, loads the store, starts the web server
-- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_TEMPLATE`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`)
+- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_TEMPLATE`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`, `WHEREFOLK_FULL_PASSPHRASE`)
   - `Config` carries the log *level*; `main` builds the `*slog.Logger` from it and injects it.
     Nothing outside `main` touches slog's package default — constructors take a `*slog.Logger`.
+  - `FullPassphrase` is a `config.Secret`: `%v`, `%+v`, `%#v` and slog all print `[redacted]`, and
+    only `Reveal()` returns the value, so every use is greppable. Unset leaves the Full tier
+    unavailable rather than failing startup; short or whitespace-padded is a startup error.
 - **`internal/web/`** — HTTP handlers and embedded templates
   - Templates whose basename starts with `_` are **fragments**: parsed into every page's set and
     rendered *without* the layout, because htmx swaps them into a page that is already loaded.
@@ -67,6 +70,21 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     input for the same reason — without it a hidden flag could never be turned back off.
   - `store.Save` is reached through an injected `Saver`, and IDs through injected generators, so
     this package keeps no filesystem dependency and tests get deterministic identities.
+  - **Export** (`export.go`): `GET /export` offers the tiers by description with none pre-selected;
+    `?tier=` carries the choice (ADR-0008), and htmx swaps only the `export_result` fragment. The
+    preview is every SVG page inline as a `data:` URL — typed `template.URL`, which is trusted only
+    because the bytes are Typst's own output. `GET /export/pdf` renders fresh and names the file
+    `family_directory_<tier>_<YYYY-MM-DD>.pdf`. Both send `Cache-Control: no-store`.
+  - **Full is never produced unencrypted.** Without a passphrase both routes refuse it before
+    rendering; with one, `render.Encrypt` runs before a byte is written.
+  - The renderer arrives as an injected `Exporter` and the time as a `Clock`, so this package's tests
+    need no typst and no real clock. `exportDate` turns the host's local calendar date into midnight
+    UTC, because `rolo.Person.IsMinor` computes an eighteenth birthday at midnight UTC.
+  - `render.Build` runs under the read lock; the Typst compile does not.
+  - fragment-vs-page is decided by `wantsFragment(r)` (templates.go) — an htmx request gets a
+    fragment *unless* it is a history restore (`HX-History-Restore-Request`), because htmx swaps a
+    restore's response in as the whole body; and the export page sets `hx-history="false"` so htmx
+    never snapshots the family's previews into localStorage.
   - **The editing UI never masks** (ADR-0010). `[private]` and deceased-contact suppression belong
     to export; `view.go` renders every stored value.
 - **`pkg/rolo/`** — domain types, no persistence
@@ -106,6 +124,13 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     directory, because the generated markup imports `directory.typ` as a sibling. They are separate
     methods because Typst's CLI is asymmetric: a PDF is one file, an SVG export is **one file per
     page** and needs a `{p}` placeholder in the output name, so `SVG` returns `[][]byte`.
+  - `Encrypt` wraps the pdfcpu **library** (ADR-0011), not a binary: encryption is a pure
+    `[]byte → []byte` step with nothing to pin in the image. It calls `api.DisableConfigDir()` once,
+    because pdfcpu otherwise writes a config directory under `$HOME` on first use.
+  - pdfcpu's own `api.Decrypt` wrongly rejects passphrases containing spaces or accents (it applies
+    the PRECIS Identifier profile instead of SASLprep), though its encryption handles them — verified
+    with mupdf — so tests that decrypt use a space-free passphrase; and the owner password is 130
+    random bits because a PDF owner password also opens the file.
 - **`internal/buildmeta/`** — build metadata (`Version`, `GitCommit`, `BuildDate`) injected via ldflags.
   The package is deliberately not named `version` or `buildinfo`: both collide with stdlib
   (`go/version`, `debug/buildinfo`). The ldflag paths in `mise.toml` and `.goreleaser.yml` are
