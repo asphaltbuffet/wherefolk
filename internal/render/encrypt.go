@@ -3,7 +3,6 @@ package render
 import (
 	"bytes"
 	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"sync"
@@ -16,26 +15,21 @@ import (
 // reader opens.
 const aesKeyLength = 256
 
-// ownerPasswordLength is the byte length of the randomly generated owner password.
-const ownerPasswordLength = 4
-
 // disableConfigDir stops pdfcpu creating a configuration directory under $HOME
 // on first use. A container user may have no writable home, and the service
 // has no reason to leave files there. The setting is process-global, so it is
-// applied once.
+// applied once via [sync.OnceFunc].
 var disableConfigDir = sync.OnceFunc(api.DisableConfigDir)
-
-//nolint:gochecknoinits // pdfcpu disables config-dir creation once, globally; must be called at package init
-func init() {
-	disableConfigDir()
-}
 
 // Encrypt protects a rendered PDF with passphrase (§5.2, ADR-0011).
 //
 // passphrase becomes the user password — the one a relative types to open the
-// file. The owner password, which governs changing the file's permissions, is
-// random per call and discarded: nobody needs it, and PDF permission flags are
-// advisory anyway (§5.8).
+// file. The owner password, which governs changing the file's permissions,
+// also opens the file: PDF standard security derives the file's encryption
+// key from either password, so an owner password recoverable by brute force
+// would let an attacker open the file without ever knowing passphrase. It is
+// therefore random, at least 128 bits, generated per call, and discarded:
+// nobody needs it, and PDF permission flags are advisory anyway (§5.8).
 //
 // An empty passphrase is an error rather than a no-op, so no caller can
 // produce an unprotected Full-tier file by passing through an unset secret.
@@ -51,12 +45,9 @@ func Encrypt(pdf []byte, passphrase string) ([]byte, error) {
 
 	disableConfigDir()
 
-	// Generate a random owner password
-	randomBytes := make([]byte, ownerPasswordLength)
-	if _, err := rand.Read(randomBytes); err != nil {
-		return nil, fmt.Errorf("render: encrypt: %w", err)
-	}
-	ownerPW := hex.EncodeToString(randomBytes)
+	// rand.Text returns 26 characters (~130 bits) from the base32 alphabet
+	// A-Z, 2-7, which pdfcpu's password handling accepts without issue.
+	ownerPW := rand.Text()
 
 	conf := model.NewAESConfiguration(passphrase, ownerPW, aesKeyLength)
 

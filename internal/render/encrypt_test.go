@@ -88,6 +88,18 @@ func TestEncrypt(t *testing.T) {
 				assert.Contains(t, string(out), "/Encrypt")
 			},
 		},
+		{
+			name:       "each export gets a different owner password",
+			pdf:        fixture,
+			passphrase: passphrase,
+			checkFunc: func(t *testing.T, out []byte) {
+				t.Helper()
+				again, encErr := render.Encrypt(fixture, passphrase)
+				require.NoError(t, encErr)
+				assert.False(t, bytes.Equal(out, again),
+					"two encryptions of the same input should not be byte-identical")
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -95,7 +107,9 @@ func TestEncrypt(t *testing.T) {
 			out, encErr := render.Encrypt(tt.pdf, tt.passphrase)
 			if tt.wantErr {
 				require.Error(t, encErr)
-				assert.NotContains(t, encErr.Error(), passphrase, "a passphrase never reaches an error message")
+				if tt.passphrase != "" {
+					assert.NotContains(t, encErr.Error(), tt.passphrase, "a passphrase never reaches an error message")
+				}
 				return
 			}
 
