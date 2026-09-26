@@ -1,7 +1,9 @@
 package config_test
 
 import (
+	"fmt"
 	"log/slog"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -163,6 +165,34 @@ func TestLoad(t *testing.T) {
 				assert.Equal(t, "/var/lib/wherefolk", got.DataDir, "data directory keeps its default")
 			},
 		},
+		{
+			name: "no passphrase leaves the Full tier unconfigured",
+			vars: map[string]string{},
+			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
+				assert.Empty(t, got.FullPassphrase.Reveal())
+			},
+		},
+		{
+			name: "passphrase is read",
+			vars: map[string]string{"WHEREFOLK_FULL_PASSPHRASE": "correct horse battery"},
+			check: func(t *testing.T, got config.Config) {
+				t.Helper()
+
+				assert.Equal(t, "correct horse battery", got.FullPassphrase.Reveal())
+			},
+		},
+		{
+			name:    "a short passphrase is fatal",
+			vars:    map[string]string{"WHEREFOLK_FULL_PASSPHRASE": "short"},
+			wantErr: "WHEREFOLK_FULL_PASSPHRASE: shorter than 8 characters",
+		},
+		{
+			name:    "surrounding whitespace is fatal rather than silently trimmed",
+			vars:    map[string]string{"WHEREFOLK_FULL_PASSPHRASE": "correct horse battery "},
+			wantErr: "WHEREFOLK_FULL_PASSPHRASE: has leading or trailing whitespace",
+		},
 	}
 
 	for _, tt := range tests {
@@ -172,11 +202,52 @@ func TestLoad(t *testing.T) {
 			if tt.wantErr != "" {
 				require.Error(t, err)
 				assert.Contains(t, err.Error(), tt.wantErr)
+
+				if p := tt.vars["WHEREFOLK_FULL_PASSPHRASE"]; p != "" && !strings.Contains(tt.wantErr, p) {
+					// Skipped when wantErr itself contains p: for the short-passphrase
+					// case p is "short", which is a substring of the fixed wording
+					// "shorter than 8 characters" by coincidence, not because the
+					// value was echoed. The whitespace case still exercises the
+					// real guard, since its value never appears in that wording.
+					assert.NotContains(t, err.Error(), p, "the passphrase never reaches an error message")
+				}
+
 				return
 			}
 
 			require.NoError(t, err)
 			tt.check(t, got)
+		})
+	}
+}
+
+func TestSecretNeverPrints(t *testing.T) {
+	const value = "correct horse battery"
+
+	cfg := config.Config{FullPassphrase: config.Secret(value)}
+
+	tests := []struct {
+		name string
+		out  string
+	}{
+		{name: "%v", out: fmt.Sprintf("%v", cfg)},
+		{name: "%+v", out: fmt.Sprintf("%+v", cfg)},
+		{name: "%#v", out: fmt.Sprintf("%#v", cfg)},
+		{
+			name: "%s of the secret",
+			//nolint:staticcheck // S1025: verbatim %s verb is the point of this row
+			out: fmt.Sprintf("%s", cfg.FullPassphrase),
+		},
+		{name: "slog", out: func() string {
+			var b strings.Builder
+			slog.New(slog.NewTextHandler(&b, nil)).Info("cfg", "passphrase", cfg.FullPassphrase)
+			return b.String()
+		}()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.NotContains(t, tt.out, value)
 		})
 	}
 }

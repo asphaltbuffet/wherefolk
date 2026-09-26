@@ -48,6 +48,12 @@ func run(getenv func(string) string, logOut io.Writer) error {
 
 	logger := slog.New(slog.NewTextHandler(logOut, &slog.HandlerOptions{Level: cfg.LogLevel}))
 
+	if cfg.FullPassphrase.Reveal() == "" {
+		// Not fatal (see config.Config.FullPassphrase), but the Operator must
+		// hear about it before the Editor does.
+		logger.Warn("WHEREFOLK_FULL_PASSPHRASE is not set; the Full tier is unavailable")
+	}
+
 	// A document that will not load is fatal: a container that boots into an
 	// error page passes its own health check and hides the fault (§2.4).
 	docPath := cfg.DocumentPath()

@@ -305,6 +305,38 @@ func TestStatusPage(t *testing.T) {
 	}
 }
 
+func TestStatusReportsPassphrase(t *testing.T) {
+	tests := []struct {
+		name string
+		cfg  config.Config
+		want string
+	}{
+		{name: "unset", cfg: config.Config{}, want: `data-field="passphrase">not set`},
+		{
+			name: "set",
+			cfg:  config.Config{FullPassphrase: "correct horse battery"},
+			want: `data-field="passphrase">set<`,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, err := web.New(sampleDocument(), tt.cfg, testLogger(), web.Meta{},
+				func(*store.Document) error { return nil },
+				func() (rolo.HouseholdID, error) { return "h_x", nil },
+				func() (rolo.PersonID, error) { return "p_x", nil },
+			)
+			require.NoError(t, err)
+
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/status", nil))
+
+			assert.Contains(t, rec.Body.String(), tt.want)
+			assert.NotContains(t, rec.Body.String(), "correct horse battery", "/status reports whether, never what")
+		})
+	}
+}
+
 // getHTMX issues a request the way htmx does, with the HX-Request header set.
 // Handlers that serve both audiences branch on it, so a test asserting on a
 // fragment must say which one it is simulating rather than relying on the
