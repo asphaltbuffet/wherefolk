@@ -67,7 +67,7 @@ func run(getenv func(string) string, logOut io.Writer) error {
 	// means a missing or unreadable renderer is an Operator-facing startup
 	// failure in the logs, rather than an opaque error the Editor meets
 	// halfway through an export (§5.1a).
-	_, typstVersion, err := verifyRenderer(cfg.TemplateDir)
+	renderer, typstVersion, err := verifyRenderer(cfg.TemplateDir)
 	if err != nil {
 		return err
 	}
@@ -81,6 +81,8 @@ func run(getenv func(string) string, logOut io.Writer) error {
 		func(d *store.Document) error { return store.Save(docPath, d) },
 		store.NewHouseholdID,
 		store.NewPersonID,
+		renderer,
+		time.Now,
 	)
 	if err != nil {
 		return fmt.Errorf("build server: %w", err)

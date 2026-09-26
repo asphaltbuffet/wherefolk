@@ -5,10 +5,14 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
+
+// ExportDateForTest exposes exportDate to the external test package.
+func ExportDateForTest(now time.Time) time.Time { return exportDate(now) }
 
 // RenderFragmentForTest exposes renderFragment to the external test package.
 // It exists only in test builds.

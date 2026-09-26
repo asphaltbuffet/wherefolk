@@ -152,6 +152,7 @@ func newTestServer(t *testing.T, doc *store.Document, saver *recordingSaver) *we
 		saver.save,
 		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
 		func() (rolo.PersonID, error) { return rolo.PersonID(nextPerson()), nil },
+		&fakeExporter{}, testClock,
 	)
 	require.NoError(t, err)
 
@@ -174,6 +175,7 @@ func get(t *testing.T, doc *store.Document, target string) *httptest.ResponseRec
 		func(*store.Document) error { return nil },
 		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
 		func() (rolo.PersonID, error) { return rolo.PersonID(nextPerson()), nil },
+		&fakeExporter{}, testClock,
 	)
 	require.NoError(t, err)
 
@@ -325,6 +327,7 @@ func TestStatusReportsPassphrase(t *testing.T) {
 				func(*store.Document) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_x", nil },
 				func() (rolo.PersonID, error) { return "p_x", nil },
+				&fakeExporter{}, testClock,
 			)
 			require.NoError(t, err)
 
@@ -351,6 +354,7 @@ func getHTMX(t *testing.T, doc *store.Document, target string) *httptest.Respons
 		func(*store.Document) error { return nil },
 		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
 		func() (rolo.PersonID, error) { return rolo.PersonID(nextPerson()), nil },
+		&fakeExporter{}, testClock,
 	)
 	require.NoError(t, err)
 
