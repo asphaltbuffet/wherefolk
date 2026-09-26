@@ -1,7 +1,12 @@
 {{define "title"}}Make a Directory{{end}}
 
 {{define "body"}}
-<div class="export">
+<!-- The previews below are the family's data, and responses here are no-store;
+     hx-history="false" stops htmx from snapshotting this page into localStorage
+     when it pushes the URL, so Back re-fetches from the server instead of
+     restoring a cached preview — which is why wantsFragment excludes history
+     restores. -->
+<div class="export" hx-history="false">
   <p class="export-back"><a href="/">← Back to the family list</a></p>
   <h1>Make a Directory to send</h1>
 

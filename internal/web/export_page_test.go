@@ -165,7 +165,7 @@ func TestExportPDF(t *testing.T) {
 				return &fakeExporter{pdf: fixturePDF(t)}
 			},
 			wantStatus: http.StatusOK,
-			checkFunc: func(t *testing.T, rec *httptest.ResponseRecorder, _ *fakeExporter) {
+			checkFunc: func(t *testing.T, rec *httptest.ResponseRecorder, ex *fakeExporter) {
 				t.Helper()
 				assert.Equal(t, `attachment; filename="family_directory_full_2026-09-25.pdf"`,
 					rec.Header().Get("Content-Disposition"))
@@ -176,8 +176,11 @@ func TestExportPDF(t *testing.T) {
 				var out bytes.Buffer
 				require.NoError(t, api.Decrypt(bytes.NewReader(body), &out,
 					model.NewAESConfiguration(passphrase, "", 256)), "the family passphrase opens it")
-				assert.Error(t, api.Decrypt(bytes.NewReader(body), &out,
+				require.Error(t, api.Decrypt(bytes.NewReader(body), &out,
 					model.NewAESConfiguration("wrong horse battery", "", 256)))
+
+				require.Len(t, ex.got, 1)
+				assert.Equal(t, "Full", ex.got[0].Tier)
 			},
 		},
 		{
@@ -247,7 +250,7 @@ func TestExportPage(t *testing.T) {
 	tests := []struct {
 		name      string
 		target    string
-		htmx      bool
+		headers   map[string]string
 		cfg       config.Config
 		exporter  *fakeExporter
 		checkFunc func(t *testing.T, rec *httptest.ResponseRecorder, ex *fakeExporter)
@@ -268,6 +271,10 @@ func TestExportPage(t *testing.T) {
 				assert.NotContains(t, body, "Download the Directory")
 				assert.Contains(t, body, "Choose who the Directory is for")
 				assert.Empty(t, ex.got, "nothing is rendered until a tier is chosen")
+				assert.Contains(t, body, `hx-push-url="true"`)
+				assert.Contains(t, body, `hx-target="#export-result"`)
+				assert.Contains(t, body, `hx-history="false"`)
+				assert.Contains(t, body, "<noscript><button type=\"submit\">")
 			},
 		},
 		{
@@ -308,6 +315,10 @@ func TestExportPage(t *testing.T) {
 				assert.Contains(t, body, "Preview — 2 pages")
 				assert.Contains(t, body, `href="/export/pdf?tier=call"`)
 				assert.NotContains(t, body, "ZgotmplZ", "html/template must not have rejected the data URL")
+				// base64 of "<svg>1</svg>" is "PHN2Zz4xPC9zdmc+"; html/template's
+				// escaper renders the trailing '+' as &#43; the same way it does
+				// for the "svg+xml" mime type above.
+				assert.Contains(t, body, "PHN2Zz4xPC9zdmc&#43;", "the first page's payload survives escaping intact")
 				require.Len(t, ex.got, 1)
 				assert.Equal(t, "Call", ex.got[0].Tier)
 				assert.Equal(t, "no-store", rec.Header().Get("Cache-Control"))
@@ -316,7 +327,7 @@ func TestExportPage(t *testing.T) {
 		{
 			name:     "htmx receives only the result fragment",
 			target:   "/export?tier=mail",
-			htmx:     true,
+			headers:  map[string]string{"Hx-Request": "true"},
 			exporter: &fakeExporter{pages: svgPages},
 			checkFunc: func(t *testing.T, rec *httptest.ResponseRecorder, _ *fakeExporter) {
 				t.Helper()
@@ -324,6 +335,37 @@ func TestExportPage(t *testing.T) {
 				assert.True(t, strings.HasPrefix(strings.TrimSpace(body), `<section id="export-result"`), body)
 				assert.NotContains(t, body, "<html")
 				assert.Contains(t, body, `href="/export/pdf?tier=mail"`)
+			},
+		},
+		{
+			name:   "a history restore gets the whole page",
+			target: "/export?tier=mail",
+			headers: map[string]string{
+				"Hx-Request":                 "true",
+				"Hx-History-Restore-Request": "true",
+			},
+			exporter: &fakeExporter{pages: svgPages},
+			checkFunc: func(t *testing.T, rec *httptest.ResponseRecorder, _ *fakeExporter) {
+				t.Helper()
+				body := rec.Body.String()
+				assert.Contains(t, body, "Who is this Directory for?")
+				assert.Contains(t, body, `href="/"`)
+				assert.Contains(t, body, "<html")
+			},
+		},
+		{
+			name:     "full is previewed with a passphrase",
+			target:   "/export?tier=full",
+			cfg:      config.Config{FullPassphrase: passphrase},
+			exporter: &fakeExporter{pages: svgPages},
+			checkFunc: func(t *testing.T, rec *httptest.ResponseRecorder, ex *fakeExporter) {
+				t.Helper()
+				body := rec.Body.String()
+				assert.Contains(t, body, `value="full" checked`)
+				assert.Contains(t, body, "<img")
+				assert.Contains(t, body, `href="/export/pdf?tier=full"`)
+				require.Len(t, ex.got, 1)
+				assert.Equal(t, "Full", ex.got[0].Tier)
 			},
 		},
 		{
@@ -387,8 +429,8 @@ func TestExportPage(t *testing.T) {
 			srv := newExportServer(t, tt.cfg, tt.exporter, now)
 
 			req := httptest.NewRequest(http.MethodGet, tt.target, nil)
-			if tt.htmx {
-				req.Header.Set("Hx-Request", "true")
+			for k, v := range tt.headers {
+				req.Header.Set(k, v)
 			}
 
 			rec := httptest.NewRecorder()

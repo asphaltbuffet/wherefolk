@@ -187,7 +187,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 
 	var err error
 
-	if r.Header.Get("Hx-Request") == "true" {
+	if wantsFragment(r) {
 		err = s.renderFragment(r.Context(), w, "export", "export_result", view.Result)
 	} else {
 		err = s.render(r.Context(), w, http.StatusOK, "export", view)
