@@ -1,9 +1,12 @@
 package web
 
 import (
+	"encoding/base64"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/asphaltbuffet/wherefolk/internal/render"
@@ -53,8 +56,6 @@ func (s *Server) directoryFor(tier render.Tier) (render.Directory, time.Time) {
 }
 
 // exportURL is the download link for tier.
-//
-//nolint:unused // Task 4's export page links to it; this task only wires the download route.
 func exportURL(tier render.Tier) string {
 	return "/export/pdf?" + url.Values{"tier": {tier.Key()}}.Encode()
 }
@@ -111,8 +112,141 @@ func (s *Server) handleExportPDF(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleExport is replaced by Task 4. Until then it answers so the route
-// table compiles.
-func (s *Server) handleExport(w http.ResponseWriter, _ *http.Request) {
-	http.Error(w, "not implemented", http.StatusNotImplemented)
+// tierChoice is the copy for one tier on the export page. The Editor chooses
+// by what the recipient will do with the Directory, never by the tier's name
+// (§5.2); the name appears only in the printed footer.
+type tierChoice struct {
+	tier        render.Tier
+	description string
+	detail      string
+}
+
+// tierChoices is the export page's list, in the order tiers admit more.
+var tierChoices = []tierChoice{
+	{render.Mail, "Sending cards", "Addresses and birthdays"},
+	{render.Call, "Phoning relatives", "Adds adults' phone numbers"},
+	{render.Digital, "Email and messaging", "Adds adults' email addresses"},
+	{render.Full, "Full details",
+		"Everything, including children's details and years of birth. Opens only with the family passphrase"},
+}
+
+// tierOption is one radio button as the template renders it.
+type tierOption struct {
+	Key         string
+	Description string
+	Detail      string
+	Checked     bool
+	Disabled    bool
+}
+
+// previewPage is one page of the preview.
+type previewPage struct {
+	// Src is a data: URL of the page's SVG. It is a template.URL because
+	// html/template rejects data: URLs in src as unsafe and would print
+	// "#ZgotmplZ" instead. That trust is sound here and nowhere else: the bytes
+	// are Typst's own output from markup this service generated, every value in
+	// that markup went through quote, and an SVG loaded through <img> cannot
+	// run script.
+	Src template.URL
+	Alt string
+}
+
+// exportResult is the part of the page that changes with the chosen tier.
+type exportResult struct {
+	DownloadURL string
+	Pages       []previewPage
+	// Error is an Editor-facing message when the preview could not be made.
+	Error string
+}
+
+// exportView is the export page.
+type exportView struct {
+	Options []tierOption
+	// Result is nil until a tier is chosen, which is what keeps the page from
+	// defaulting to an audience the Editor did not pick.
+	Result *exportResult
+}
+
+// handleExport renders the export page, or — for htmx — just the result
+// fragment for the chosen tier. The tier lives in the URL (ADR-0008), so a
+// reload or a bookmark shows the same preview.
+func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
+	noStore(w)
+
+	tier, chosen := render.ParseTier(r.URL.Query().Get("tier"))
+	if tier == render.Full && !s.fullAvailable() {
+		chosen = false
+	}
+
+	view := exportView{Options: s.tierOptions(tier, chosen)}
+
+	if chosen {
+		res := s.previewFor(r, tier)
+		view.Result = &res
+	}
+
+	var err error
+
+	if r.Header.Get("Hx-Request") == "true" {
+		err = s.renderFragment(r.Context(), w, "export", "export_result", view.Result)
+	} else {
+		err = s.render(r.Context(), w, http.StatusOK, "export", view)
+	}
+
+	if err != nil {
+		s.log.ErrorContext(r.Context(), "render export", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
+	}
+}
+
+// tierOptions builds the radio buttons, marking the chosen one and disabling
+// Full when there is no passphrase to protect it with.
+func (s *Server) tierOptions(chosenTier render.Tier, chosen bool) []tierOption {
+	options := make([]tierOption, 0, len(tierChoices))
+
+	for _, c := range tierChoices {
+		opt := tierOption{
+			Key:         c.tier.Key(),
+			Description: c.description,
+			Detail:      c.detail,
+			Checked:     chosen && c.tier == chosenTier,
+		}
+
+		if c.tier == render.Full && !s.fullAvailable() {
+			opt.Disabled = true
+			opt.Detail = fullUnavailable
+		}
+
+		options = append(options, opt)
+	}
+
+	return options
+}
+
+// previewFor renders tier's Directory as SVG pages. A failure becomes a
+// message in the page rather than a 500, so the Editor keeps the tier chooser
+// and can simply try again.
+func (s *Server) previewFor(r *http.Request, tier render.Tier) exportResult {
+	d, _ := s.directoryFor(tier)
+
+	pages, err := s.exporter.SVG(r.Context(), d)
+	if err != nil {
+		s.log.ErrorContext(r.Context(), "export preview", "tier", tier.Key(), "error", err)
+		return exportResult{Error: exportFailed}
+	}
+
+	res := exportResult{
+		DownloadURL: exportURL(tier),
+		Pages:       make([]previewPage, 0, len(pages)),
+	}
+
+	for i, p := range pages {
+		res.Pages = append(res.Pages, previewPage{
+			//nolint:gosec // trusted: Typst's own SVG of markup this service generated; see previewPage.Src.
+			Src: template.URL("data:image/svg+xml;base64," + base64.StdEncoding.EncodeToString(p)),
+			Alt: "Page " + strconv.Itoa(i+1) + " of " + strconv.Itoa(len(pages)),
+		})
+	}
+
+	return res
 }
