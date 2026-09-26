@@ -40,6 +40,10 @@ func init() {
 // An empty passphrase is an error rather than a no-op, so no caller can
 // produce an unprotected Full-tier file by passing through an unset secret.
 // Errors never include the passphrase.
+//
+// Passphrases are ordinary phrases and may contain spaces and accents.
+// pdfcpu encrypts them correctly; do not use its Decrypt function to verify
+// a real passphrase, as it incorrectly applies PRECIS instead of SASLprep.
 func Encrypt(pdf []byte, passphrase string) ([]byte, error) {
 	if passphrase == "" {
 		return nil, errors.New("render: refusing to encrypt with an empty passphrase")

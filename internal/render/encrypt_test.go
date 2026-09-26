@@ -13,6 +13,9 @@ import (
 	"github.com/asphaltbuffet/wherefolk/internal/render"
 )
 
+// passphrase is limited to space-free ASCII because our test oracle, pdfcpu's
+// api.Decrypt, wrongly applies PRECIS instead of SASLprep and rejects spaces.
+// Real passphrases may contain spaces and accents (verified independently with mupdf).
 const passphrase = "correcthorsebattery"
 
 // decrypt tries to open pdf with pw and reports pdfcpu's verdict.
@@ -73,6 +76,17 @@ func TestEncrypt(t *testing.T) {
 			pdf:        []byte("not a pdf"),
 			passphrase: passphrase,
 			wantErr:    true,
+		},
+		{
+			name:       "a passphrase with spaces and accents encrypts",
+			pdf:        fixture,
+			passphrase: "café crème brûlée",
+			checkFunc: func(t *testing.T, out []byte) {
+				t.Helper()
+				// No decrypt check: pdfcpu's Decrypt rejects this passphrase due to its PRECIS bug.
+				assert.True(t, bytes.HasPrefix(out, []byte("%PDF-")))
+				assert.Contains(t, string(out), "/Encrypt")
+			},
 		},
 	}
 
