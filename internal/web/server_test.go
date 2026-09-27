@@ -64,6 +64,7 @@ func TestNew(t *testing.T) {
 				func(*store.Document) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_test01", nil },
 				func() (rolo.PersonID, error) { return "p_test01", nil },
+				&fakeExporter{}, testClock,
 			)
 
 			if tt.wantErr {
@@ -81,23 +82,30 @@ func TestNew(t *testing.T) {
 
 func TestNewRejectsMissingDependencies(t *testing.T) {
 	tests := []struct {
-		name           string
-		save           web.Saver
-		newHouseholdID web.NewHouseholdIDFunc
-		newPersonID    web.NewPersonIDFunc
-		wantErr        bool
+		name            string
+		save            web.Saver
+		newHouseholdID  web.NewHouseholdIDFunc
+		newPersonID     web.NewPersonIDFunc
+		exporter        web.Exporter
+		now             web.Clock
+		wantErr         bool
+		wantErrContains string
 	}{
 		{
 			name:           "all dependencies present",
 			save:           func(*store.Document) error { return nil },
 			newHouseholdID: func() (rolo.HouseholdID, error) { return "h_test01", nil },
 			newPersonID:    func() (rolo.PersonID, error) { return "p_test01", nil },
+			exporter:       &fakeExporter{},
+			now:            testClock,
 		},
 		{
 			name:           "nil saver",
 			save:           nil,
 			newHouseholdID: func() (rolo.HouseholdID, error) { return "h_test01", nil },
 			newPersonID:    func() (rolo.PersonID, error) { return "p_test01", nil },
+			exporter:       &fakeExporter{},
+			now:            testClock,
 			wantErr:        true,
 		},
 		{
@@ -105,6 +113,8 @@ func TestNewRejectsMissingDependencies(t *testing.T) {
 			save:           func(*store.Document) error { return nil },
 			newHouseholdID: nil,
 			newPersonID:    func() (rolo.PersonID, error) { return "p_test01", nil },
+			exporter:       &fakeExporter{},
+			now:            testClock,
 			wantErr:        true,
 		},
 		{
@@ -112,7 +122,29 @@ func TestNewRejectsMissingDependencies(t *testing.T) {
 			save:           func(*store.Document) error { return nil },
 			newHouseholdID: func() (rolo.HouseholdID, error) { return "h_test01", nil },
 			newPersonID:    nil,
+			exporter:       &fakeExporter{},
+			now:            testClock,
 			wantErr:        true,
+		},
+		{
+			name:            "nil exporter",
+			save:            func(*store.Document) error { return nil },
+			newHouseholdID:  func() (rolo.HouseholdID, error) { return "h_test01", nil },
+			newPersonID:     func() (rolo.PersonID, error) { return "p_test01", nil },
+			exporter:        nil,
+			now:             testClock,
+			wantErr:         true,
+			wantErrContains: "exporter is nil",
+		},
+		{
+			name:            "nil clock",
+			save:            func(*store.Document) error { return nil },
+			newHouseholdID:  func() (rolo.HouseholdID, error) { return "h_test01", nil },
+			newPersonID:     func() (rolo.PersonID, error) { return "p_test01", nil },
+			exporter:        &fakeExporter{},
+			now:             nil,
+			wantErr:         true,
+			wantErrContains: "clock is nil",
 		},
 	}
 
@@ -126,11 +158,18 @@ func TestNewRejectsMissingDependencies(t *testing.T) {
 				tt.save,
 				tt.newHouseholdID,
 				tt.newPersonID,
+				tt.exporter,
+				tt.now,
 			)
 
 			if tt.wantErr {
 				require.Error(t, err)
 				assert.Nil(t, got)
+
+				if tt.wantErrContains != "" {
+					require.ErrorContains(t, err, tt.wantErrContains)
+				}
+
 				return
 			}
 
@@ -172,6 +211,7 @@ func TestRouting(t *testing.T) {
 		func(*store.Document) error { return nil },
 		func() (rolo.HouseholdID, error) { return "h_test01", nil },
 		func() (rolo.PersonID, error) { return "p_test01", nil },
+		&fakeExporter{}, testClock,
 	)
 	require.NoError(t, err)
 	handler := srv.Handler()
@@ -235,6 +275,7 @@ func TestRenderFragmentOmitsLayout(t *testing.T) {
 				func(*store.Document) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_test01", nil },
 				func() (rolo.PersonID, error) { return "p_test01", nil },
+				&fakeExporter{}, testClock,
 			)
 			require.NoError(t, err)
 
@@ -282,6 +323,7 @@ func TestConcurrentReads(t *testing.T) {
 				func(*store.Document) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_test01", nil },
 				func() (rolo.PersonID, error) { return "p_test01", nil },
+				&fakeExporter{}, testClock,
 			)
 			require.NoError(t, err)
 			handler := srv.Handler()

@@ -7,10 +7,12 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"log/slog"
 	"path/filepath"
 	"strconv"
+	"strings"
 )
 
 const (
@@ -29,6 +31,11 @@ const (
 	// edits the template through the same mount they already have (§2.1,
 	// ADR-0004).
 	DefaultTemplateDir = "/var/lib/wherefolk/template"
+
+	// MinPassphraseLength is the shortest Full-tier passphrase accepted. The
+	// passphrase is read out over the phone to relatives (§2.3), so it is a
+	// phrase rather than a password; a short one is a configuration mistake.
+	MinPassphraseLength = 8
 )
 
 // Config is the service's runtime configuration.
@@ -45,6 +52,12 @@ type Config struct {
 	// in the binary, so that "the addresses look cramped" is a template edit and
 	// a restart rather than a rebuild (ADR-0004).
 	TemplateDir string
+
+	// FullPassphrase encrypts every Full-tier export (§5.2, ADR-0011). Empty
+	// means the Full tier is unavailable: the service still starts, because a
+	// missing passphrase should not take the whole address book offline to
+	// protect one of its four exports.
+	FullPassphrase Secret
 }
 
 // DocumentPath is the JSON store's location on disk.
@@ -99,6 +112,20 @@ func Load(getenv func(string) string) (Config, error) {
 		}
 
 		cfg.LogLevel = level
+	}
+
+	if raw := getenv("WHEREFOLK_FULL_PASSPHRASE"); raw != "" {
+		// Neither error echoes the value: this is the one variable whose
+		// content must never reach the logs.
+		if raw != strings.TrimSpace(raw) {
+			return Config{}, errors.New("WHEREFOLK_FULL_PASSPHRASE: has leading or trailing whitespace")
+		}
+
+		if len([]rune(raw)) < MinPassphraseLength {
+			return Config{}, fmt.Errorf("WHEREFOLK_FULL_PASSPHRASE: shorter than %d characters", MinPassphraseLength)
+		}
+
+		cfg.FullPassphrase = Secret(raw)
 	}
 
 	return cfg, nil

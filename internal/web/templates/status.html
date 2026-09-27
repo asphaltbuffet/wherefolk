@@ -10,6 +10,7 @@
   <dt>Document</dt><dd data-field="document">{{.DocumentPath}}</dd>
   <dt>Typst</dt><dd data-field="typst">{{with .TypstVersion}}{{.}}{{else}}unavailable{{end}}</dd>
   <dt>Template</dt><dd data-field="template">{{.TemplatePath}}</dd>
+  <dt>Full-tier passphrase</dt><dd data-field="passphrase">{{if .FullPassphraseSet}}set{{else}}not set — the Full tier is unavailable{{end}}</dd>
   <dt>Households</dt><dd data-field="households">{{.Households}}</dd>
   <dt>People</dt><dd data-field="people">{{.People}}</dd>
   <dt>Root Households</dt><dd data-field="roots">{{.Roots}}</dd>

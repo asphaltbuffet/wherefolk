@@ -48,6 +48,12 @@ func run(getenv func(string) string, logOut io.Writer) error {
 
 	logger := slog.New(slog.NewTextHandler(logOut, &slog.HandlerOptions{Level: cfg.LogLevel}))
 
+	if cfg.FullPassphrase.Reveal() == "" {
+		// Not fatal (see config.Config.FullPassphrase), but the Operator must
+		// hear about it before the Editor does.
+		logger.Warn("WHEREFOLK_FULL_PASSPHRASE is not set; the Full tier is unavailable")
+	}
+
 	// A document that will not load is fatal: a container that boots into an
 	// error page passes its own health check and hides the fault (§2.4).
 	docPath := cfg.DocumentPath()
@@ -61,7 +67,7 @@ func run(getenv func(string) string, logOut io.Writer) error {
 	// means a missing or unreadable renderer is an Operator-facing startup
 	// failure in the logs, rather than an opaque error the Editor meets
 	// halfway through an export (§5.1a).
-	_, typstVersion, err := verifyRenderer(cfg.TemplateDir)
+	renderer, typstVersion, err := verifyRenderer(cfg.TemplateDir)
 	if err != nil {
 		return err
 	}
@@ -75,6 +81,8 @@ func run(getenv func(string) string, logOut io.Writer) error {
 		func(d *store.Document) error { return store.Save(docPath, d) },
 		store.NewHouseholdID,
 		store.NewPersonID,
+		renderer,
+		time.Now,
 	)
 	if err != nil {
 		return fmt.Errorf("build server: %w", err)

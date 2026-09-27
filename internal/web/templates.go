@@ -116,6 +116,15 @@ func templateFuncs() template.FuncMap {
 	}
 }
 
+// wantsFragment reports whether r is an htmx swap that wants a fragment rather
+// than a whole page. A history restore also carries HX-Request, but htmx swaps
+// its response in as the entire body, so it must get the whole page. Any value
+// of the restore header counts: guessing wrong there costs the Editor their
+// page, while a whole page where a fragment would do costs only bytes.
+func wantsFragment(r *http.Request) bool {
+	return r.Header.Get("Hx-Request") == "true" && r.Header.Get("Hx-History-Restore-Request") == ""
+}
+
 // render writes a page to w with the given status, buffering first so that a
 // template execution error leaves w untouched: the caller can still send a 500
 // cleanly. A failure during the write itself is not recoverable — the status and

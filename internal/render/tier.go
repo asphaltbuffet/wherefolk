@@ -1,5 +1,7 @@
 package render
 
+import "strings"
+
 // Tier is the audience a Directory is built for, named for what the recipient
 // will do with it rather than by a sensitivity number (§5.2, ADR-0003).
 //
@@ -42,7 +44,24 @@ func (t Tier) admitsPhone() bool { return t >= Call }
 // Full, a minor's is suppressed regardless.
 func (t Tier) admitsEmail() bool { return t >= Digital }
 
-// full reports whether this is the inner-circle tier: every living person's
+// full reports whether this is the Full details tier: every living person's
 // dates Whole, minors' contact details included, DO NOT DISTRIBUTE on every
 // page.
 func (t Tier) full() bool { return t == Full }
+
+// Key is the tier's name as a URL and a filename carry it: "mail", "call",
+// "digital" or "full". The zero tier has no key.
+func (t Tier) Key() string { return strings.ToLower(t.String()) }
+
+// ParseTier reads a tier from its Key. Anything else — including a tier name
+// in any other case — is not a tier, so a hand-typed URL cannot select one by
+// accident.
+func ParseTier(s string) (Tier, bool) {
+	for _, t := range []Tier{Mail, Call, Digital, Full} {
+		if s == t.Key() {
+			return t, true
+		}
+	}
+
+	return 0, false
+}

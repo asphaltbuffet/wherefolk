@@ -43,6 +43,10 @@ type Server struct {
 	// adds. Injected so tests get deterministic IDs; see deps.go.
 	newHouseholdID NewHouseholdIDFunc
 	newPersonID    NewPersonIDFunc
+
+	// exporter renders Directories for the export page; now dates them.
+	exporter Exporter
+	now      Clock
 }
 
 // Meta carries Operator-facing facts about the running service that the
@@ -54,7 +58,7 @@ type Meta struct {
 	// TypstVersion and TemplatePath are what main learned when it verified the
 	// renderer at startup. They are strings rather than a render.Renderer
 	// because this package never invokes Typst: /status reports the fact, and
-	// item 9's export UI is where the renderer itself arrives.
+	// the renderer itself arrives as the Exporter.
 	TypstVersion string
 	TemplatePath string
 }
@@ -67,9 +71,10 @@ type Meta struct {
 // nothing here depends on process-global state: main builds it at the level cfg
 // carries and owns where the output goes.
 //
-// save, newHouseholdID and newPersonID are the write path's dependencies. They
-// are plain parameters rather than a struct so that a caller cannot leave one
-// unset by forgetting a field; every one is checked here.
+// save, newHouseholdID, newPersonID, exporter and now are the write path's and
+// the export path's dependencies. They are plain parameters rather than a
+// struct so that a caller cannot leave one unset by forgetting a field; every
+// one is checked here.
 func New(
 	doc *store.Document,
 	cfg config.Config,
@@ -78,6 +83,8 @@ func New(
 	save Saver,
 	newHouseholdID NewHouseholdIDFunc,
 	newPersonID NewPersonIDFunc,
+	exporter Exporter,
+	now Clock,
 ) (*Server, error) {
 	if doc == nil {
 		return nil, errors.New("web: document is nil")
@@ -99,6 +106,14 @@ func New(
 		return nil, errors.New("web: person id generator is nil")
 	}
 
+	if exporter == nil {
+		return nil, errors.New("web: exporter is nil")
+	}
+
+	if now == nil {
+		return nil, errors.New("web: clock is nil")
+	}
+
 	tree, err := doc.Tree()
 	if err != nil {
 		return nil, fmt.Errorf("web: build tree: %w", err)
@@ -113,6 +128,8 @@ func New(
 		save:           save,
 		newHouseholdID: newHouseholdID,
 		newPersonID:    newPersonID,
+		exporter:       exporter,
+		now:            now,
 	}, nil
 }
 
@@ -132,6 +149,10 @@ func (s *Server) Handler() http.Handler {
 
 	mux.HandleFunc("GET /tree", s.handleTree)
 	mux.HandleFunc("GET /search", s.handleSearch)
+
+	// Export (§5). The page previews; /export/pdf is the file itself.
+	mux.HandleFunc("GET /export", s.handleExport)
+	mux.HandleFunc("GET /export/pdf", s.handleExportPDF)
 
 	// Vendored assets, served from the embedded FS so the binary stays a single
 	// file with no runtime dependency on a directory beside it. The embed root

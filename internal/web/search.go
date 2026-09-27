@@ -42,8 +42,10 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 	// route serve both audiences. Without the branch, submitting the form with
 	// JavaScript unavailable — or before htmx has loaded — navigates the browser
 	// to a bare <ul> with no chrome, no stylesheet, and no way back: an
-	// unstyled orphan page, which for this Editor is an error screen.
-	if r.Header.Get("Hx-Request") != "true" {
+	// unstyled orphan page, which for this Editor is an error screen. Search has
+	// no pushed URL, so wantsFragment's history-restore exclusion never applies
+	// here — it just reads better than repeating the Hx-Request check inline.
+	if !wantsFragment(r) {
 		s.renderSearchPage(w, r, query)
 		return
 	}

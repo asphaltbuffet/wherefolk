@@ -1,6 +1,10 @@
 package web
 
 import (
+	"context"
+	"time"
+
+	"github.com/asphaltbuffet/wherefolk/internal/render"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -24,3 +28,15 @@ type NewHouseholdIDFunc func() (rolo.HouseholdID, error)
 // NewPersonIDFunc mints a stable identity for a new Person, injected for the
 // same reason as NewHouseholdIDFunc.
 type NewPersonIDFunc func() (rolo.PersonID, error)
+
+// Exporter compiles a filtered Directory. render.Renderer satisfies it; it is
+// an interface so this package's tests need no typst binary, and so the web
+// layer holds no path to a template or a binary (see Meta).
+type Exporter interface {
+	PDF(ctx context.Context, d render.Directory) ([]byte, error)
+	SVG(ctx context.Context, d render.Directory) ([][]byte, error)
+}
+
+// Clock reports the current time. Injected because an export's content depends
+// on the date — ages are computed at export time (§5.7) — so tests must pin it.
+type Clock func() time.Time

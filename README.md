@@ -20,6 +20,7 @@ environment.
 | `WHEREFOLK_TEMPLATE` | `/var/lib/wherefolk/template` | Directory holding `directory.typ`, the Typst layout. On disk rather than embedded so a layout tweak is a file edit and a restart — see [ADR-0004](docs/adr/0004-typst-for-rendering.md). The container ships the template and sets this to `/usr/local/share/wherefolk/template`; mount over that path to override it |
 | `WHEREFOLK_PORT` | `8080` | Port to listen on (the interface is fixed — see [ADR-0007](docs/adr/0007-configurable-port-fixed-interface.md)) |
 | `WHEREFOLK_LOG_LEVEL` | `info` | Log threshold: `debug`, `info`, `warn`, or `error` |
+| `WHEREFOLK_FULL_PASSPHRASE` | *(unset)* | Passphrase that encrypts every Full-tier export. At least 8 characters, no surrounding whitespace. Unset leaves the Full tier unavailable rather than stopping the service. A secret: supply it from the host's agenix-managed `.env`, never from a file in git (§2.3) |
 
 ### Container
 
