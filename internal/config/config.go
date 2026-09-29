@@ -23,8 +23,8 @@ const (
 	// DefaultLogLevel is the threshold when WHEREFOLK_LOG_LEVEL is unset.
 	DefaultLogLevel = slog.LevelInfo
 	// DocumentName is the store's filename within the data directory.
-	// Item 6's snapshots/ directory lives beside it, which is why WHEREFOLK_DATA
-	// names a directory rather than a file (§2.1).
+	// The snapshots/ directory and trash.json live beside it, which is why
+	// WHEREFOLK_DATA names a directory rather than a file (§2.1).
 	DocumentName = "directory.json"
 	// TrashName is the Trash's filename within the data directory, beside the
 	// document (ADR-0012).
