@@ -198,7 +198,7 @@ func referencePages(t *testing.T, markup string, count int) [][]byte {
 // as glyph paths in SVG, so a page contains no searchable label to assert on.
 func TestTypstCompileSVGPageOrder(t *testing.T) {
 	typst := requireTypst(t)
-	markup := render.Markup(manyHouseholds(60))
+	markup := render.Markup(manyHouseholds(100))
 
 	pages, err := typst.CompileSVG(t.Context(), markup, templateDir)
 	require.NoError(t, err)
