@@ -9,16 +9,16 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// assertNoMaskedValue checks that "[private]" appears only inside the fixed
-// hover text every Hide toggle carries ("Print [private] instead of this in
-// the Directory"), never as a substituted field value: ADR-0010 says the
-// editing UI never masks, but Task 3 gave every toggle explanatory hover
-// text that itself quotes the marker.
+// assertNoMaskedValue checks that "[private]" never appears as a substituted
+// field value: ADR-0010 says the editing UI never masks. Every Hide toggle
+// carries fixed hover text that itself quotes the marker ("Print [private]
+// instead of this in the Directory"), so that known-good text is stripped
+// out first — comparing counts instead would let a missing toggle title and
+// a real masked value cancel out and pass undetected.
 func assertNoMaskedValue(t *testing.T, body, msg string) {
 	t.Helper()
-	want := strings.Count(body, `title="Print [private] instead of this in the Directory"`)
-	got := strings.Count(body, "[private]")
-	assert.Equal(t, want, got, msg)
+	stripped := strings.ReplaceAll(body, `title="Print [private] instead of this in the Directory"`, "")
+	assert.NotContains(t, stripped, "[private]", msg)
 }
 
 func TestDirectoryPage(t *testing.T) {
