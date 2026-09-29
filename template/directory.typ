@@ -65,7 +65,7 @@
 // rather than a Go PDF library (ADR-0004): a Household is never split across a
 // page break, and Typst does that pagination itself.
 #let household(
-  label: "",
+  name: "",
   anniversary: "",
   address: (),
   shared: "",
@@ -73,7 +73,7 @@
   dependents: (),
 ) = {
   block(breakable: false, width: 100%, inset: (y: 0.4em), {
-    text(size: 12pt, weight: "bold", label)
+    text(size: 12pt, weight: "bold", name)
 
     if address.len() > 0 {
       linebreak()
@@ -113,7 +113,7 @@
 // appear in every tier so that descendants group beneath it and no Path points
 // at a node missing from the document (§5.4).
 #let memorial(
-  label: "",
+  name: "",
   anniversary: "",
   address: (),
   shared: "",
@@ -121,7 +121,7 @@
   dependents: (),
 ) = {
   block(breakable: false, width: 100%, inset: (y: 0.3em), {
-    text(size: 11pt, weight: "bold", fill: luma(60), label)
+    text(size: 11pt, weight: "bold", fill: luma(60), name)
 
     for a in adults {
       linebreak()

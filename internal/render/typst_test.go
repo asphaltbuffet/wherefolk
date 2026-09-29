@@ -136,7 +136,7 @@ func manyHouseholds(n int) render.Directory {
 
 	for i := range n {
 		d.Households = append(d.Households, render.Household{
-			Label:        fmt.Sprintf("House%02d", i),
+			Name:         fmt.Sprintf("House%02d", i),
 			AddressLines: []string{"42 Elm Street", "Springfield, IL 62701"},
 			Adults: []render.Person{
 				{Name: fmt.Sprintf("Adult %02d", i), Birth: "1965-03-12"},

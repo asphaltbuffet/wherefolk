@@ -152,7 +152,7 @@ func TestExportPDF(t *testing.T) {
 				assert.Equal(t, "Mail", d.Tier)
 				assert.Equal(t, "September 25, 2026", d.GeneratedAt)
 				require.GreaterOrEqual(t, len(d.Households), 2)
-				require.Equal(t, "Clyde/Doris", d.Households[1].Label)
+				require.Equal(t, "Clyde & Doris (Kowalski) Whitlock", d.Households[1].Name)
 				assert.Empty(t, d.Households[1].Adults[0].Phone, "Mail prints no phones (§5.2)")
 			},
 		},

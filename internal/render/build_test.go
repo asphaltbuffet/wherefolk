@@ -85,11 +85,16 @@ func TestBuildExampleDirectory(t *testing.T) {
 			name: "households follow a depth-first walk",
 			checkFunc: func(t *testing.T, d render.Directory) {
 				t.Helper()
-				labels := make([]string, 0, len(d.Households))
+				names := make([]string, 0, len(d.Households))
 				for _, h := range d.Households {
-					labels = append(labels, h.Label)
+					names = append(names, h.Name)
 				}
-				assert.Equal(t, []string{"Harold/June", "Robert/Susan", "Daniel/Claire", "Patricia"}, labels)
+				assert.Equal(t, []string{
+					"Harold & June (Whitfield) Langford",
+					"Robert & Susan (Marsh) Langford",
+					"Daniel & Claire (Ortega) Langford",
+					"Patricia Novak",
+				}, names)
 			},
 		},
 		{
@@ -109,17 +114,25 @@ func TestBuildExampleDirectory(t *testing.T) {
 				assert.True(t, h.Memorial)
 				assert.Equal(t, "May 23, 1953", h.Anniversary)
 				require.Len(t, h.Adults, 2)
-				assert.Equal(t, "Harold Langford", h.Adults[0].Name)
+				assert.Equal(t, "Harold", h.Adults[0].Name)
 				assert.Equal(t, "February 14, 1928", h.Adults[0].Birth)
 				assert.Equal(t, "September 30, 2011", h.Adults[0].Death)
 			},
 		},
 		{
-			name: "a nickname renders in the display name",
+			name: "a nickname renders on the row, not in the Household Name",
 			checkFunc: func(t *testing.T, d render.Directory) {
 				t.Helper()
 				require.Len(t, d.Households[3].Adults, 1)
-				assert.Equal(t, `Patricia "Pat" Novak`, d.Households[3].Adults[0].Name)
+				assert.Equal(t, `Patricia "Pat"`, d.Households[3].Adults[0].Name)
+				assert.Equal(t, "Patricia Novak", d.Households[3].Name)
+			},
+		},
+		{
+			name: "a shared address points at the target's Household Name",
+			checkFunc: func(t *testing.T, d render.Directory) {
+				t.Helper()
+				assert.Equal(t, "Robert & Susan (Marsh) Langford", d.Households[2].SharedWith)
 			},
 		},
 		{
@@ -544,7 +557,7 @@ func TestBuildAddress(t *testing.T) {
 				child(sharesParent),
 			},
 			index:          1,
-			wantSharedWith: "Robert",
+			wantSharedWith: "Robert Test",
 		},
 		{
 			name: "a shared address whose target is withheld is private, not a pointer to a marker",
@@ -646,7 +659,7 @@ func TestBuildAddress(t *testing.T) {
 				grandchild(sharesChild),
 			},
 			index:          1,
-			wantSharedWith: "Robert",
+			wantSharedWith: "Robert Test",
 		},
 		{
 			name: "a chain ending at a withheld address is private",
@@ -703,6 +716,149 @@ func TestBuildAddress(t *testing.T) {
 			h := d.Households[tt.index]
 			assert.Equal(t, tt.wantLines, h.AddressLines, "address lines")
 			assert.Equal(t, tt.wantSharedWith, h.SharedWith, "back-reference")
+		})
+	}
+}
+
+// TestBuildNames covers the Household Name and the row names beneath it
+// (CONTEXT.md, Household Name). Every row is Full so no tier rule interferes.
+func TestBuildNames(t *testing.T) {
+	adult := func(id rolo.PersonID, given, surname, birthName string) rolo.Person {
+		return rolo.Person{ID: id, Given: given, Surname: surname, BirthName: birthName, Birth: adultBirth}
+	}
+	daryl := adult("p_dary01", "Daryl", "Yoder", "")
+	dawn := adult("p_dawn01", "Dawn", "Yoder", "Mitchell")
+
+	tests := []struct {
+		name           string
+		household      rolo.Household
+		wantName       string
+		wantAdults     []string
+		wantDependents []string
+	}{
+		{
+			name: "a shared surname prints once, with a birth name in parentheses",
+			household: rolo.Household{
+				ID: "h_yode01", Adults: []rolo.Person{daryl, dawn},
+			},
+			wantName:   "Daryl & Dawn (Mitchell) Yoder",
+			wantAdults: []string{"Daryl", "Dawn"},
+		},
+		{
+			name: "a birth name equal to the surname is not shown",
+			household: rolo.Household{
+				ID: "h_yode01", Adults: []rolo.Person{daryl, adult("p_dawn01", "Dawn", "Yoder", "Yoder")},
+			},
+			wantName:   "Daryl & Dawn Yoder",
+			wantAdults: []string{"Daryl", "Dawn"},
+		},
+		{
+			name: "every adult born under another surname carries it",
+			household: rolo.Household{
+				ID: "h_yode01", Adults: []rolo.Person{adult("p_dary01", "Daryl", "Yoder", "Smith"), dawn},
+			},
+			wantName:   "Daryl (Smith) & Dawn (Mitchell) Yoder",
+			wantAdults: []string{"Daryl", "Dawn"},
+		},
+		{
+			name: "different surnames name each adult in full, without birth names",
+			household: rolo.Household{
+				ID: "h_mixd01",
+				Adults: []rolo.Person{
+					adult("p_chri01", "Chris", "Yoder", ""),
+					adult("p_samp01", "Sam", "Patel", "Jones"),
+				},
+			},
+			wantName:   "Chris Yoder & Sam Patel",
+			wantAdults: []string{"Chris", "Sam"},
+		},
+		{
+			name: "a single adult prints their own name without a birth name",
+			household: rolo.Household{
+				ID: "h_sing01", Adults: []rolo.Person{adult("p_sing01", "Dawn", "Yoder", "Mitchell")},
+			},
+			wantName:   "Dawn Yoder",
+			wantAdults: []string{"Dawn"},
+		},
+		{
+			name: "a nickname is on the row, never in the Household Name",
+			household: rolo.Household{
+				ID: "h_nova01",
+				Adults: []rolo.Person{{
+					ID: "p_patn01", Given: "Patricia", Surname: "Novak", Aka: "Pat", Birth: adultBirth,
+				}},
+			},
+			wantName:   "Patricia Novak",
+			wantAdults: []string{`Patricia "Pat"`},
+		},
+		{
+			name: "a dependent drops a carried surname and keeps any other",
+			household: rolo.Household{
+				ID: "h_yode01", Adults: []rolo.Person{daryl, dawn},
+				Dependents: []rolo.Person{
+					{ID: "p_kyle01", Given: "Kyle", Surname: "Yoder", Birth: minorBirth},
+					{ID: "p_jord01", Given: "Jordan", Surname: "Mitchell", Birth: minorBirth},
+				},
+			},
+			wantName:       "Daryl & Dawn (Mitchell) Yoder",
+			wantAdults:     []string{"Daryl", "Dawn"},
+			wantDependents: []string{"Kyle", "Jordan Mitchell"},
+		},
+		{
+			name: "in a two-surname household either surname is carried",
+			household: rolo.Household{
+				ID: "h_mixd01",
+				Adults: []rolo.Person{
+					adult("p_chri01", "Chris", "Yoder", ""),
+					adult("p_samp01", "Sam", "Patel", ""),
+				},
+				Dependents: []rolo.Person{
+					{ID: "p_rile01", Given: "Riley", Surname: "Patel", Birth: minorBirth},
+					{ID: "p_rile02", Given: "Rowan", Surname: "Patel-Yoder", Birth: minorBirth},
+				},
+			},
+			wantName:       "Chris Yoder & Sam Patel",
+			wantAdults:     []string{"Chris", "Sam"},
+			wantDependents: []string{"Riley", "Rowan Patel-Yoder"},
+		},
+		{
+			name: "a memorial household is named by the same rules",
+			household: rolo.Household{
+				ID: "h_meml01",
+				Adults: []rolo.Person{
+					{ID: "p_hara01", Given: "Harold", Surname: "Langford", Birth: adultBirth, Death: deathDate},
+					{
+						ID:        "p_june01",
+						Given:     "June",
+						Surname:   "Langford",
+						BirthName: "Whitfield",
+						Birth:     adultBirth,
+						Death:     deathDate,
+					},
+				},
+			},
+			wantName:   "Harold & June (Whitfield) Langford",
+			wantAdults: []string{"Harold", "June"},
+		},
+	}
+
+	names := func(ps []render.Person) []string {
+		var out []string
+		for _, p := range ps {
+			out = append(out, p.Name)
+		}
+		return out
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := build(t, render.Full, tt.household)
+
+			require.Len(t, d.Households, 1)
+			h := d.Households[0]
+			assert.Equal(t, tt.wantName, h.Name, "Household Name")
+			assert.Equal(t, tt.wantAdults, names(h.Adults), "adult rows")
+			assert.Equal(t, tt.wantDependents, names(h.Dependents), "dependent rows")
 		})
 	}
 }

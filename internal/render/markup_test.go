@@ -37,7 +37,7 @@ func TestMarkup(t *testing.T) {
 			in: render.Directory{
 				GeneratedAt: "2026-09-24",
 				Households: []render.Household{{
-					Label:        "Robert/Susan",
+					Name:         "Robert/Susan",
 					AddressLines: []string{"42 Elm Street", "Springfield, IL 62701"},
 					Anniversary:  "1991-06-15",
 					Adults: []render.Person{{
@@ -51,7 +51,7 @@ func TestMarkup(t *testing.T) {
 			checkFunc: func(t *testing.T, got string) {
 				t.Helper()
 				assert.Contains(t, got, `#household(`)
-				assert.Contains(t, got, `label: "Robert/Susan"`)
+				assert.Contains(t, got, `name: "Robert/Susan"`)
 				assert.Contains(t, got, `address: ("42 Elm Street", "Springfield, IL 62701",)`)
 				assert.Contains(t, got, `anniversary: "1991-06-15"`)
 				assert.Contains(t, got, `name: "Robert Langford"`)
@@ -64,7 +64,7 @@ func TestMarkup(t *testing.T) {
 			in: render.Directory{
 				GeneratedAt: "2026-09-24",
 				Households: []render.Household{{
-					Label:       "Harold/June",
+					Name:        "Harold/June",
 					Memorial:    true,
 					Anniversary: "1953-05-23",
 					Adults: []render.Person{{
@@ -87,7 +87,7 @@ func TestMarkup(t *testing.T) {
 			in: render.Directory{
 				GeneratedAt: "2026-09-24",
 				Households: []render.Household{{
-					Label:      "Daniel/Claire",
+					Name:       "Daniel/Claire",
 					SharedWith: "Robert/Susan",
 				}},
 			},
@@ -102,7 +102,7 @@ func TestMarkup(t *testing.T) {
 			in: render.Directory{
 				GeneratedAt: "2026-09-24",
 				Households: []render.Household{{
-					Label:        "Pat",
+					Name:         "Pat",
 					AddressLines: []string{"#1 Elm St"},
 					Adults: []render.Person{{
 						Name:  "Patricia Novak",
@@ -126,7 +126,7 @@ func TestMarkup(t *testing.T) {
 			in: render.Directory{
 				GeneratedAt: "2026-09-24",
 				Households: []render.Household{{
-					Label: `C:\Users`,
+					Name: `C:\Users`,
 					Adults: []render.Person{{
 						Name: `Patricia "Pat" Novak`,
 					}},
@@ -191,7 +191,7 @@ func TestMarkupOverExampleDirectory(t *testing.T) {
 			name: "the shared address is a back-reference",
 			checkFunc: func(t *testing.T, got string) {
 				t.Helper()
-				assert.Contains(t, got, `shared: "Robert/Susan"`)
+				assert.Contains(t, got, `shared: "Robert & Susan (Marsh) Langford"`)
 
 				// The invariant is that the target's address appears ONCE — in
 				// its own block — and is not repeated into the sharer's. A
