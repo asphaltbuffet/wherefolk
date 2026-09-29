@@ -141,6 +141,60 @@ func TestHouseholdLabel(t *testing.T) {
 	}
 }
 
+func TestHouseholdName(t *testing.T) {
+	adult := func(given, surname, birthName string) rolo.Person {
+		return rolo.Person{Given: given, Surname: surname, BirthName: birthName}
+	}
+
+	tests := []struct {
+		name   string
+		adults []rolo.Person
+		want   string
+	}{
+		{
+			name:   "a shared surname prints once, with a birth name in parentheses",
+			adults: []rolo.Person{adult("Daryl", "Yoder", ""), adult("Dawn", "Yoder", "Mitchell")},
+			want:   "Daryl & Dawn (Mitchell) Yoder",
+		},
+		{
+			name:   "a birth name equal to the surname is not shown",
+			adults: []rolo.Person{adult("Daryl", "Yoder", ""), adult("Dawn", "Yoder", "Yoder")},
+			want:   "Daryl & Dawn Yoder",
+		},
+		{
+			name:   "different surnames name each adult in full, without birth names",
+			adults: []rolo.Person{adult("Chris", "Yoder", ""), adult("Sam", "Patel", "Jones")},
+			want:   "Chris Yoder & Sam Patel",
+		},
+		{
+			name:   "a single adult prints their own name without a birth name",
+			adults: []rolo.Person{adult("Dawn", "Yoder", "Mitchell")},
+			want:   "Dawn Yoder",
+		},
+		{
+			name:   "a nickname never appears",
+			adults: []rolo.Person{{Given: "Patricia", Surname: "Novak", Aka: "Pat"}},
+			want:   "Patricia Novak",
+		},
+		{
+			name:   "an adult with an empty given name is skipped",
+			adults: []rolo.Person{adult("Daryl", "Yoder", ""), adult("", "Yoder", "Mitchell")},
+			want:   "Daryl Yoder",
+		},
+		{
+			name:   "no adults is no name",
+			adults: nil,
+			want:   "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, rolo.Household{ID: "h_test01", Adults: tt.adults}.Name())
+		})
+	}
+}
+
 func TestHouseholdSharesAddress(t *testing.T) {
 	tests := []struct {
 		name      string

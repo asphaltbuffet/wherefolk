@@ -63,7 +63,7 @@ func (f filter) household(h rolo.Household) Household {
 	carried := carriedSurnames(h.Adults)
 
 	out := Household{
-		Name:        householdName(h),
+		Name:        h.Name(),
 		Memorial:    memorial,
 		Anniversary: f.date(h.Anniversary, memorial),
 		Adults:      f.people(h.Adults, memorial, carried),
@@ -95,7 +95,7 @@ func (f filter) address(h rolo.Household) ([]string, string) {
 		}
 
 		if printsOwnLines(target) {
-			return nil, householdName(target)
+			return nil, target.Name()
 		}
 	}
 

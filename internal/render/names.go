@@ -6,61 +6,11 @@ import (
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
-// householdName renders h's Household Name: the heading a reader addressing a
-// card looks for (CONTEXT.md, Household Name).
-//
-// Adults sharing a surname print it once, last, each carrying a different
-// birth name in parentheses: "Daryl & Dawn (Mitchell) Yoder". Adults whose
-// surnames differ are each named in full, without birth names, because a birth
-// name only reads as "née" beside a surname taken in marriage. A single adult
-// is their own name. A nickname is never part of it; it belongs on the row.
-//
-// An adult with an empty Given is skipped when building the shared-surname
-// given-name list, so a cleared Given never leaves a leading or dangling " & "
-// or a bare "(Mitchell)"; a birth name only attaches to a non-empty given
-// name. If every adult's Given is empty, the Household Name is just the
-// surname. The differing-surname branch needs no such guard: joinWords
-// already drops the empty Given and prints just the surname.
-//
-// BuildTree rejects a Household without adults, so none reaches here.
-func householdName(h rolo.Household) string {
-	surname := h.Adults[0].Surname
-
-	shared := true
-	for _, a := range h.Adults[1:] {
-		if a.Surname != surname {
-			shared = false
-		}
-	}
-
-	if !shared {
-		names := make([]string, 0, len(h.Adults))
-		for _, a := range h.Adults {
-			names = append(names, joinWords(a.Given, a.Surname))
-		}
-
-		return strings.Join(names, " & ")
-	}
-
-	givens := make([]string, 0, len(h.Adults))
-	for _, a := range h.Adults {
-		if a.Given == "" {
-			continue
-		}
-
-		given := a.Given
-		if len(h.Adults) > 1 && a.BirthName != "" && a.BirthName != surname {
-			given = joinWords(given, "("+a.BirthName+")")
-		}
-		givens = append(givens, given)
-	}
-
-	return joinWords(strings.Join(givens, " & "), surname)
-}
-
 // carriedSurnames is the set of surnames a Household Name prints, which a row
 // beneath it need not repeat. Birth names are not included: a parenthesised
-// "(Mitchell)" is not a surname the Household carries.
+// "(Mitchell)" is not a surname the Household carries. See
+// rolo.Household.Name, which decides which surnames print, so the two stay
+// in step.
 func carriedSurnames(adults []rolo.Person) map[string]bool {
 	carried := make(map[string]bool, len(adults))
 	for _, a := range adults {

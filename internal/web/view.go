@@ -74,6 +74,8 @@ func paneToggleURL(selected rolo.HouseholdID, isClosed bool) string {
 //
 // HasChildren is therefore separate from len(Children): a collapsed node still
 // needs a disclosure triangle, and the template cannot infer one from the other.
+//
+// Label holds the Household Name (rolo.Household.Name()), not the Path form.
 type treeNode struct {
 	ID          rolo.HouseholdID
 	Label       string
@@ -138,7 +140,7 @@ func (s *Server) treeNodes(selected rolo.HouseholdID, open map[rolo.HouseholdID]
 
 			node := treeNode{
 				ID:          h.ID,
-				Label:       h.Label(),
+				Label:       h.Name(),
 				Memorial:    h.IsMemorial(),
 				Selected:    h.ID == selected,
 				Open:        open[h.ID],
@@ -346,7 +348,7 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 
 	view := householdView{
 		ID:          id,
-		Title:       householdTitle(h),
+		Title:       h.Name(),
 		Crumbs:      crumbs,
 		Memorial:    h.IsMemorial(),
 		Anniversary: h.Anniversary.String(),
@@ -361,8 +363,8 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 
 	if h.SharesAddress() {
 		if parent, found := s.tree.Get(h.Address.SharedWith); found {
-			view.SharedWith = parent.Label()
-			view.AddressNote = "Same address as " + parent.Label()
+			view.SharedWith = parent.Name()
+			view.AddressNote = "Same address as " + parent.Name()
 		}
 	}
 
@@ -381,17 +383,4 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 	view.Form = &form
 
 	return view, true
-}
-
-// householdTitle renders the Household's heading — the adults' display names
-// joined by an ampersand, which is how §4.1's mockup heads the detail pane. It
-// differs from Label(), which uses given names only and is the tree's compact
-// form.
-func householdTitle(h rolo.Household) string {
-	names := make([]string, 0, len(h.Adults))
-	for _, a := range h.Adults {
-		names = append(names, a.DisplayName())
-	}
-
-	return strings.Join(names, " & ")
 }

@@ -318,7 +318,7 @@ func TestAnnouncementLinksToTheMovedHousehold(t *testing.T) {
 			target: "/h/h_clyde?said=" +
 				url.QueryEscape("Carl now has a household of their own, beneath Clyde/Doris.") +
 				"&moved=h_clyde",
-			wantAnchor: `<a href="/h/h_clyde">Go to Clyde/Doris</a>`,
+			wantAnchor: `<a href="/h/h_clyde">Go to Clyde &amp; Doris (Kowalski) Whitlock</a>`,
 		},
 	}
 

@@ -151,7 +151,7 @@ func (s *Server) applySubmission(
 			Person:    person.DisplayName(),
 			Household: h.ID,
 			Message: fmt.Sprintf("%s was added to %s.",
-				person.DisplayName(), h.Label()),
+				person.DisplayName(), h.Name()),
 		})
 	}
 
@@ -253,7 +253,7 @@ func (s *Server) promote(
 			Household: newID,
 			Message: fmt.Sprintf(
 				"%s now has a household of their own, beneath %s.",
-				person.DisplayName(), h.Label()),
+				person.DisplayName(), h.Name()),
 		})
 	}
 

@@ -95,8 +95,10 @@ func (h Household) SharesAddress() bool { return h.Address.SharedWith != "" }
 // tier filter (item 8) ask the same question in the same words.
 func (h Household) AddressHidden() bool { return h.Address.Hidden }
 
-// Label is the Household's name as it appears in the tree and in a Path:
-// the adults' given names joined by a slash, as in "Dave/Diane".
+// Label is the compact Path segment: the adults' given names joined by a
+// slash, as in "Dave/Diane". A Path chains these, so they must stay short.
+// Wherever a Household stands alone — the Directory, the editor's tree and
+// detail heading — use Name.
 func (h Household) Label() string {
 	if len(h.Adults) == 0 {
 		return "(" + string(h.ID) + ")"
@@ -107,6 +109,71 @@ func (h Household) Label() string {
 		names = append(names, a.Given)
 	}
 	return strings.Join(names, "/")
+}
+
+// Name is the Household Name: how the Household is named wherever it stands
+// alone — heading its block in the Directory, and naming it in the editor's
+// tree and detail pane (CONTEXT.md, Household Name). Label is the compact
+// form a Path chains.
+//
+// Adults sharing a surname print it once, last, each carrying a different
+// birth name in parentheses: "Daryl & Dawn (Mitchell) Yoder". Adults whose
+// surnames differ are each named in full, without birth names, because a
+// birth name only reads as "née" beside a surname taken in marriage. A single
+// adult is their own name. A nickname is never part of it.
+//
+// An adult with an empty Given is skipped in the shared-surname form, so a
+// cleared Given never leaves a dangling " & " or a bare "(Mitchell)". A
+// Household with no adults has no name; BuildTree rejects one anyway.
+func (h Household) Name() string {
+	if len(h.Adults) == 0 {
+		return ""
+	}
+
+	surname := h.Adults[0].Surname
+
+	shared := true
+	for _, a := range h.Adults[1:] {
+		if a.Surname != surname {
+			shared = false
+		}
+	}
+
+	if !shared {
+		names := make([]string, 0, len(h.Adults))
+		for _, a := range h.Adults {
+			names = append(names, joinWords(a.Given, a.Surname))
+		}
+
+		return strings.Join(names, " & ")
+	}
+
+	givens := make([]string, 0, len(h.Adults))
+	for _, a := range h.Adults {
+		if a.Given == "" {
+			continue
+		}
+
+		given := a.Given
+		if len(h.Adults) > 1 && a.BirthName != "" && a.BirthName != surname {
+			given = joinWords(given, "("+a.BirthName+")")
+		}
+		givens = append(givens, given)
+	}
+
+	return joinWords(strings.Join(givens, " & "), surname)
+}
+
+// joinWords joins the non-empty words with single spaces.
+func joinWords(words ...string) string {
+	kept := make([]string, 0, len(words))
+	for _, w := range words {
+		if w != "" {
+			kept = append(kept, w)
+		}
+	}
+
+	return strings.Join(kept, " ")
 }
 
 // EldestAdultBirth returns the earliest known birth date among the adults, or

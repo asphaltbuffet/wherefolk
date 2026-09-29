@@ -77,8 +77,8 @@ func TestTreeNodes(t *testing.T) {
 			checkFunc: func(t *testing.T, nodes []web.TreeNodeForTest) {
 				t.Helper()
 				require.Len(t, nodes, 2)
-				assert.Equal(t, "Aden/Nettie", nodes[0].Label, "Aden b. 1910 precedes Ray b. 1942")
-				assert.Equal(t, "Ray", nodes[1].Label)
+				assert.Equal(t, "Aden & Nettie Whitlock", nodes[0].Label, "Aden b. 1910 precedes Ray b. 1942")
+				assert.Equal(t, "Ray Reeves", nodes[1].Label)
 			},
 		},
 	}
@@ -145,7 +145,7 @@ func TestHouseholdView(t *testing.T) {
 			wantOK: true,
 			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
 				t.Helper()
-				assert.Equal(t, `Clyde Whitlock & Doris "Dot" Whitlock`, v.Title)
+				assert.Equal(t, "Clyde & Doris (Kowalski) Whitlock", v.Title)
 			},
 		},
 		{
@@ -168,7 +168,7 @@ func TestHouseholdView(t *testing.T) {
 			wantOK: true,
 			checkFunc: func(t *testing.T, v web.HouseholdViewForTest) {
 				t.Helper()
-				assert.Equal(t, "Clyde/Doris", v.SharedWith)
+				assert.Equal(t, "Clyde & Doris (Kowalski) Whitlock", v.SharedWith)
 				assert.Empty(t, v.AddressLines, "§3: a Shared Address is a reference, not a copy")
 			},
 		},
@@ -247,7 +247,7 @@ func TestTreeMarksMemorialHouseholds(t *testing.T) {
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
 				// h_clyde is revealed by the open set and has living adults.
-				require.Contains(t, body, "Clyde/Doris", "precondition: the child is visible")
+				require.Contains(t, body, "Clyde &amp; Doris (Kowalski) Whitlock", "precondition: the child is visible")
 				assert.Equal(t, 1, strings.Count(body, "tree-memorial"),
 					"only h_aden is a Memorial Household, so only one node carries the marker")
 			},
