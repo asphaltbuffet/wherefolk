@@ -2,11 +2,24 @@ package web_test
 
 import (
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// assertNoMaskedValue checks that "[private]" appears only inside the fixed
+// hover text every Hide toggle carries ("Print [private] instead of this in
+// the Directory"), never as a substituted field value: ADR-0010 says the
+// editing UI never masks, but Task 3 gave every toggle explanatory hover
+// text that itself quotes the marker.
+func assertNoMaskedValue(t *testing.T, body, msg string) {
+	t.Helper()
+	want := strings.Count(body, `title="Print [private] instead of this in the Directory"`)
+	got := strings.Count(body, "[private]")
+	assert.Equal(t, want, got, msg)
+}
 
 func TestDirectoryPage(t *testing.T) {
 	tests := []struct {
@@ -56,7 +69,7 @@ func TestDirectoryPage(t *testing.T) {
 				// ADR-0010: the editing UI never masks. h_reeve withholds its
 				// address and Ray's phone in the fixture, which affects
 				// export only.
-				assert.NotContains(t, body, "[private]",
+				assertNoMaskedValue(t, body,
 					"the editing UI never substitutes the marker")
 				assert.Contains(t, body, "9 Elm St")
 				assert.Contains(t, body, "555-0199")
@@ -75,7 +88,7 @@ func TestDirectoryPage(t *testing.T) {
 				// The real guard is that an address row exists and names the
 				// parent rather than repeating any address text.
 				assert.NotContains(t, body, "1412 Oak St", "§3: a Shared Address renders as a reference")
-				assert.NotContains(t, body, "[private]",
+				assertNoMaskedValue(t, body,
 					"h_dave withholds nothing; a marker here would mean the switch fell through")
 			},
 		},
@@ -92,7 +105,7 @@ func TestDirectoryPage(t *testing.T) {
 				// able to see and clear a deceased person's recorded details.
 				assert.Contains(t, body, "555-0100")
 				assert.Contains(t, body, "aden@example.com")
-				assert.NotContains(t, body, "[private]",
+				assertNoMaskedValue(t, body,
 					"the editing UI never substitutes the marker")
 			},
 		},
@@ -105,6 +118,79 @@ func TestDirectoryPage(t *testing.T) {
 				assert.Contains(t, body, "not in the directory")
 				assert.NotContains(t, body, "404", "the Editor never sees an error code")
 				assert.Contains(t, body, "Aden &amp; Nettie Whitlock", "the tree is still navigable from the error")
+			},
+		},
+		{
+			name:       "the breadcrumb and export link share the top line, above the heading",
+			target:     "/h/h_dave",
+			wantStatus: http.StatusOK,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				top := strings.Index(body, `class="detail-top"`)
+				crumb := strings.Index(body, `class="breadcrumb"`)
+				link := strings.Index(body, "Make a Directory to send")
+				heading := strings.Index(body, "<h1>")
+				require.NotEqual(t, -1, top, "the detail pane has a top bar")
+				assert.Less(t, top, crumb)
+				assert.Less(t, crumb, link, "breadcrumb on the left, link on the right")
+				assert.Less(t, link, heading, "both above the heading")
+				assert.Equal(t, 1, strings.Count(body, "Make a Directory to send"), "the link appears once")
+			},
+		},
+		{
+			name:       "a root Household still shows its breadcrumb",
+			target:     "/h/h_aden",
+			wantStatus: http.StatusOK,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, `<a href="/h/h_aden">Aden/Nettie</a>`)
+			},
+		},
+		{
+			name:       "with nothing selected the top bar holds the link alone",
+			target:     "/",
+			wantStatus: http.StatusOK,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, `class="detail-top"`)
+				assert.NotContains(t, body, `class="breadcrumb"`)
+				assert.Equal(t, 1, strings.Count(body, "Make a Directory to send"))
+			},
+		},
+		{
+			name:       "each withheld-field toggle is an inline Hide with an explanation",
+			target:     "/h/h_clyde",
+			wantStatus: http.StatusOK,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.NotContains(t, body, "Keep out of the printed directory")
+				assert.Contains(t, body, `title="Print [private] instead of this in the Directory"`)
+				for _, field := range []string{"birth date", "phone", "email", "address"} {
+					assert.Contains(t, body, `aria-label="Hide `+field+` in the printed directory"`)
+				}
+				// Pairs every toggle with a row; a stray toggle outside a row, or
+				// a row without its toggle, breaks the equality.
+				assert.Equal(t, strings.Count(body, `aria-label="Hide `), strings.Count(body, `class="field-row"`),
+					"every Hide sits in a field row with its field")
+			},
+		},
+		{
+			name:       "date fields show the format, not a sample date",
+			target:     "/h/h_clyde",
+			wantStatus: http.StatusOK,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.NotContains(t, body, `placeholder="1998-06-14"`)
+				assert.NotContains(t, body, `placeholder="1971-03-02"`)
+				// -birth" and -death" alone would match the preceding <label
+				// for="..."> before the <input id="...">, since both share the
+				// same value; anchoring on " name=\"person." finds the input.
+				for _, field := range []string{`id="anniversary"`, `-birth" name="person.`, `-death" name="person.`} {
+					i := strings.Index(body, field)
+					require.NotEqual(t, -1, i, field)
+					tag := body[i : i+strings.Index(body[i:], ">")]
+					assert.Contains(t, tag, `placeholder="YYYY-MM-DD"`, field)
+				}
 			},
 		},
 		{

@@ -55,8 +55,19 @@ main { height: 100vh; }
 .results { list-style: none; margin: var(--gap) 0 0; padding: 0; }
 .result-path { display: block; color: var(--muted); font-size: .85em; }
 
-.breadcrumb { color: var(--muted); margin-bottom: var(--gap); }
+.breadcrumb { color: var(--muted); }
 .breadcrumb a { color: inherit; }
+
+/* The detail pane's top line: where you are on the left, the way out to an
+   export on the right. The heading follows beneath. */
+.detail-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: var(--gap);
+  margin-bottom: var(--gap);
+}
+.detail-top .export-link { margin: 0 0 0 auto; white-space: nowrap; }
 
 .badge {
   font-size: .6em; text-transform: uppercase; letter-spacing: .08em;
@@ -64,7 +75,8 @@ main { height: 100vh; }
   padding: .1em .4em; border-radius: .2em;
 }
 
-.household-facts { display: grid; grid-template-columns: 8rem 1fr; gap: .25rem var(--gap); }
+.household-facts { display: grid; grid-template-columns: 8rem 1fr; gap: .5rem var(--gap); align-items: start; }
+.household-facts > label { margin-top: .3rem; }
 .household-facts dt { color: var(--muted); }
 .household-facts dd { margin: 0; }
 .address-line { display: block; }
@@ -101,13 +113,23 @@ main { height: 100vh; }
   box-sizing: border-box;
 }
 
-/* A hide toggle sits with its field, not in a separate privacy panel: the
-   Editor decides per field, in place (§4.4). */
-.household-form .hide-toggle,
-.household-form .structural {
+/* A hide toggle sits on its field's own line, at the far right, so the
+   decision is made where the value is (§4.4). It changes the export only:
+   the editor still shows the value (ADR-0010). */
+.field-row { display: flex; align-items: flex-start; gap: .5rem; }
+.field-row > input, .field-row > textarea { flex: 1; min-width: 0; }
+
+.household-form .field-row .hide-toggle {
+  display: inline-flex;
+  align-items: center;
+  margin: 0;
+  padding-top: .2rem;
+  white-space: nowrap;
   font-size: 0.8rem;
   opacity: 0.8;
 }
+
+.household-form .structural { font-size: 0.8rem; opacity: 0.8; }
 
 .household-form .hide-toggle input,
 .household-form .structural input {
