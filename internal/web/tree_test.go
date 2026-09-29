@@ -24,9 +24,9 @@ func TestTreeFragment(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "Aden/Nettie")
-				assert.Contains(t, body, "Ray")
-				assert.NotContains(t, body, "Clyde/Doris", "a collapsed root hides its children")
+				assert.Contains(t, body, "Aden &amp; Nettie Whitlock")
+				assert.Contains(t, body, "Ray Reeves")
+				assert.NotContains(t, body, "Clyde &amp; Doris (Kowalski) Whitlock", "a collapsed root hides its children")
 			},
 		},
 		{
@@ -35,7 +35,7 @@ func TestTreeFragment(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "Clyde/Doris")
+				assert.Contains(t, body, "Clyde &amp; Doris (Kowalski) Whitlock")
 			},
 		},
 		{
@@ -44,7 +44,7 @@ func TestTreeFragment(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "Clyde/Doris", "the selection's ancestors are expanded to reveal it")
+				assert.Contains(t, body, "Clyde &amp; Doris (Kowalski) Whitlock", "the selection's ancestors are expanded to reveal it")
 			},
 		},
 		{
@@ -53,7 +53,7 @@ func TestTreeFragment(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "Aden/Nettie", "a stale bookmark still renders the tree")
+				assert.Contains(t, body, "Aden &amp; Nettie Whitlock", "a stale bookmark still renders the tree")
 			},
 		},
 		{
@@ -80,8 +80,8 @@ func TestTreeFragment(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.NotContains(t, body, "Clyde/Doris")
-				assert.Contains(t, body, "Aden/Nettie", "the node itself stays; only its children go")
+				assert.NotContains(t, body, "Clyde &amp; Doris (Kowalski) Whitlock")
+				assert.Contains(t, body, "Aden &amp; Nettie Whitlock", "the node itself stays; only its children go")
 			},
 		},
 		{
@@ -90,7 +90,7 @@ func TestTreeFragment(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "Clyde/Doris",
+				assert.Contains(t, body, "Clyde &amp; Doris (Kowalski) Whitlock",
 					"collapsing the selection's parent would hide the Household the detail pane shows")
 			},
 		},
@@ -249,9 +249,9 @@ func TestSelectionAncestorsHaveNoToggle(t *testing.T) {
 			target: "/tree?selected=h_clyde",
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.NotContains(t, body, "Collapse Aden/Nettie",
+				assert.NotContains(t, body, "Collapse Aden &amp; Nettie Whitlock",
 					"h_aden is pinned open, so it must not advertise a Collapse control")
-				assert.Contains(t, body, "Clyde/Doris", "the selection is still visible")
+				assert.Contains(t, body, "Clyde &amp; Doris (Kowalski) Whitlock", "the selection is still visible")
 			},
 		},
 		{
@@ -265,7 +265,7 @@ func TestSelectionAncestorsHaveNoToggle(t *testing.T) {
 				t.Helper()
 				assert.NotContains(t, body, "aria-expanded",
 					"h_aden is pinned and h_reeve is childless, so no node offers a toggle")
-				assert.Contains(t, body, "Ray", "the childless root is still listed")
+				assert.Contains(t, body, "Ray Reeves", "the childless root is still listed")
 			},
 		},
 		{
@@ -273,7 +273,7 @@ func TestSelectionAncestorsHaveNoToggle(t *testing.T) {
 			target: "/tree?selected=h_reeve",
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "Expand Aden/Nettie",
+				assert.Contains(t, body, "Expand Aden &amp; Nettie Whitlock",
 					"h_aden is not in h_reeve's chain, so it keeps its control")
 			},
 		},
@@ -282,7 +282,7 @@ func TestSelectionAncestorsHaveNoToggle(t *testing.T) {
 			target: "/tree?open=h_aden",
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "Collapse Aden/Nettie")
+				assert.Contains(t, body, "Collapse Aden &amp; Nettie Whitlock")
 			},
 		},
 	}

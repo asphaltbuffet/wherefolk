@@ -22,7 +22,7 @@ func TestDirectoryPage(t *testing.T) {
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
 				assert.Contains(t, body, "<!DOCTYPE html>", "the root is a page, not a fragment")
-				assert.Contains(t, body, "Aden/Nettie")
+				assert.Contains(t, body, "Aden &amp; Nettie Whitlock")
 				assert.Contains(t, body, "Choose a household", "an empty detail pane explains itself")
 			},
 		},
@@ -34,7 +34,7 @@ func TestDirectoryPage(t *testing.T) {
 				t.Helper()
 				assert.Contains(t, body, "Clyde Whitlock")
 				assert.Contains(t, body, "1412 Oak St")
-				assert.Contains(t, body, "Aden/Nettie", "the tree pane is still there")
+				assert.Contains(t, body, "Aden &amp; Nettie Whitlock", "the tree pane is still there")
 			},
 		},
 		{
@@ -68,7 +68,7 @@ func TestDirectoryPage(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "Same address as Clyde/Doris")
+				assert.Contains(t, body, "Same address as Clyde &amp; Doris (Kowalski) Whitlock")
 				// "1412 Oak St" only ever appears on h_clyde's own page, so
 				// asserting its absence here proves nothing on its own — it
 				// would pass even if the back-reference were dropped entirely.
@@ -104,7 +104,7 @@ func TestDirectoryPage(t *testing.T) {
 				t.Helper()
 				assert.Contains(t, body, "not in the directory")
 				assert.NotContains(t, body, "404", "the Editor never sees an error code")
-				assert.Contains(t, body, "Aden/Nettie", "the tree is still navigable from the error")
+				assert.Contains(t, body, "Aden &amp; Nettie Whitlock", "the tree is still navigable from the error")
 			},
 		},
 		{
@@ -144,7 +144,7 @@ func TestTreePaneCollapses(t *testing.T) {
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
 				assert.Contains(t, body, `aria-expanded="true"`)
-				assert.Contains(t, body, "Aden/Nettie", "the tree is rendered")
+				assert.Contains(t, body, "Aden &amp; Nettie Whitlock", "the tree is rendered")
 				assert.NotContains(t, body, "panes-collapsed")
 			},
 		},

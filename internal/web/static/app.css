@@ -15,7 +15,7 @@ main { height: 100vh; }
 
 .panes {
   display: grid;
-  grid-template-columns: 1.5rem 22rem 1fr;
+  grid-template-columns: 1.5rem 30rem 1fr;
   height: 100%;
 }
 

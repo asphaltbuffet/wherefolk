@@ -241,7 +241,7 @@ func (s *Server) announcementFor(said, moved string) announcement {
 	}
 
 	a.Link = "/h/" + url.PathEscape(moved)
-	a.Label = household.Label()
+	a.Label = household.Name()
 
 	return a
 }

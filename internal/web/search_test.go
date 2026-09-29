@@ -243,7 +243,7 @@ func TestSearchWithoutHtmxRendersWholePage(t *testing.T) {
 				t.Helper()
 				assert.Contains(t, body, "<!DOCTYPE html>", "not an orphan fragment")
 				assert.Contains(t, body, "Dave Whitlock", "the results are still there")
-				assert.Contains(t, body, "Aden/Nettie", "and so is the tree, so there is a way onward")
+				assert.Contains(t, body, "Aden &amp; Nettie Whitlock", "and so is the tree, so there is a way onward")
 				assert.Contains(t, body, `value="dave"`, "the box keeps what was typed")
 			},
 		},
