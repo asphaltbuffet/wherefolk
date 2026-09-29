@@ -114,7 +114,7 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     in `names.go`, called from `Build`. They are export-only: `rolo.Household.Label()` stays the
     `Daryl/Dawn` Path segment the editing UI and every Path use, so nothing in `pkg/rolo` or
     `internal/web` changes when the printed heading does.
-  - Export dates are spelled out (`March 12, 1965`, truncated `March 12`) by `dates.go`.
+  - Export dates name the month as a three-letter abbreviation (`Mar 12, 1965`, truncated `Mar 12`) by `dates.go`.
     `rolo.Date.String()` stays ISO because the store and the editing form depend on it.
   - **Every value reaches Typst inside a string literal**, so `quote` escapes the backslash and the
     quotation mark and nothing else. Typst's markup metacharacters (`#`, `@`, `*`, `_`, `[`, `$`,

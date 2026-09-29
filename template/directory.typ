@@ -37,9 +37,9 @@
 // It is one value for the whole Directory, on purpose. Each Household is its
 // own grid, and Typst sizes auto tracks per grid, so auto columns would move
 // from block to block; fixed tracks keep the phone column where the reader's
-// eye learned to find it. The dates track fits a typical birth date
-// comfortably; a Whole-date range ("September 30, 1928 – September 30, 2011")
-// may wrap to two lines inside its cell rather than widening every row.
+// eye learned to find it. The dates track fits a Whole-date range with
+// abbreviated months ("Sep 30, 1928 – Sep 30, 2011"), the widest date a row
+// holds; anything longer wraps inside its cell rather than widening every row.
 #let row-tracks = (9em, 13em, 8em, 1fr)
 
 // lifespan is a row's dates cell.

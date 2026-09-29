@@ -101,7 +101,7 @@ func TestBuildExampleDirectory(t *testing.T) {
 			name: "the generation date, tier and restriction are stamped",
 			checkFunc: func(t *testing.T, d render.Directory) {
 				t.Helper()
-				assert.Equal(t, "September 24, 2026", d.GeneratedAt, "exports must say when they were made (§5.7)")
+				assert.Equal(t, "Sep 24, 2026", d.GeneratedAt, "exports must say when they were made (§5.7)")
 				assert.Equal(t, "Full", d.Tier)
 				assert.True(t, d.Restricted, "Full carries DO NOT DISTRIBUTE (§5.2)")
 			},
@@ -115,8 +115,8 @@ func TestBuildExampleDirectory(t *testing.T) {
 				assert.Equal(t, "May 23, 1953", h.Anniversary)
 				require.Len(t, h.Adults, 2)
 				assert.Equal(t, "Harold", h.Adults[0].Name)
-				assert.Equal(t, "February 14, 1928", h.Adults[0].Birth)
-				assert.Equal(t, "September 30, 2011", h.Adults[0].Death)
+				assert.Equal(t, "Feb 14, 1928", h.Adults[0].Birth)
+				assert.Equal(t, "Sep 30, 2011", h.Adults[0].Death)
 			},
 		},
 		{
@@ -140,7 +140,7 @@ func TestBuildExampleDirectory(t *testing.T) {
 			checkFunc: func(t *testing.T, d render.Directory) {
 				t.Helper()
 				robert := d.Households[1].Adults[0]
-				assert.Equal(t, "March 12, 1965", robert.Birth)
+				assert.Equal(t, "Mar 12, 1965", robert.Birth)
 				assert.Equal(t, "555-201-0001", robert.Phone)
 				assert.Equal(t, "robert.langford@example.com", robert.Email)
 			},
@@ -168,18 +168,18 @@ func TestBuildPerson(t *testing.T) {
 		{
 			name: "mail: truncated birth, no phone, no email",
 			tier: render.Mail,
-			want: render.Person{Name: "Robert Langford", Birth: "March 12"},
+			want: render.Person{Name: "Robert Langford", Birth: "Mar 12"},
 		},
 		{
 			name: "call: adds phone",
 			tier: render.Call,
-			want: render.Person{Name: "Robert Langford", Birth: "March 12", Phone: "555-201-0001"},
+			want: render.Person{Name: "Robert Langford", Birth: "Mar 12", Phone: "555-201-0001"},
 		},
 		{
 			name: "digital: adds email",
 			tier: render.Digital,
 			want: render.Person{
-				Name: "Robert Langford", Birth: "March 12",
+				Name: "Robert Langford", Birth: "Mar 12",
 				Phone: "555-201-0001", Email: "robert@example.com",
 			},
 		},
@@ -187,7 +187,7 @@ func TestBuildPerson(t *testing.T) {
 			name: "full: whole birth date",
 			tier: render.Full,
 			want: render.Person{
-				Name: "Robert Langford", Birth: "March 12, 1965",
+				Name: "Robert Langford", Birth: "Mar 12, 1965",
 				Phone: "555-201-0001", Email: "robert@example.com",
 			},
 		},
@@ -195,14 +195,14 @@ func TestBuildPerson(t *testing.T) {
 			name:   "minor outside full: name and truncated birthday, no contact details",
 			tier:   render.Digital,
 			mutate: func(p *rolo.Person) { p.Birth = minorBirth },
-			want:   render.Person{Name: "Robert Langford", Birth: "April 30"},
+			want:   render.Person{Name: "Robert Langford", Birth: "Apr 30"},
 		},
 		{
 			name:   "minor in full: everything",
 			tier:   render.Full,
 			mutate: func(p *rolo.Person) { p.Birth = minorBirth },
 			want: render.Person{
-				Name: "Robert Langford", Birth: "April 30, 2021",
+				Name: "Robert Langford", Birth: "Apr 30, 2021",
 				Phone: "555-201-0001", Email: "robert@example.com",
 			},
 		},
@@ -210,7 +210,7 @@ func TestBuildPerson(t *testing.T) {
 			name:   "an eighteenth birthday on the export date admits contact details",
 			tier:   render.Call,
 			mutate: func(p *rolo.Person) { p.Birth = turns18 },
-			want:   render.Person{Name: "Robert Langford", Birth: "September 24", Phone: "555-201-0001"},
+			want:   render.Person{Name: "Robert Langford", Birth: "Sep 24", Phone: "555-201-0001"},
 		},
 		{
 			name:   "no birth date fails closed as a minor",
@@ -228,20 +228,20 @@ func TestBuildPerson(t *testing.T) {
 			name:   "deceased: whole dates in mail",
 			tier:   render.Mail,
 			mutate: func(p *rolo.Person) { p.Death = deathDate },
-			want:   render.Person{Name: "Robert Langford", Birth: "March 12, 1965", Death: "January 8, 2022"},
+			want:   render.Person{Name: "Robert Langford", Birth: "Mar 12, 1965", Death: "Jan 8, 2022"},
 		},
 		{
 			name:   "deceased: contact details suppressed even in full",
 			tier:   render.Full,
 			mutate: func(p *rolo.Person) { p.Death = deathDate },
-			want:   render.Person{Name: "Robert Langford", Birth: "March 12, 1965", Death: "January 8, 2022"},
+			want:   render.Person{Name: "Robert Langford", Birth: "Mar 12, 1965", Death: "Jan 8, 2022"},
 		},
 		{
 			name:   "withheld phone where the tier prints phones",
 			tier:   render.Digital,
 			mutate: func(p *rolo.Person) { p.Hidden.Phone = true },
 			want: render.Person{
-				Name: "Robert Langford", Birth: "March 12",
+				Name: "Robert Langford", Birth: "Mar 12",
 				Phone: render.Private, Email: "robert@example.com",
 			},
 		},
@@ -250,7 +250,7 @@ func TestBuildPerson(t *testing.T) {
 			tier:   render.Full,
 			mutate: func(p *rolo.Person) { p.Hidden.Phone = true },
 			want: render.Person{
-				Name: "Robert Langford", Birth: "March 12, 1965",
+				Name: "Robert Langford", Birth: "Mar 12, 1965",
 				Phone: render.Private, Email: "robert@example.com",
 			},
 		},
@@ -258,7 +258,7 @@ func TestBuildPerson(t *testing.T) {
 			name:   "suppression beats withholding: hidden phone in mail prints nothing",
 			tier:   render.Mail,
 			mutate: func(p *rolo.Person) { p.Hidden.Phone = true },
-			want:   render.Person{Name: "Robert Langford", Birth: "March 12"},
+			want:   render.Person{Name: "Robert Langford", Birth: "Mar 12"},
 		},
 		{
 			name: "suppression beats withholding: a minor's hidden phone outside full",
@@ -267,14 +267,14 @@ func TestBuildPerson(t *testing.T) {
 				p.Birth = minorBirth
 				p.Hidden.Phone = true
 			},
-			want: render.Person{Name: "Robert Langford", Birth: "April 30"},
+			want: render.Person{Name: "Robert Langford", Birth: "Apr 30"},
 		},
 		{
 			name:   "withheld email",
 			tier:   render.Digital,
 			mutate: func(p *rolo.Person) { p.Hidden.Email = true },
 			want: render.Person{
-				Name: "Robert Langford", Birth: "March 12",
+				Name: "Robert Langford", Birth: "Mar 12",
 				Phone: "555-201-0001", Email: render.Private,
 			},
 		},
@@ -291,7 +291,7 @@ func TestBuildPerson(t *testing.T) {
 				p.Death = deathDate
 				p.Hidden.Birth = true
 			},
-			want: render.Person{Name: "Robert Langford", Birth: render.Private, Death: "January 8, 2022"},
+			want: render.Person{Name: "Robert Langford", Birth: render.Private, Death: "Jan 8, 2022"},
 		},
 		{
 			name: "withheld but never recorded prints nothing",
@@ -300,7 +300,7 @@ func TestBuildPerson(t *testing.T) {
 				p.Phone = ""
 				p.Hidden.Phone = true
 			},
-			want: render.Person{Name: "Robert Langford", Birth: "March 12, 1965", Email: "robert@example.com"},
+			want: render.Person{Name: "Robert Langford", Birth: "Mar 12, 1965", Email: "robert@example.com"},
 		},
 		{
 			name: "withheld year-only birth outside full prints nothing: truncation left nothing to withhold",
@@ -326,7 +326,7 @@ func TestBuildPerson(t *testing.T) {
 		{
 			name: "the zero tier fails closed",
 			tier: render.Tier(0),
-			want: render.Person{Name: "Robert Langford", Birth: "March 12"},
+			want: render.Person{Name: "Robert Langford", Birth: "Mar 12"},
 		},
 	}
 
@@ -371,7 +371,7 @@ func TestBuildHousehold(t *testing.T) {
 			},
 			checkFunc: func(t *testing.T, h render.Household) {
 				t.Helper()
-				assert.Equal(t, "June 15", h.Anniversary)
+				assert.Equal(t, "Jun 15", h.Anniversary)
 			},
 		},
 		{
@@ -384,7 +384,7 @@ func TestBuildHousehold(t *testing.T) {
 				t.Helper()
 				assert.False(t, h.Memorial)
 				assert.Equal(
-					t, "June 15", h.Anniversary,
+					t, "Jun 15", h.Anniversary,
 					"a surviving spouse's wedding date is a security question (§5.3)",
 				)
 			},
@@ -398,7 +398,7 @@ func TestBuildHousehold(t *testing.T) {
 			checkFunc: func(t *testing.T, h render.Household) {
 				t.Helper()
 				assert.True(t, h.Memorial)
-				assert.Equal(t, "June 15, 1991", h.Anniversary)
+				assert.Equal(t, "Jun 15, 1991", h.Anniversary)
 			},
 		},
 		{
@@ -409,7 +409,7 @@ func TestBuildHousehold(t *testing.T) {
 			},
 			checkFunc: func(t *testing.T, h render.Household) {
 				t.Helper()
-				assert.Equal(t, "June 15, 1991", h.Anniversary)
+				assert.Equal(t, "Jun 15, 1991", h.Anniversary)
 			},
 		},
 		{
@@ -426,7 +426,7 @@ func TestBuildHousehold(t *testing.T) {
 				require.Len(t, h.Dependents, 1)
 				assert.Empty(t, h.Dependents[0].Phone, "§5.4: names and dates only")
 				assert.Empty(t, h.Dependents[0].Email)
-				assert.Equal(t, "March 12, 1965", h.Dependents[0].Birth)
+				assert.Equal(t, "Mar 12, 1965", h.Dependents[0].Birth)
 			},
 		},
 		{
@@ -441,7 +441,7 @@ func TestBuildHousehold(t *testing.T) {
 				t.Helper()
 				require.True(t, h.Memorial)
 				require.Len(t, h.Dependents, 1)
-				assert.Equal(t, "March 12", h.Dependents[0].Birth, "§5.4 is not \"all dates Whole\"")
+				assert.Equal(t, "Mar 12", h.Dependents[0].Birth, "§5.4 is not \"all dates Whole\"")
 				assert.Empty(t, h.Dependents[0].Phone)
 				assert.Empty(t, h.Dependents[0].Email)
 			},
@@ -473,7 +473,7 @@ func TestBuildStamp(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			d := build(t, tt.tier, rolo.Household{ID: "h_test01", Adults: []rolo.Person{anchor()}})
-			assert.Equal(t, "September 24, 2026", d.GeneratedAt)
+			assert.Equal(t, "Sep 24, 2026", d.GeneratedAt)
 			assert.Equal(t, tt.wantTier, d.Tier)
 			assert.Equal(t, tt.wantRestricted, d.Restricted)
 		})
