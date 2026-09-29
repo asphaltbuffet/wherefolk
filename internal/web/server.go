@@ -22,8 +22,8 @@ import (
 const Host = "127.0.0.1"
 
 // Server holds the loaded Directory and renders it. The document is authoritative
-// in memory: the server is the single writer, which is what lets item 6's undo
-// have a coherent place to live.
+// in memory: the server is the single writer, which is what gives Undo a
+// coherent place to live (undo.go).
 type Server struct {
 	mu  sync.RWMutex
 	doc *store.Document
@@ -34,9 +34,11 @@ type Server struct {
 	// trash holds deleted Households (ADR-0012). Like doc it is replaced, never
 	// mutated, and only after a save succeeds.
 	trash *store.Trash
-	meta  Meta
-	cfg   config.Config
-	log   *slog.Logger
+	// undo is the one step Undo can return to, or nil. See undo.go.
+	undo *undoPoint
+	meta Meta
+	cfg  config.Config
+	log  *slog.Logger
 
 	// save persists the document. The write path calls it while holding the
 	// write lock, and swaps the saved copy into doc only once it returns nil,
@@ -161,6 +163,9 @@ func (s *Server) Handler() http.Handler {
 	// The write path. It redirects rather than swapping a fragment, so the
 	// tree and the detail pane always re-render together. See ADR-0008.
 	mux.HandleFunc("POST /h/{id}", s.handleSave)
+
+	// Undo reverses the most recent save — edit, deletion or restore.
+	mux.HandleFunc("POST /undo", s.handleUndo)
 
 	mux.HandleFunc("GET /tree", s.handleTree)
 	mux.HandleFunc("GET /search", s.handleSearch)

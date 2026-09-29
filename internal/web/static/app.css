@@ -172,6 +172,9 @@ main { height: 100vh; }
   margin-bottom: 1rem;
 }
 
+.announce p { margin: 0 0 .5rem; }
+.announce-actions form { margin: 0; }
+
 /* Export (§5). One column that reads top to bottom: choose, download, look. */
 .export { max-width: 60rem; margin: 0 auto; padding: var(--gap); }
 .export-link { margin: 0 0 var(--gap); text-align: right; }

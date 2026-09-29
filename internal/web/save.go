@@ -18,6 +18,8 @@ import (
 const (
 	movedKey = "moved"
 	saidKey  = "said"
+	// undoKey carries the token of the save this page may undo (undo.go).
+	undoKey = "undo"
 )
 
 // handleSave applies one Household's form.
@@ -69,7 +71,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		s.refuse(r, w, id, outcome.sub, outcome.fieldErrs)
 
 	default:
-		http.Redirect(w, r, redirectAfterSave(id, outcome.sub, outcome.changes), http.StatusSeeOther)
+		http.Redirect(w, r, redirectAfterSave(id, outcome), http.StatusSeeOther)
 	}
 }
 
@@ -84,6 +86,10 @@ type saveOutcome struct {
 	// document that would not rebuild. It is distinct from fieldErrs, which the
 	// Editor can correct.
 	err error
+	// name is the saved Household's Household Name, for the announcement.
+	name string
+	// undo is the token of this save's undo point.
+	undo string
 }
 
 // commit parses, applies, normalises, saves, and swaps in the new document.
@@ -127,20 +133,14 @@ func (s *Server) commit(r *http.Request, id rolo.HouseholdID) saveOutcome {
 		next.Households[i].Normalize()
 	}
 
-	tree, err := next.Tree()
+	token, err := s.persist(store.State{Document: next, Trash: s.trash})
 	if err != nil {
-		return saveOutcome{sub: sub, err: fmt.Errorf("edited document does not build a tree: %w", err)}
+		return saveOutcome{sub: sub, err: err}
 	}
 
-	err = s.save(s.state(), store.State{Document: next, Trash: s.trash})
-	if err != nil {
-		return saveOutcome{sub: sub, err: fmt.Errorf("save document: %w", err)}
-	}
+	saved, _ := s.tree.Get(id) // persist just built the tree from next, which holds id.
 
-	s.doc = next
-	s.tree = tree
-
-	return saveOutcome{sub: sub, changes: changes}
+	return saveOutcome{sub: sub, changes: changes, name: saved.Name(), undo: token}
 }
 
 // refuse re-renders the form with the Editor's own values and an explanation
@@ -177,27 +177,24 @@ func (s *Server) refuse(
 }
 
 // redirectAfterSave builds the URL the Editor lands on. It keeps the tree
-// exactly as they left it and carries any announcement.
+// exactly as they left it and carries the announcement and its Undo.
+//
+// Every save is announced — a plain edit with a plain sentence — because every
+// save can be undone, and the Undo belongs beside a sentence saying what it
+// would undo (§4.4).
 //
 // A promotion redirects to the *parent* rather than the new Household: the
 // announcement names where the person went and links there, so the Editor
 // chooses whether to follow. Being moved somewhere unasked would be the
 // surprise §3 introduced the announcement to prevent.
-func redirectAfterSave(id rolo.HouseholdID, sub submission, changes []change) string {
+func redirectAfterSave(id rolo.HouseholdID, o saveOutcome) string {
 	q := url.Values{}
+	q.Set(saidKey, fmt.Sprintf("Your changes to %s were saved.", o.name))
 
-	if sub.Open != "" {
-		q.Set("open", sub.Open)
-	}
-
-	if sub.Pane == paneClosed {
-		q.Set("pane", paneClosed)
-	}
-
-	if len(changes) > 0 {
+	if len(o.changes) > 0 {
 		// Only the first change is announced. A save that both adds and
 		// removes shows one sentence rather than a list.
-		first := changes[0]
+		first := o.changes[0]
 
 		q.Set(saidKey, first.Message)
 
@@ -206,32 +203,35 @@ func redirectAfterSave(id rolo.HouseholdID, sub submission, changes []change) st
 		}
 	}
 
-	target := "/h/" + url.PathEscape(string(id))
+	q.Set(undoKey, o.undo)
 
-	if len(q) == 0 {
-		return target
-	}
-
-	return target + "?" + q.Encode()
+	return pageURL(id, "", o.sub.Open, o.sub.Pane, q)
 }
 
-// announcementFor reads a structural-change announcement back off the query
-// string and renders it for display. said is the message text itself, carried
-// verbatim from apply.go; moved is a promotion's destination Household ID,
-// present only for that one kind of change. It returns a zero announcement
-// when there is nothing to say.
+// announcementFor reads an announcement back off the query string. said is
+// the message itself; moved is a promotion's destination Household ID; undo is
+// the token of the save it reports. at and open describe the page it appears
+// on, for the Undo form to return to. It returns a zero announcement when
+// there is nothing to say.
 //
-// When moved is set but does not resolve in the tree — a stale link — the
-// message still renders, just without a destination to link to.
+// Undo is offered only while it would still work: once a newer save or a
+// restart has retired the token, a reload shows the sentence alone rather than
+// a button that can only refuse.
 //
 // Callers hold at least a read lock.
-func (s *Server) announcementFor(said, moved string) announcement {
+func (s *Server) announcementFor(q url.Values, at rolo.HouseholdID, open string) announcement {
+	said := q.Get(saidKey)
 	if said == "" {
 		return announcement{}
 	}
 
 	a := announcement{Message: said}
 
+	if token := q.Get(undoKey); token != "" && s.undo != nil && token == s.undo.token {
+		a.Undo = &undoForm{Token: token, At: at, Open: open, Pane: q.Get("pane")}
+	}
+
+	moved := q.Get(movedKey)
 	if moved == "" {
 		return a
 	}
@@ -247,14 +247,11 @@ func (s *Server) announcementFor(said, moved string) announcement {
 	return a
 }
 
-// announcement is a structural change as the page reports it.
-//
-// Undo is item 6's: §4.4 promises one beside this sentence, and the Safety net
-// fills the slot the template leaves for it. Until then Message must name the
-// change precisely enough for the Editor to reverse by hand from the nightly
-// snapshot.
+// announcement is a change as the page reports it, with the Undo that
+// reverses it while that is still possible.
 type announcement struct {
 	Message string
 	Link    string
 	Label   string
+	Undo    *undoForm
 }
