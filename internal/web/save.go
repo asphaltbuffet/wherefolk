@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
@@ -131,7 +132,7 @@ func (s *Server) commit(r *http.Request, id rolo.HouseholdID) saveOutcome {
 		return saveOutcome{sub: sub, err: fmt.Errorf("edited document does not build a tree: %w", err)}
 	}
 
-	err = s.save(next)
+	err = s.save(s.state(), store.State{Document: next, Trash: s.trash})
 	if err != nil {
 		return saveOutcome{sub: sub, err: fmt.Errorf("save document: %w", err)}
 	}

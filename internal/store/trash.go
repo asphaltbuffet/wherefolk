@@ -303,3 +303,25 @@ func Restore(doc *Document, t *Trash, id rolo.HouseholdID) (*Document, *Trash, [
 
 	return nextDoc, nextTrash, restored, nil
 }
+
+// OpenTrash loads the Trash for doc at startup: it reconciles any duplicate a
+// crash left behind, purges what has expired, and writes the file back only if
+// either changed — so a service with nothing deleted never creates one.
+func OpenTrash(path string, doc *Document, now time.Time) (*Trash, error) {
+	t, err := LoadTrash(path)
+	if err != nil {
+		return nil, err
+	}
+
+	t, duplicated := t.Reconcile(doc)
+	t, expired := t.Purge(now)
+
+	if duplicated || expired {
+		err = SaveTrash(path, t)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return t, nil
+}

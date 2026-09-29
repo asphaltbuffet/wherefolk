@@ -46,6 +46,13 @@ func TestRunStartupFailures(t *testing.T) {
 		0o600,
 	))
 
+	// A valid document beside a Trash the binary is too old to read.
+	trashTooNew := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(trashTooNew, "directory.json"),
+		[]byte(`{"schema":1,"households":[]}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(trashTooNew, "trash.json"),
+		[]byte(`{"schema":99,"entries":[]}`), 0o600))
+
 	// A document the process is not allowed to read.
 	if os.Geteuid() == 0 {
 		t.Skip("running as root: file permissions are not enforced")
@@ -85,6 +92,11 @@ func TestRunStartupFailures(t *testing.T) {
 			name:    "document that cannot be read",
 			vars:    map[string]string{"WHEREFOLK_DATA": unreadable},
 			wantErr: "permission denied",
+		},
+		{
+			name:    "trash newer than the binary",
+			vars:    map[string]string{"WHEREFOLK_DATA": trashTooNew},
+			wantErr: "load trash",
 		},
 		{
 			// wantErr names "template", not merely "renderer": verifyRenderer

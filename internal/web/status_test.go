@@ -108,21 +108,24 @@ func sampleDocument() *store.Document {
 // attempted records the document passed on every call, success or failure,
 // so a test can assert on what save() was given even when it refused it.
 // saved records it only when save() succeeded, so a test can assert on what
-// the server would go on to serve.
+// the server would go on to serve. savedTrash is the Trash that save wrote
+// alongside it.
 type recordingSaver struct {
-	attempted *store.Document
-	saved     *store.Document
-	err       error
-	calls     int
+	attempted  *store.Document
+	saved      *store.Document
+	savedTrash *store.Trash
+	err        error
+	calls      int
 }
 
-func (r *recordingSaver) save(doc *store.Document) error {
+func (r *recordingSaver) save(_, next store.State) error {
 	r.calls++
-	r.attempted = doc
+	r.attempted = next.Document
 	if r.err != nil {
 		return r.err
 	}
-	r.saved = doc
+	r.saved = next.Document
+	r.savedTrash = next.Trash
 	return nil
 }
 
@@ -147,7 +150,7 @@ func newTestServer(t *testing.T, doc *store.Document, saver *recordingSaver) *we
 	nextHousehold := sequentialIDs("h_new")
 	nextPerson := sequentialIDs("p_new")
 
-	srv, err := web.New(doc, config.Config{}, testLogger(),
+	srv, err := web.New(store.State{Document: doc}, config.Config{}, testLogger(),
 		web.Meta{DocumentPath: "/tmp/test/directory.json"},
 		saver.save,
 		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
@@ -166,13 +169,13 @@ func get(t *testing.T, doc *store.Document, target string) *httptest.ResponseRec
 	nextHousehold := sequentialIDs("h_new")
 	nextPerson := sequentialIDs("p_new")
 
-	srv, err := web.New(doc, config.Config{}, testLogger(),
+	srv, err := web.New(store.State{Document: doc}, config.Config{}, testLogger(),
 		web.Meta{
 			DocumentPath: "/tmp/test/directory.json",
 			TypstVersion: "typst 0.13.1 (test)",
 			TemplatePath: "/srv/template",
 		},
-		func(*store.Document) error { return nil },
+		func(_, _ store.State) error { return nil },
 		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
 		func() (rolo.PersonID, error) { return rolo.PersonID(nextPerson()), nil },
 		&fakeExporter{}, testClock,
@@ -323,8 +326,8 @@ func TestStatusReportsPassphrase(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv, err := web.New(sampleDocument(), tt.cfg, testLogger(), web.Meta{},
-				func(*store.Document) error { return nil },
+			srv, err := web.New(store.State{Document: sampleDocument()}, tt.cfg, testLogger(), web.Meta{},
+				func(_, _ store.State) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_x", nil },
 				func() (rolo.PersonID, error) { return "p_x", nil },
 				&fakeExporter{}, testClock,
@@ -350,8 +353,8 @@ func getHTMX(t *testing.T, doc *store.Document, target string) *httptest.Respons
 	nextHousehold := sequentialIDs("h_new")
 	nextPerson := sequentialIDs("p_new")
 
-	srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{DocumentPath: "/tmp/test/directory.json"},
-		func(*store.Document) error { return nil },
+	srv, err := web.New(store.State{Document: doc}, config.Config{}, testLogger(), web.Meta{DocumentPath: "/tmp/test/directory.json"},
+		func(_, _ store.State) error { return nil },
 		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
 		func() (rolo.PersonID, error) { return rolo.PersonID(nextPerson()), nil },
 		&fakeExporter{}, testClock,

@@ -66,8 +66,8 @@ func fixturePDF(t *testing.T) []byte {
 func newExportServer(t *testing.T, cfg config.Config, ex *fakeExporter, now time.Time) *web.Server {
 	t.Helper()
 
-	srv, err := web.New(sampleDocument(), cfg, testLogger(), web.Meta{},
-		func(*store.Document) error { return nil },
+	srv, err := web.New(store.State{Document: sampleDocument()}, cfg, testLogger(), web.Meta{},
+		func(_, _ store.State) error { return nil },
 		func() (rolo.HouseholdID, error) { return "h_x", nil },
 		func() (rolo.PersonID, error) { return "p_x", nil },
 		ex, fixedClock(now),

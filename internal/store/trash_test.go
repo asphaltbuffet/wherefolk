@@ -400,3 +400,62 @@ func TestDeleteAndRestore(t *testing.T) {
 		t.Run(tt.name, tt.checkFunc)
 	}
 }
+
+func TestOpenTrash(t *testing.T) {
+	doc := sampleDocument() // holds h_aden, h_clyde, h_carla
+
+	tests := []struct {
+		name      string
+		stored    *store.Trash // nil: no file
+		now       time.Time
+		want      []rolo.HouseholdID
+		wantWrite bool
+	}{
+		{
+			name: "no file stays no file",
+			now:  day(0),
+			want: []rolo.HouseholdID{},
+		},
+		{
+			name:      "a duplicate of a live Household is dropped and the file rewritten",
+			stored:    trashOf(entry("h_carla", "h_clyde", "", day(0)), entry("h_reeve", "", "", day(0))),
+			now:       day(1),
+			want:      []rolo.HouseholdID{"h_reeve"},
+			wantWrite: true,
+		},
+		{
+			name:      "an expired entry is purged and the file rewritten",
+			stored:    trashOf(entry("h_reeve", "", "", day(0))),
+			now:       day(40),
+			want:      []rolo.HouseholdID{},
+			wantWrite: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "trash.json")
+
+			var before time.Time
+			if tt.stored != nil {
+				require.NoError(t, store.SaveTrash(path, tt.stored))
+				// Backdate the file so a rewrite is visible as a changed mtime.
+				before = time.Now().Add(-time.Hour)
+				require.NoError(t, os.Chtimes(path, before, before))
+			}
+
+			got, err := store.OpenTrash(path, doc, tt.now)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, ids(got))
+
+			info, statErr := os.Stat(path)
+			if tt.stored == nil {
+				assert.ErrorIs(t, statErr, os.ErrNotExist, "opening must not create the file")
+				return
+			}
+
+			require.NoError(t, statErr)
+			assert.Equal(t, tt.wantWrite, info.ModTime().After(before))
+		})
+	}
+}

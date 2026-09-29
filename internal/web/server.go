@@ -31,9 +31,12 @@ type Server struct {
 	// must rebuild it inside the same write lock that mutates doc, or the two
 	// silently disagree and navigation renders a tree that no longer exists.
 	tree *rolo.Tree
-	meta Meta
-	cfg  config.Config
-	log  *slog.Logger
+	// trash holds deleted Households (ADR-0012). Like doc it is replaced, never
+	// mutated, and only after a save succeeds.
+	trash *store.Trash
+	meta  Meta
+	cfg   config.Config
+	log   *slog.Logger
 
 	// save persists the document. The write path calls it while holding the
 	// write lock, and swaps the saved copy into doc only once it returns nil,
@@ -76,7 +79,7 @@ type Meta struct {
 // struct so that a caller cannot leave one unset by forgetting a field; every
 // one is checked here.
 func New(
-	doc *store.Document,
+	state store.State,
 	cfg config.Config,
 	logger *slog.Logger,
 	meta Meta,
@@ -86,8 +89,14 @@ func New(
 	exporter Exporter,
 	now Clock,
 ) (*Server, error) {
+	doc := state.Document
 	if doc == nil {
 		return nil, errors.New("web: document is nil")
+	}
+
+	trash := state.Trash
+	if trash == nil {
+		trash = store.NewTrash()
 	}
 
 	if logger == nil {
@@ -122,6 +131,7 @@ func New(
 	return &Server{
 		doc:            doc,
 		tree:           tree,
+		trash:          trash,
 		meta:           meta,
 		cfg:            cfg,
 		log:            logger,
@@ -131,6 +141,11 @@ func New(
 		exporter:       exporter,
 		now:            now,
 	}, nil
+}
+
+// state is what the server currently serves. Callers hold at least a read lock.
+func (s *Server) state() store.State {
+	return store.State{Document: s.doc, Trash: s.trash}
 }
 
 // Handler returns the server's routes.

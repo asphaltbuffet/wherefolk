@@ -260,8 +260,8 @@ func TestSearchWithoutHtmxRendersWholePage(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv, err := web.New(sampleDocument(), config.Config{}, testLogger(), web.Meta{},
-				func(*store.Document) error { return nil },
+			srv, err := web.New(store.State{Document: sampleDocument()}, config.Config{}, testLogger(), web.Meta{},
+				func(_, _ store.State) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_test01", nil },
 				func() (rolo.PersonID, error) { return "p_test01", nil },
 				&fakeExporter{}, testClock,
