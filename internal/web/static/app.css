@@ -36,6 +36,10 @@ main { height: 100vh; }
 
 .pane { overflow: auto; padding: var(--gap); }
 .pane-tree { border-right: 1px solid var(--rule); }
+/* Pinned to the last column: a collapsed tree is `hidden`, which takes it out
+   of the grid entirely, and auto-placement would otherwise drop the detail
+   pane into the tree's zero-width column. */
+.pane-detail { grid-column: 3; }
 
 .tree-level { list-style: none; margin: 0; padding-left: 1rem; }
 .tree-level:first-child { padding-left: 0; }
