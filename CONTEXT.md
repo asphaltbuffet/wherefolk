@@ -165,6 +165,26 @@ person's recorded contact details like any other field, because the Editor must 
 or clear them.
 _Avoid_: Tier-suppressed (suppression is not always a tier rule), filtered, hidden, redacted
 
+### Safety net
+
+**Trash**:
+Where a deleted Household waits for at least 30 days before it is gone for good, so a deletion
+noticed a fortnight later can still be reversed. Only a Household can be deleted, and only one that
+nothing depends on: no Household beneath it, no Household sharing its Address, and never a Memorial
+Household. Restoring a Household whose parent or Shared Address was deleted after it brings those
+back too, so nothing returns pointing at a Household that is not there — and for the same reason a
+Household is kept in the Trash for as long as anything else in it still needs it.
+A Person removed from a Household does not enter the Trash; that is an edit, reversed by Undo.
+The Editor sees it as *Recently deleted*.
+_Avoid_: Recycle bin, archive, deleted items
+
+**Undo**:
+Reverses the Editor's most recent save — an edit, a deletion or a restore — exactly, as offered
+beside the sentence announcing it. One step only, and only while nothing has been saved since:
+undoing a change that later work was built on would discard that work. It lasts as long as the
+service keeps running; beyond that, the Trash and the nightly snapshots are the recovery.
+_Avoid_: Revert, rollback, history
+
 ### Dates
 
 **Truncated Date**:
