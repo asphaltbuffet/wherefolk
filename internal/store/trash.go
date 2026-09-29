@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
@@ -92,6 +93,9 @@ var (
 	// its Shared Address — that is neither in the Directory nor in the Trash.
 	// The retention rule in Purge prevents this; only a hand edit produces it.
 	ErrUnrestorable = errors.New("household needs another that is neither in the directory nor the trash")
+
+	// ErrNotInDocument means a deletion named a Household the document does not hold.
+	ErrNotInDocument = errors.New("household is not in the directory")
 )
 
 // Entry returns the entry holding id.
@@ -249,4 +253,53 @@ func (t *Trash) Chain(id rolo.HouseholdID, doc *Document) ([]rolo.HouseholdID, e
 	}
 
 	return chain, nil
+}
+
+// Delete moves entry's Household out of doc and into t, returning new values
+// and leaving both inputs untouched. It enforces nothing about *whether* the
+// Household may go — that is rolo.Tree.DeleteBlock's, checked by the caller —
+// but a caller that skipped the check would still be stopped when the result
+// failed to build a tree.
+func Delete(doc *Document, t *Trash, entry TrashEntry) (*Document, *Trash, error) {
+	id := entry.Household.ID
+
+	i := slices.IndexFunc(doc.Households, func(h rolo.Household) bool { return h.ID == id })
+	if i < 0 {
+		return nil, nil, fmt.Errorf("%w: %s", ErrNotInDocument, id)
+	}
+
+	nextDoc := &Document{
+		Schema:     doc.Schema,
+		Households: slices.Delete(slices.Clone(doc.Households), i, i+1),
+	}
+
+	nextTrash := &Trash{
+		Schema:  t.Schema,
+		Entries: append(slices.Clone(t.Entries), entry),
+	}
+
+	return nextDoc, nextTrash, nil
+}
+
+// Restore moves id, and every trashed Household it needs, from t back into
+// doc. It returns the restored Households with id first, for the announcement
+// to name.
+func Restore(doc *Document, t *Trash, id rolo.HouseholdID) (*Document, *Trash, []rolo.Household, error) {
+	chain, err := t.Chain(id, doc)
+	if err != nil {
+		return nil, nil, nil, err
+	}
+
+	nextDoc := &Document{Schema: doc.Schema, Households: slices.Clone(doc.Households)}
+	restored := make([]rolo.Household, 0, len(chain))
+
+	for _, rid := range chain {
+		e, _ := t.Entry(rid) // Chain only returns IDs it found in t.
+		nextDoc.Households = append(nextDoc.Households, e.Household)
+		restored = append(restored, e.Household)
+	}
+
+	nextTrash, _ := t.filter(func(e TrashEntry) bool { return !slices.Contains(chain, e.Household.ID) })
+
+	return nextDoc, nextTrash, restored, nil
 }

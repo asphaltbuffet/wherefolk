@@ -253,3 +253,103 @@ func TestBuildTreeAcceptsMultipleRoots(t *testing.T) {
 	assert.Equal(t, rolo.HouseholdID("h_aden"), roots[0].ID, "roots sort by eldest adult's birth date")
 	assert.Equal(t, rolo.HouseholdID("h_novak"), roots[1].ID)
 }
+
+func TestDeleteBlock(t *testing.T) {
+	tests := []struct {
+		name         string
+		households   func() []rolo.Household
+		id           rolo.HouseholdID
+		wantErr      error
+		wantBlocked  bool
+		wantMemorial bool
+		wantChildren []rolo.HouseholdID
+		wantSharers  []rolo.HouseholdID
+	}{
+		{
+			name:       "a leaf Household can be deleted",
+			households: sampleHouseholds,
+			id:         "h_dave",
+		},
+		{
+			name:         "a Household with Households beneath it cannot",
+			households:   sampleHouseholds,
+			id:           "h_clyde",
+			wantBlocked:  true,
+			wantChildren: []rolo.HouseholdID{"h_dave"},
+		},
+		{
+			name: "a Household whose Address another shares cannot",
+			households: func() []rolo.Household {
+				hs := sampleHouseholds()
+				for i := range hs {
+					if hs[i].ID == "h_harold" {
+						hs[i].Address.SharedWith = "h_susan"
+					}
+				}
+				return hs
+			},
+			id:          "h_susan",
+			wantBlocked: true,
+			wantSharers: []rolo.HouseholdID{"h_harold"},
+		},
+		{
+			name: "a Memorial Household never can, even as a leaf",
+			households: func() []rolo.Household {
+				hs := sampleHouseholds()
+				for i := range hs {
+					if hs[i].ID == "h_dave" {
+						for j := range hs[i].Adults {
+							hs[i].Adults[j].Death = rolo.Date{Year: 2020}
+						}
+					}
+				}
+				return hs
+			},
+			id:           "h_dave",
+			wantBlocked:  true,
+			wantMemorial: true,
+		},
+		{
+			name:       "unknown ID errors with ErrUnknownHousehold",
+			households: sampleHouseholds,
+			id:         "h_unknown",
+			wantErr:    rolo.ErrUnknownHousehold,
+		},
+	}
+
+	householdIDs := func(hs []rolo.Household) []rolo.HouseholdID {
+		out := []rolo.HouseholdID{}
+		for _, h := range hs {
+			out = append(out, h.ID)
+		}
+		return out
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree, err := rolo.BuildTree(tt.households())
+			require.NoError(t, err)
+
+			got, err := tree.DeleteBlock(tt.id)
+
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantBlocked, got.Blocked())
+			assert.Equal(t, tt.wantMemorial, got.Memorial)
+
+			if tt.wantChildren == nil {
+				tt.wantChildren = []rolo.HouseholdID{}
+			}
+			if tt.wantSharers == nil {
+				tt.wantSharers = []rolo.HouseholdID{}
+			}
+			assert.Equal(t, tt.wantChildren, householdIDs(got.Children))
+			assert.Equal(t, tt.wantSharers, householdIDs(got.Sharers))
+		})
+	}
+}

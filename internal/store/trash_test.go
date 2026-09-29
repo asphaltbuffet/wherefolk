@@ -331,3 +331,72 @@ func TestChain(t *testing.T) {
 		})
 	}
 }
+
+func TestDeleteAndRestore(t *testing.T) {
+	tests := []struct {
+		name      string
+		checkFunc func(t *testing.T)
+	}{
+		{
+			name: "delete moves the Household from the document to the Trash",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				doc := sampleDocument()
+				trash := store.NewTrash()
+				carla := doc.Households[2]
+
+				gotDoc, gotTrash, err := store.Delete(doc, trash, store.TrashEntry{DeletedAt: day(0), Household: carla})
+				require.NoError(t, err)
+
+				assert.Len(t, gotDoc.Households, 2)
+				assert.Equal(t, []rolo.HouseholdID{"h_carla"}, ids(gotTrash))
+				assert.Len(t, doc.Households, 3, "the input document must not change")
+				assert.Empty(t, trash.Entries, "the input Trash must not change")
+			},
+		},
+		{
+			name: "deleting a Household not in the document is refused",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				_, _, err := store.Delete(sampleDocument(), store.NewTrash(),
+					store.TrashEntry{Household: rolo.Household{ID: "h_nope"}})
+				require.ErrorIs(t, err, store.ErrNotInDocument)
+			},
+		},
+		{
+			name: "restore brings back the chain and reports it, requested first",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				doc := &store.Document{Schema: store.CurrentSchema, Households: []rolo.Household{{ID: "h_aden"}}}
+				trash := trashOf(entry("h_clyde", "h_aden", "", day(0)), entry("h_dave", "h_clyde", "", day(1)))
+
+				gotDoc, gotTrash, restored, err := store.Restore(doc, trash, "h_dave")
+				require.NoError(t, err)
+
+				assert.Len(t, gotDoc.Households, 3)
+				assert.Empty(t, gotTrash.Entries)
+				require.Len(t, restored, 2)
+				assert.Equal(t, rolo.HouseholdID("h_dave"), restored[0].ID)
+				assert.Equal(t, rolo.HouseholdID("h_clyde"), restored[1].ID)
+				assert.Len(t, doc.Households, 1, "the input document must not change")
+			},
+		},
+		{
+			name: "restore leaves unrelated entries in the Trash",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				doc := &store.Document{Schema: store.CurrentSchema, Households: []rolo.Household{{ID: "h_aden"}}}
+				trash := trashOf(entry("h_clyde", "h_aden", "", day(0)), entry("h_dave", "h_clyde", "", day(1)))
+
+				_, gotTrash, _, err := store.Restore(doc, trash, "h_clyde")
+				require.NoError(t, err)
+
+				assert.Equal(t, []rolo.HouseholdID{"h_dave"}, ids(gotTrash))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, tt.checkFunc)
+	}
+}
