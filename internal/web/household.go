@@ -43,6 +43,7 @@ func (s *Server) directoryView(
 		Tree:          s.treeView(id, rawOpen, closing),
 		PaneClosed:    isPaneClosed,
 		PaneToggleURL: paneToggleURL(id, isPaneClosed),
+		TrashCount:    len(s.trash.Entries),
 	}
 
 	if id == "" {

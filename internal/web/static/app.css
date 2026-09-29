@@ -223,3 +223,10 @@ main { height: 100vh; }
 .confirm { max-width: 40rem; margin: 0 auto; padding: var(--gap); }
 .confirm-actions { display: flex; gap: 1rem; align-items: baseline; }
 button.danger { background: #a22; color: #fff; border: 1px solid #811; padding: .4rem 1rem; }
+
+/* Recently deleted (item 6). */
+.trash { max-width: 40rem; margin: 0 auto; padding: var(--gap); }
+.trash-list { list-style: none; padding: 0; }
+.trash-list li { border-top: 1px solid var(--rule); padding: .75rem 0; }
+.trash-list h2 { margin: 0; font-size: 1.1rem; }
+.trash-link { margin-top: var(--gap); }

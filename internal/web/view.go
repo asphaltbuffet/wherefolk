@@ -328,6 +328,11 @@ type directoryView struct {
 	// arrives in the query string because ADR-0001 left nowhere server-side to
 	// keep it.
 	Announcement announcement
+
+	// TrashCount is how many Households wait in Recently deleted. The tree
+	// pane links there only when it is non-zero: with nothing deleted there is
+	// nothing to find.
+	TrashCount int
 }
 
 // householdView builds the detail pane for one Household, reporting false if it

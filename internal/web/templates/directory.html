@@ -19,6 +19,9 @@
              hx-swap="outerHTML">
     </form>
     {{template "results" .Results}}
+    {{if .TrashCount}}
+      <p class="trash-link"><a href="/trash">Recently deleted ({{.TrashCount}})</a></p>
+    {{end}}
   </aside>
   <div class="pane pane-detail">
     {{template "detail" .}}
