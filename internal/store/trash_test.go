@@ -255,6 +255,10 @@ func TestReconcile(t *testing.T) {
 
 			assert.Equal(t, tt.want, ids(got))
 			assert.Equal(t, tt.wantChanged, changed)
+
+			if !tt.wantChanged {
+				assert.Same(t, tt.trash, got, "an unchanged Trash must be the same value, so Persist skips its write")
+			}
 		})
 	}
 }
@@ -304,6 +308,12 @@ func TestChain(t *testing.T) {
 			trash:   trashOf(entry("h_dave", "h_gone", "", day(0))),
 			id:      "h_dave",
 			wantErr: store.ErrUnrestorable,
+		},
+		{
+			name:    "a Household already back in the Directory is not restorable",
+			trash:   trashOf(entry("h_aden", "", "", day(0))),
+			id:      "h_aden",
+			wantErr: store.ErrNotInTrash,
 		},
 	}
 

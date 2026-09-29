@@ -203,13 +203,18 @@ func (t *Trash) Purge(now time.Time) (*Trash, bool) {
 
 // Chain lists the Households that must return together to restore id: id
 // itself first, then every trashed Household it needs, transitively. Anything
-// already in doc needs nothing.
+// already in doc needs nothing. If id is both in the Trash and the Document,
+// the Document wins over the stale duplicate and the entry is not restorable.
 func (t *Trash) Chain(id rolo.HouseholdID, doc *Document) ([]rolo.HouseholdID, error) {
 	if _, ok := t.Entry(id); !ok {
 		return nil, fmt.Errorf("%w: %s", ErrNotInTrash, id)
 	}
 
 	live := liveIDs(doc)
+
+	if live[id] {
+		return nil, fmt.Errorf("%w: %s is already in the directory", ErrNotInTrash, id)
+	}
 	seen := make(map[rolo.HouseholdID]bool)
 
 	var chain []rolo.HouseholdID
