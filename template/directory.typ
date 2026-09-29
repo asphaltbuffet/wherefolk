@@ -2,8 +2,9 @@
 //
 // This file is deliberately NOT embedded in the binary (ADR-0004): adjusting
 // spacing or type is an edit here plus a restart, not a rebuild and redeploy.
-// The Go side emits data and calls these three functions; it sets no margins,
-// fonts or spacing of its own, so every layout decision is in this file.
+// The Go side emits data and calls three of these functions (directory,
+// household, memorial); it sets no margins, fonts or spacing of its own, so
+// every layout decision is in this file.
 //
 // Layout is not customisable (§5.1). There is one typeface, one set of margins
 // and one block format, on purpose: the Editor wants a directory that looks
@@ -31,33 +32,49 @@
   body
 }
 
-// contact renders one person's line: name, dates, then contact details.
+// row-tracks is every person row's column layout: name, dates, phone, email.
+//
+// It is one value for the whole Directory, on purpose. Each Household is its
+// own grid, and Typst sizes auto tracks per grid, so auto columns would move
+// from block to block; fixed tracks keep the phone column where the reader's
+// eye learned to find it. The dates track fits a Whole-date range with
+// abbreviated months ("Sep 30, 1928 – Sep 30, 2011"), the widest date a row
+// holds; anything longer wraps inside its cell rather than widening every row.
+#let row-tracks = (9em, 13em, 8em, 1fr)
+
+// lifespan is a row's dates cell.
+//
+// A deceased person's dates are one range, the headstone convention; with no
+// birth date it is the death alone. A living person's birth date carries "b.".
+// This only composes strings Build already filtered: which dates exist, and
+// whether they are Truncated or Whole, was decided there (§5.3).
+#let lifespan(p) = {
+  if p.death != "" {
+    if p.birth != "" { p.birth + " – " + p.death } else { "d. " + p.death }
+  } else if p.birth != "" {
+    "b. " + p.birth
+  } else {
+    ""
+  }
+}
+
+// people-grid renders people as aligned rows, one per person.
 //
 // Every field is printed only when non-empty. An empty string means "nothing to
 // print" and never means "suppressed" — suppression happens before the data
-// reaches this file, and prints nothing at all by design (§5.5).
-#let contact(p) = {
-  let dates = ()
-  if p.birth != "" { dates.push("b. " + p.birth) }
-  if p.death != "" { dates.push("d. " + p.death) }
-
-  let reach = ()
-  if p.phone != "" { reach.push(p.phone) }
-  if p.email != "" { reach.push(p.email) }
-
-  block(breakable: false, {
-    text(weight: "semibold", p.name)
-    if dates.len() > 0 {
-      h(0.6em)
-      text(size: 9pt, fill: luma(80), dates.join(" · "))
-    }
-    if reach.len() > 0 {
-      linebreak()
-      h(1.2em)
-      text(size: 9pt, reach.join(" · "))
-    }
-  })
-}
+// reaches this file, and prints nothing at all by design (§5.5). An empty cell
+// still occupies its track, so the columns never shift.
+#let people-grid(people, ink: luma(0)) = grid(
+  columns: row-tracks,
+  column-gutter: 0.8em,
+  row-gutter: 0.5em,
+  ..people.map(p => (
+    text(weight: "semibold", fill: ink, p.name),
+    text(size: 9pt, fill: luma(80), lifespan(p)),
+    text(size: 9pt, fill: ink, p.phone),
+    text(size: 9pt, fill: ink, p.email),
+  )).flatten(),
+)
 
 // household is one block of the Directory.
 //
@@ -65,7 +82,7 @@
 // rather than a Go PDF library (ADR-0004): a Household is never split across a
 // page break, and Typst does that pagination itself.
 #let household(
-  label: "",
+  name: "",
   anniversary: "",
   address: (),
   shared: "",
@@ -73,7 +90,7 @@
   dependents: (),
 ) = {
   block(breakable: false, width: 100%, inset: (y: 0.4em), {
-    text(size: 12pt, weight: "bold", label)
+    text(size: 12pt, weight: "bold", name)
 
     if address.len() > 0 {
       linebreak()
@@ -88,18 +105,14 @@
       text(size: 9pt, fill: luma(80), "Anniversary " + anniversary)
     }
 
-    for a in adults {
-      v(0.25em)
-      contact(a)
-    }
+    // No "Dependents" label: in a grid a label is a row with no cells, and
+    // order already says who is who. A gap keeps the grouping visible.
+    v(0.4em)
+    people-grid(adults)
 
     if dependents.len() > 0 {
-      v(0.3em)
-      text(size: 8pt, fill: luma(120), smallcaps("Dependents"))
-      for d in dependents {
-        v(0.15em)
-        contact(d)
-      }
+      v(0.6em)
+      people-grid(dependents)
     }
   })
 
@@ -108,12 +121,12 @@
 
 // memorial is a Household whose adults have all died.
 //
-// It renders more compactly than a live Household — a heading with dates rather
-// than a full entry — because there is nothing in it to act on. It must still
-// appear in every tier so that descendants group beneath it and no Path points
-// at a node missing from the document (§5.4).
+// It renders more quietly than a live Household — grey, with the anniversary
+// as "m." under the heading — because there is nothing in it to act on. It must
+// still appear in every tier so that descendants group beneath it and no Path
+// points at a node missing from the document (§5.4).
 #let memorial(
-  label: "",
+  name: "",
   anniversary: "",
   address: (),
   shared: "",
@@ -121,31 +134,22 @@
   dependents: (),
 ) = {
   block(breakable: false, width: 100%, inset: (y: 0.3em), {
-    text(size: 11pt, weight: "bold", fill: luma(60), label)
-
-    for a in adults {
-      linebreak()
-      h(0.8em)
-      text(size: 9pt, a.name)
-      let dates = ()
-      if a.birth != "" { dates.push(a.birth) }
-      if a.death != "" { dates.push(a.death) }
-      if dates.len() > 0 {
-        h(0.5em)
-        text(size: 9pt, fill: luma(100), "(" + dates.join(" – ") + ")")
-      }
-    }
+    text(size: 11pt, weight: "bold", fill: luma(60), name)
 
     if anniversary != "" {
       linebreak()
-      h(0.8em)
       text(size: 9pt, fill: luma(100), "m. " + anniversary)
     }
 
-    for d in dependents {
-      linebreak()
-      h(0.8em)
-      text(size: 9pt, d.name)
+    // The same tracks as a live Household, so the Memorial reads as part of
+    // one table; its phone and email cells are empty, because Build suppresses
+    // a deceased person's contact details (§5.4).
+    v(0.3em)
+    people-grid(adults, ink: luma(60))
+
+    if dependents.len() > 0 {
+      v(0.5em)
+      people-grid(dependents, ink: luma(60))
     }
   })
 

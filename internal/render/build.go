@@ -58,13 +58,14 @@ type filter struct {
 // has died, and it publishes no contact details for anyone in it (§5.4).
 func (f filter) household(h rolo.Household) Household {
 	memorial := h.IsMemorial()
+	carried := carriedSurnames(h.Adults)
 
 	out := Household{
-		Label:       h.Label(),
+		Name:        householdName(h),
 		Memorial:    memorial,
 		Anniversary: f.date(h.Anniversary, memorial),
-		Adults:      f.people(h.Adults, memorial),
-		Dependents:  f.people(h.Dependents, memorial),
+		Adults:      f.people(h.Adults, memorial, carried),
+		Dependents:  f.people(h.Dependents, memorial, carried),
 	}
 
 	if !memorial {
@@ -75,7 +76,7 @@ func (f filter) household(h rolo.Household) Household {
 }
 
 // address is what h's block prints for its Address when h is not Memorial:
-// a back-reference label, resolved lines, [private], or nothing (nil, "").
+// a back-reference Household Name, resolved lines, [private], or nothing (nil, "").
 //
 // A back-reference is printed only when the target's own block prints lines
 // of its own (CONTEXT.md, Shared Address). Anything else — a withheld target, a
@@ -92,7 +93,7 @@ func (f filter) address(h rolo.Household) ([]string, string) {
 		}
 
 		if printsOwnLines(target) {
-			return nil, target.Label()
+			return nil, householdName(target)
 		}
 	}
 
@@ -137,14 +138,14 @@ func (f filter) resolve(h rolo.Household, seen map[rolo.HouseholdID]bool) []stri
 }
 
 // people renders a slice of people, preserving order.
-func (f filter) people(ps []rolo.Person, memorial bool) []Person {
+func (f filter) people(ps []rolo.Person, memorial bool, carried map[string]bool) []Person {
 	if len(ps) == 0 {
 		return nil
 	}
 
 	out := make([]Person, 0, len(ps))
 	for _, p := range ps {
-		out = append(out, f.person(p, memorial))
+		out = append(out, f.person(p, memorial, carried))
 	}
 
 	return out
@@ -155,11 +156,11 @@ func (f filter) people(ps []rolo.Person, memorial bool) []Person {
 // Suppression is decided first and prints nothing; withholding is applied only
 // to what survives it, so [private] never appears where the audience would not
 // have seen a value anyway (CONTEXT.md, Withheld field).
-func (f filter) person(p rolo.Person, memorial bool) Person {
+func (f filter) person(p rolo.Person, memorial bool, carried map[string]bool) Person {
 	deceased := p.IsDeceased()
 
 	out := Person{
-		Name:  p.DisplayName(),
+		Name:  rowName(p, carried),
 		Birth: withhold(f.date(p.Birth, deceased), p.Hidden.Birth),
 		Death: wholeDate(p.Death),
 	}

@@ -30,20 +30,26 @@ func TestExportDates(t *testing.T) {
 		{
 			name:      "year and month",
 			in:        rolo.Date{Year: 1938, Month: 3},
-			wantWhole: "March 1938",
-			wantTrunc: "March",
+			wantWhole: "Mar 1938",
+			wantTrunc: "Mar",
 		},
 		{
 			name:      "full date",
 			in:        rolo.Date{Year: 1965, Month: 3, Day: 12},
-			wantWhole: "March 12, 1965",
-			wantTrunc: "March 12",
+			wantWhole: "Mar 12, 1965",
+			wantTrunc: "Mar 12",
 		},
 		{
 			name:      "single-digit day has no leading zero",
 			in:        rolo.Date{Year: 2022, Month: 1, Day: 8},
-			wantWhole: "January 8, 2022",
-			wantTrunc: "January 8",
+			wantWhole: "Jan 8, 2022",
+			wantTrunc: "Jan 8",
+		},
+		{
+			name:      "every month is three letters, September included",
+			in:        rolo.Date{Year: 2011, Month: 9, Day: 30},
+			wantWhole: "Sep 30, 2011",
+			wantTrunc: "Sep 30",
 		},
 	}
 

@@ -136,7 +136,7 @@ func manyHouseholds(n int) render.Directory {
 
 	for i := range n {
 		d.Households = append(d.Households, render.Household{
-			Label:        fmt.Sprintf("House%02d", i),
+			Name:         fmt.Sprintf("House%02d", i),
 			AddressLines: []string{"42 Elm Street", "Springfield, IL 62701"},
 			Adults: []render.Person{
 				{Name: fmt.Sprintf("Adult %02d", i), Birth: "1965-03-12"},
@@ -198,7 +198,7 @@ func referencePages(t *testing.T, markup string, count int) [][]byte {
 // as glyph paths in SVG, so a page contains no searchable label to assert on.
 func TestTypstCompileSVGPageOrder(t *testing.T) {
 	typst := requireTypst(t)
-	markup := render.Markup(manyHouseholds(60))
+	markup := render.Markup(manyHouseholds(100))
 
 	pages, err := typst.CompileSVG(t.Context(), markup, templateDir)
 	require.NoError(t, err)

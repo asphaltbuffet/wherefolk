@@ -46,8 +46,8 @@ func writeHousehold(b *strings.Builder, h Household) {
 
 	b.WriteString("  ")
 	b.WriteString(call)
-	b.WriteString("\n    label: ")
-	b.WriteString(quote(h.Label))
+	b.WriteString("\n    name: ")
+	b.WriteString(quote(h.Name))
 	b.WriteString(",\n    anniversary: ")
 	b.WriteString(quote(h.Anniversary))
 	b.WriteString(",\n    address: ")
