@@ -83,3 +83,165 @@ func SaveTrash(path string, t *Trash) error {
 
 	return nil
 }
+
+var (
+	// ErrNotInTrash means a restore named a Household the Trash does not hold.
+	ErrNotInTrash = errors.New("household is not in the trash")
+
+	// ErrUnrestorable means a trashed Household needs another — its parent or
+	// its Shared Address — that is neither in the Directory nor in the Trash.
+	// The retention rule in Purge prevents this; only a hand edit produces it.
+	ErrUnrestorable = errors.New("household needs another that is neither in the directory nor the trash")
+)
+
+// Entry returns the entry holding id.
+func (t *Trash) Entry(id rolo.HouseholdID) (TrashEntry, bool) {
+	for _, e := range t.Entries {
+		if e.Household.ID == id {
+			return e, true
+		}
+	}
+
+	return TrashEntry{}, false
+}
+
+// Expires is when this entry's own 30 days end. It may be kept longer, for as
+// long as a newer entry needs it; see Purge.
+func (e TrashEntry) Expires() time.Time { return e.DeletedAt.Add(TrashRetention) }
+
+// needs lists the Households this entry cannot be restored without: the
+// parent that anchors its Path, and the Household whose Address it shares.
+func (e TrashEntry) needs() []rolo.HouseholdID {
+	var out []rolo.HouseholdID
+
+	if e.Household.Parent != "" {
+		out = append(out, e.Household.Parent)
+	}
+
+	if e.Household.Address.SharedWith != "" {
+		out = append(out, e.Household.Address.SharedWith)
+	}
+
+	return out
+}
+
+// filter returns the entries keep accepts. When it accepts them all it returns
+// t itself, so an unchanged Trash keeps its identity and Persist skips the
+// write.
+func (t *Trash) filter(keep func(TrashEntry) bool) (*Trash, bool) {
+	kept := make([]TrashEntry, 0, len(t.Entries))
+
+	for _, e := range t.Entries {
+		if keep(e) {
+			kept = append(kept, e)
+		}
+	}
+
+	if len(kept) == len(t.Entries) {
+		return t, false
+	}
+
+	return &Trash{Schema: t.Schema, Entries: kept}, true
+}
+
+// liveIDs is the set of Households in doc.
+func liveIDs(doc *Document) map[rolo.HouseholdID]bool {
+	live := make(map[rolo.HouseholdID]bool, len(doc.Households))
+	for _, h := range doc.Households {
+		live[h.ID] = true
+	}
+
+	return live
+}
+
+// Reconcile drops every entry whose Household is also in doc. A crash between
+// the two writes of a deletion or a restore leaves such a duplicate by design,
+// and the document wins because it is what the Editor last saw (ADR-0012).
+func (t *Trash) Reconcile(doc *Document) (*Trash, bool) {
+	live := liveIDs(doc)
+
+	return t.filter(func(e TrashEntry) bool { return !live[e.Household.ID] })
+}
+
+// Purge drops entries whose time is up.
+//
+// An entry past its 30 days is still kept while any unexpired entry needs it,
+// directly or through another entry. Otherwise deleting Clyde/Doris and then,
+// three weeks later, Dave/Diane beneath them would leave Dave/Diane
+// unrestorable after only nine days — Restore brings their parent back with
+// them, and could not if it were gone.
+func (t *Trash) Purge(now time.Time) (*Trash, bool) {
+	keep := make(map[rolo.HouseholdID]bool)
+
+	var mark func(id rolo.HouseholdID)
+	mark = func(id rolo.HouseholdID) {
+		if keep[id] {
+			return
+		}
+
+		e, ok := t.Entry(id)
+		if !ok {
+			// In the Directory, or nowhere: either way not the Trash's to keep.
+			return
+		}
+
+		keep[id] = true
+
+		for _, need := range e.needs() {
+			mark(need)
+		}
+	}
+
+	for _, e := range t.Entries {
+		if now.Before(e.Expires()) {
+			mark(e.Household.ID)
+		}
+	}
+
+	return t.filter(func(e TrashEntry) bool { return keep[e.Household.ID] })
+}
+
+// Chain lists the Households that must return together to restore id: id
+// itself first, then every trashed Household it needs, transitively. Anything
+// already in doc needs nothing.
+func (t *Trash) Chain(id rolo.HouseholdID, doc *Document) ([]rolo.HouseholdID, error) {
+	if _, ok := t.Entry(id); !ok {
+		return nil, fmt.Errorf("%w: %s", ErrNotInTrash, id)
+	}
+
+	live := liveIDs(doc)
+	seen := make(map[rolo.HouseholdID]bool)
+
+	var chain []rolo.HouseholdID
+
+	var visit func(id rolo.HouseholdID) error
+	visit = func(id rolo.HouseholdID) error {
+		if live[id] || seen[id] {
+			return nil
+		}
+
+		e, ok := t.Entry(id)
+		if !ok {
+			return fmt.Errorf("%w: %s", ErrUnrestorable, id)
+		}
+
+		seen[id] = true
+		chain = append(chain, id)
+
+		for _, need := range e.needs() {
+			err := visit(need)
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
+	}
+
+	err := visit(id)
+	if err != nil {
+		return nil, err
+	}
+
+	return chain, nil
+}
