@@ -987,7 +987,7 @@ func TestBuildBirthdays(t *testing.T) {
 			want: []render.Birthday{{Name: "Cher", Month: 3, Day: "12"}},
 		},
 		{
-			name: "rows sort by surname then given name, ignoring case, across Households",
+			name: "rows sort by surname then given name, ignoring case, across Households; no surname sorts by given name",
 			tier: render.Full,
 			households: []rolo.Household{
 				house("h_cal001",
@@ -996,12 +996,14 @@ func TestBuildBirthdays(t *testing.T) {
 				house("h_cal002",
 					person("p_brad01", "Brady", "Maller", adultBirth),
 					person("p_emma01", "Emma", "de Groot", adultBirth),
-					person("p_abig01", "Abigail", "Lechlitner", adultBirth)),
+					person("p_abig01", "Abigail", "Lechlitner", adultBirth),
+					person("p_mado01", "Madonna", "", adultBirth)),
 			},
 			want: []render.Birthday{
 				{Name: "de Groot, Emma", Month: 3, Day: "12"},
 				{Name: "Lechlitner, Abigail", Month: 3, Day: "12"},
 				{Name: "Lechlitner, Zoa", Month: 3, Day: "12"},
+				{Name: "Madonna", Month: 3, Day: "12"},
 				{Name: "Maller, Brady", Month: 3, Day: "12"},
 				{Name: "McDaniel, Courtney", Month: 3, Day: "12"},
 			},
@@ -1022,6 +1024,34 @@ func TestBuildBirthdays(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			d := build(t, tt.tier, tt.households...)
 			assert.Equal(t, tt.want, d.Birthdays)
+		})
+	}
+}
+
+// TestBuildBirthdaysIsTheSameInEveryTier pins that no tier rule reaches the
+// Birthday Calendar: a row shows only a month and day, which every tier already
+// prints, so a tier that changed the calendar would be leaking or hiding by
+// accident.
+func TestBuildBirthdaysIsTheSameInEveryTier(t *testing.T) {
+	living := rolo.Person{ID: "p_live01", Given: "Dawn", Surname: "Yoder", Birth: adultBirth, Phone: "555-201-0001"}
+	minor := rolo.Person{ID: "p_mino01", Given: "Mia", Surname: "Yoder", Birth: minorBirth}
+	households := []rolo.Household{{ID: "h_cal001", Adults: []rolo.Person{living}, Dependents: []rolo.Person{minor}}}
+
+	want := build(t, render.Full, households...).Birthdays
+	require.Len(t, want, 2)
+
+	tests := []struct {
+		name string
+		tier render.Tier
+	}{
+		{name: "mail", tier: render.Mail},
+		{name: "call", tier: render.Call},
+		{name: "digital", tier: render.Digital},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, want, build(t, tt.tier, households...).Birthdays)
 		})
 	}
 }

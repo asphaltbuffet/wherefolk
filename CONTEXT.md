@@ -51,6 +51,9 @@ nickname exactly as their own row prints it, then any birth name that differs fr
 parentheses, as in the Household Name: `Yoder, Dawn (Mitchell)`. The birth name lets a relative find
 someone by the name they grew up with, and tells apart two people who share a name. Rows are
 ordered by surname and then given name without regard to capitalisation.
+
+A Proof Sheet never carries a Birthday Calendar: it shows one Household's own entry, and the
+calendar lists the whole family.
 _Avoid_: Birthday list, birthday page, calendar
 
 **Proof Sheet**:

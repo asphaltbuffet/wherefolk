@@ -20,10 +20,14 @@ import (
 //
 // The calendar is the same in every tier. A row shows a month and day, which
 // is exactly what a Truncated Date already shows everywhere, and minors'
-// birth dates are not suppressed (§5.3).
+// birth dates are not suppressed (§5.2). It belongs to a Directory only: a
+// Proof Sheet shows one Household's own entry, and must never carry the whole
+// family's birthdays.
 //
 // Rows are ordered by surname and then given name, ignoring case, so
-// "de Groot" sorts among the Ds; equal keys keep Directory order.
+// "de Groot" sorts among the Ds. A person with no surname sorts by their given
+// name, where the reader would look for the name that prints; equal keys keep
+// Directory order.
 func birthdays(t *rolo.Tree) []Birthday {
 	type row struct {
 		surname, given string
@@ -45,8 +49,13 @@ func birthdays(t *rolo.Tree) []Birthday {
 					day = strconv.Itoa(p.Birth.Day)
 				}
 
+				surname := p.Surname
+				if surname == "" {
+					surname = p.Given
+				}
+
 				rows = append(rows, row{
-					surname: strings.ToLower(p.Surname),
+					surname: strings.ToLower(surname),
 					given:   strings.ToLower(p.Given),
 					out:     Birthday{Name: calendarName(p), Month: p.Birth.Month, Day: day},
 				})
