@@ -1,0 +1,27 @@
+{{define "title"}}Delete {{.Title}}{{end}}
+
+{{define "body"}}
+<section class="confirm" aria-labelledby="confirm-heading">
+  <h1 id="confirm-heading">Delete {{.Title}}?</h1>
+  <p class="breadcrumb">{{.Path}}</p>
+
+  {{if .Blocked}}
+    <p role="alert">{{.Blocked}}</p>
+    <p><a href="{{.Back}}">Back to {{.Title}}</a></p>
+  {{else}}
+    <p>This takes the household out of the directory, with everyone in it:</p>
+    <ul>
+      {{range .People}}<li>{{.}}</li>{{end}}
+    </ul>
+    <p>It stays in Recently deleted until {{.KeptUntil}}, and can be brought back from there
+       exactly as it is now.</p>
+
+    <form method="post" action="/h/{{.ID}}/delete" class="confirm-actions">
+      <input type="hidden" name="open" value="{{.Open}}">
+      <input type="hidden" name="pane" value="{{.Pane}}">
+      <button type="submit" class="danger">Delete</button>
+      <a href="{{.Back}}">Keep it</a>
+    </form>
+  {{end}}
+</section>
+{{end}}

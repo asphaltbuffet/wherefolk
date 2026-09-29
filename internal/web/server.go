@@ -167,6 +167,10 @@ func (s *Server) Handler() http.Handler {
 	// Undo reverses the most recent save — edit, deletion or restore.
 	mux.HandleFunc("POST /undo", s.handleUndo)
 
+	// Deletion asks first (ADR-0009); the POST moves the Household to the Trash.
+	mux.HandleFunc("GET /h/{id}/delete", s.handleDeleteConfirm)
+	mux.HandleFunc("POST /h/{id}/delete", s.handleDelete)
+
 	mux.HandleFunc("GET /tree", s.handleTree)
 	mux.HandleFunc("GET /search", s.handleSearch)
 

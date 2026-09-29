@@ -293,6 +293,9 @@ type householdView struct {
 
 	Anniversary string
 
+	// Delete leads to deletion, or says why this Household cannot be deleted.
+	Delete deleteLink
+
 	// Form is the editable rendering of this Household. §4.4 makes the detail
 	// pane the form, so this is always populated on a GET; the refusal path
 	// replaces it with the Editor's own submission.
@@ -366,6 +369,11 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 			view.SharedWith = parent.Name()
 			view.AddressNote = "Same address as " + parent.Name()
 		}
+	}
+
+	block, err := s.tree.DeleteBlock(id)
+	if err == nil {
+		view.Delete.Blocked = deleteBlockedSentence(block)
 	}
 
 	// Findings are computed for this Household alone. Whole-document findings

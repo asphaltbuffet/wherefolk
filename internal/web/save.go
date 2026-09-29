@@ -51,17 +51,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 
 	switch {
 	case outcome.notFound:
-		s.mu.RLock()
-		view := s.directoryView("", "", "", false)
-		s.mu.RUnlock()
-
-		view.NotFound = true
-
-		err = s.render(r.Context(), w, http.StatusNotFound, "directory", view)
-		if err != nil {
-			s.log.ErrorContext(r.Context(), "render not found", "error", err)
-			http.Error(w, "internal error", http.StatusInternalServerError)
-		}
+		s.renderNotFound(w, r)
 
 	case outcome.err != nil:
 		s.log.ErrorContext(r.Context(), "save document", "household", id, "error", outcome.err)
@@ -72,6 +62,22 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 
 	default:
 		http.Redirect(w, r, redirectAfterSave(id, outcome), http.StatusSeeOther)
+	}
+}
+
+// renderNotFound answers a request for a Household that is not in the tree:
+// for the Editor a sentence and a navigable tree, never a bare code.
+func (s *Server) renderNotFound(w http.ResponseWriter, r *http.Request) {
+	s.mu.RLock()
+	view := s.directoryView("", "", "", false)
+	s.mu.RUnlock()
+
+	view.NotFound = true
+
+	err := s.render(r.Context(), w, http.StatusNotFound, "directory", view)
+	if err != nil {
+		s.log.ErrorContext(r.Context(), "render not found", "error", err)
+		http.Error(w, "internal error", http.StatusInternalServerError)
 	}
 }
 

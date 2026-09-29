@@ -64,6 +64,11 @@ func (s *Server) directoryView(
 		if isPaneClosed {
 			view.Household.Form.Pane = paneClosed
 		}
+
+		if view.Household.Delete.Blocked == "" {
+			view.Household.Delete.URL = pageURL(id, "delete",
+				view.Household.Form.Open, view.Household.Form.Pane, nil)
+		}
 	}
 
 	return view
