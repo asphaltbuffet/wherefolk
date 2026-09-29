@@ -96,6 +96,8 @@ name is not a surname the Household carries.
 A Memorial Household prints under a Household Name by the same rules, and a Shared Address
 back-reference names the referenced Household by its Household Name, so the pointer matches the
 heading the reader is scanning for.
+
+A birth name prints in every tier, as part of the Household Name, and is not a Withheld field.
 _Avoid_: Label (that is the Path segment), title
 
 **Shared Address**:

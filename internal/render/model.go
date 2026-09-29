@@ -43,9 +43,9 @@ type Household struct {
 	Name string
 
 	// Memorial marks a Household whose adults have all died. It renders more
-	// compactly — a heading with dates rather than a full entry — because there
-	// is nothing in it to act on, but it must appear in every tier so that
-	// descendants group beneath it and no Path points at a missing node (§5.4).
+	// quietly — grey, with no contact details — because there is nothing in it
+	// to act on, but it must appear in every tier so that descendants group
+	// beneath it and no Path points at a missing node (§5.4).
 	Memorial bool
 
 	// AddressLines is the Household's own address. Empty when it has none, and

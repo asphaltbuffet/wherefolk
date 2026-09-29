@@ -2,8 +2,9 @@
 //
 // This file is deliberately NOT embedded in the binary (ADR-0004): adjusting
 // spacing or type is an edit here plus a restart, not a rebuild and redeploy.
-// The Go side emits data and calls three of these functions (directory, household, memorial); it sets no margins,
-// fonts or spacing of its own, so every layout decision is in this file.
+// The Go side emits data and calls three of these functions (directory,
+// household, memorial); it sets no margins, fonts or spacing of its own, so
+// every layout decision is in this file.
 //
 // Layout is not customisable (§5.1). There is one typeface, one set of margins
 // and one block format, on purpose: the Editor wants a directory that looks
@@ -36,10 +37,10 @@
 // It is one value for the whole Directory, on purpose. Each Household is its
 // own grid, and Typst sizes auto tracks per grid, so auto columns would move
 // from block to block; fixed tracks keep the phone column where the reader's
-// eye learned to find it. The dates track fits a Whole-date range, the widest
-// date a row holds ("September 30, 1928 – September 30, 2011"). A longer value
-// wraps inside its cell rather than breaking the grid.
-#let row-tracks = (9em, 15em, 8em, 1fr)
+// eye learned to find it. The dates track fits a typical birth date
+// comfortably; a Whole-date range ("September 30, 1928 – September 30, 2011")
+// may wrap to two lines inside its cell rather than widening every row.
+#let row-tracks = (9em, 13em, 8em, 1fr)
 
 // lifespan is a row's dates cell.
 //
@@ -66,7 +67,7 @@
 #let people-grid(people, ink: luma(0)) = grid(
   columns: row-tracks,
   column-gutter: 0.8em,
-  row-gutter: 0.35em,
+  row-gutter: 0.5em,
   ..people.map(p => (
     text(weight: "semibold", fill: ink, p.name),
     text(size: 9pt, fill: luma(80), lifespan(p)),

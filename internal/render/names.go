@@ -15,6 +15,13 @@ import (
 // name only reads as "née" beside a surname taken in marriage. A single adult
 // is their own name. A nickname is never part of it; it belongs on the row.
 //
+// An adult with an empty Given is skipped when building the shared-surname
+// given-name list, so a cleared Given never leaves a leading or dangling " & "
+// or a bare "(Mitchell)"; a birth name only attaches to a non-empty given
+// name. If every adult's Given is empty, the Household Name is just the
+// surname. The differing-surname branch needs no such guard: joinWords
+// already drops the empty Given and prints just the surname.
+//
 // BuildTree rejects a Household without adults, so none reaches here.
 func householdName(h rolo.Household) string {
 	surname := h.Adults[0].Surname
@@ -37,6 +44,10 @@ func householdName(h rolo.Household) string {
 
 	givens := make([]string, 0, len(h.Adults))
 	for _, a := range h.Adults {
+		if a.Given == "" {
+			continue
+		}
+
 		given := a.Given
 		if len(h.Adults) > 1 && a.BirthName != "" && a.BirthName != surname {
 			given = joinWords(given, "("+a.BirthName+")")
@@ -63,7 +74,9 @@ func carriedSurnames(adults []rolo.Person) map[string]bool {
 
 // rowName renders p as their row prints them: given name, any nickname
 // double-quoted, and the surname only when the Household Name does not
-// already carry it.
+// already carry it. When Given and Aka are both empty, the surname is kept
+// even if it is carried, so a person with a cleared Given never prints as a
+// blank row.
 func rowName(p rolo.Person, carried map[string]bool) string {
 	aka := ""
 	if p.Aka != "" {
@@ -71,7 +84,7 @@ func rowName(p rolo.Person, carried map[string]bool) string {
 	}
 
 	surname := p.Surname
-	if carried[surname] {
+	if carried[surname] && (p.Given != "" || aka != "") {
 		surname = ""
 	}
 

@@ -37,7 +37,7 @@ func TestMarkup(t *testing.T) {
 			in: render.Directory{
 				GeneratedAt: "2026-09-24",
 				Households: []render.Household{{
-					Name:         "Robert/Susan",
+					Name:         "Robert & Susan (Marsh) Langford",
 					AddressLines: []string{"42 Elm Street", "Springfield, IL 62701"},
 					Anniversary:  "1991-06-15",
 					Adults: []render.Person{{
@@ -51,7 +51,7 @@ func TestMarkup(t *testing.T) {
 			checkFunc: func(t *testing.T, got string) {
 				t.Helper()
 				assert.Contains(t, got, `#household(`)
-				assert.Contains(t, got, `name: "Robert/Susan"`)
+				assert.Contains(t, got, `name: "Robert & Susan (Marsh) Langford"`)
 				assert.Contains(t, got, `address: ("42 Elm Street", "Springfield, IL 62701",)`)
 				assert.Contains(t, got, `anniversary: "1991-06-15"`)
 				assert.Contains(t, got, `name: "Robert Langford"`)
@@ -64,7 +64,7 @@ func TestMarkup(t *testing.T) {
 			in: render.Directory{
 				GeneratedAt: "2026-09-24",
 				Households: []render.Household{{
-					Name:        "Harold/June",
+					Name:        "Harold & June (Whitfield) Langford",
 					Memorial:    true,
 					Anniversary: "1953-05-23",
 					Adults: []render.Person{{
@@ -87,13 +87,13 @@ func TestMarkup(t *testing.T) {
 			in: render.Directory{
 				GeneratedAt: "2026-09-24",
 				Households: []render.Household{{
-					Name:       "Daniel/Claire",
-					SharedWith: "Robert/Susan",
+					Name:       "Daniel & Claire (Ortega) Langford",
+					SharedWith: "Robert & Susan (Marsh) Langford",
 				}},
 			},
 			checkFunc: func(t *testing.T, got string) {
 				t.Helper()
-				assert.Contains(t, got, `shared: "Robert/Susan"`)
+				assert.Contains(t, got, `shared: "Robert & Susan (Marsh) Langford"`)
 				assert.Contains(t, got, `address: ()`)
 			},
 		},

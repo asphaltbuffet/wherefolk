@@ -452,6 +452,11 @@ birth — out of wide circulation. It therefore follows *who the date concerns*,
 
 Stated in one line: *a date is truncated while the person it concerns is living.*
 
+A birth name is the one accepted exception to this identity-verification caution: it prints inside
+the Household Name (CONTEXT.md, Household Name) in every tier, including Mail and Digital, and the
+Editor cannot withhold it — `HiddenFields` has no birth-name flag. The Directory's audience is the
+family, who already know these names, and a birth name is how a relative recognises who married in.
+
 ### 5.4 Memorial Households
 
 A Memorial Household appears in **every** tier as a names-and-dates reference, with no contact

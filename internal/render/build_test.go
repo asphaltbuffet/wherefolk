@@ -550,7 +550,7 @@ func TestBuildAddress(t *testing.T) {
 			index:      0,
 		},
 		{
-			name: "a shared address is a back-reference to a live target's label",
+			name: "a shared address is a back-reference to a live target's Household Name",
 			tier: render.Full,
 			households: []rolo.Household{
 				parent(rolo.Address{Lines: elm}, living("p_par001", "Robert")),
@@ -820,6 +820,26 @@ func TestBuildNames(t *testing.T) {
 			wantName:       "Chris Yoder & Sam Patel",
 			wantAdults:     []string{"Chris", "Sam"},
 			wantDependents: []string{"Riley", "Rowan Patel-Yoder"},
+		},
+		{
+			name: "an adult with an empty Given in a shared-surname household is skipped, not a bare parenthetical",
+			household: rolo.Household{
+				ID: "h_yode01", Adults: []rolo.Person{daryl, adult("p_dawn01", "", "Yoder", "Mitchell")},
+			},
+			wantName:   "Daryl Yoder",
+			wantAdults: []string{"Daryl", "Yoder"},
+		},
+		{
+			name: "a dependent with an empty Given keeps a carried surname rather than printing blank",
+			household: rolo.Household{
+				ID: "h_yode01", Adults: []rolo.Person{daryl, dawn},
+				Dependents: []rolo.Person{
+					{ID: "p_kid001", Given: "", Surname: "Yoder", Birth: minorBirth},
+				},
+			},
+			wantName:       "Daryl & Dawn (Mitchell) Yoder",
+			wantAdults:     []string{"Daryl", "Dawn"},
+			wantDependents: []string{"Yoder"},
 		},
 		{
 			name: "a memorial household is named by the same rules",
