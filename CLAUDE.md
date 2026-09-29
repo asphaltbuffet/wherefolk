@@ -110,10 +110,11 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     there, while values are still `rolo` types. Suppression is decided before withholding, so
     `[private]` never appears where the audience would not have seen a value anyway. `Markup` and
     `template/directory.typ` apply no rules. There is deliberately no unfiltered constructor.
-  - The **Household Name** (`Daryl & Dawn (Mitchell) Yoder`) and the row names beneath it are made
-    in `names.go`, called from `Build`. They are export-only: `rolo.Household.Label()` stays the
-    `Daryl/Dawn` Path segment the editing UI and every Path use, so nothing in `pkg/rolo` or
-    `internal/web` changes when the printed heading does.
+  - The **Household Name** is `rolo.Household.Name()`; `Label()` is the compact `Daryl/Dawn` Path
+    segment. The export heads each block with `Name()`, and the editor uses it wherever a Household
+    stands alone (tree, detail heading, Shared Address note, announcements); only the Path
+    breadcrumb and the Operator status page use `Label()`. Row names beneath a heading, which drop
+    a surname the heading carries, are `render`'s `rowName` in `names.go`.
   - The **Birthday Calendar** (`birthdays.go`) is built by `Build` like every other audience
     decision: living people with a known birth month whose birth date is not withheld, surname
     first, sorted case-insensitively. `Directory.Birthdays` carries a column number and a day string
