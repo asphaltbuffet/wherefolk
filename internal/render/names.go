@@ -72,16 +72,23 @@ func carriedSurnames(adults []rolo.Person) map[string]bool {
 	return carried
 }
 
+// nickname renders p's nickname as every printed name shows it, double-quoted,
+// or "" when p has none.
+func nickname(p rolo.Person) string {
+	if p.Aka == "" {
+		return ""
+	}
+
+	return `"` + p.Aka + `"`
+}
+
 // rowName renders p as their row prints them: given name, any nickname
 // double-quoted, and the surname only when the Household Name does not
 // already carry it. When Given and Aka are both empty, the surname is kept
 // even if it is carried, so a person with a cleared Given never prints as a
 // blank row.
 func rowName(p rolo.Person, carried map[string]bool) string {
-	aka := ""
-	if p.Aka != "" {
-		aka = `"` + p.Aka + `"`
-	}
+	aka := nickname(p)
 
 	surname := p.Surname
 	if carried[surname] && (p.Given != "" || aka != "") {
