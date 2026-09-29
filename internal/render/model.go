@@ -64,6 +64,18 @@ type Household struct {
 	Dependents []Person
 }
 
+// Birthday is one row of the Birthday Calendar (CONTEXT.md): a living person,
+// surname first, and the day of their birthday in its month.
+//
+// Month is a column number, 1–12, not a date: which month a person's row marks
+// is layout, and every rule about whether they appear at all was applied in
+// Build. Day is "15", or "?" when the month is known without its day.
+type Birthday struct {
+	Name  string
+	Month int
+	Day   string
+}
+
 // Directory is the whole printable document.
 type Directory struct {
 	// GeneratedAt is the stamp every export carries. Age gating is computed at
@@ -80,4 +92,9 @@ type Directory struct {
 	Restricted bool
 
 	Households []Household
+
+	// Birthdays is the Birthday Calendar printed after the Households, already
+	// filtered and ordered. Empty when nobody qualifies, and then no calendar
+	// prints at all.
+	Birthdays []Birthday
 }

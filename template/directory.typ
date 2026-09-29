@@ -155,3 +155,41 @@
 
   v(0.5em)
 }
+
+// birthdays is the Birthday Calendar: every living person, surname first,
+// against the twelve months, with the day of their birthday in its month.
+//
+// Who appears, what each name says and the order were all decided in Go; this
+// only lays the rows out. It starts on a fresh page after the last Household.
+// The month header repeats on every page, so page five still says which column
+// is Sep. Alternate rows are shaded so the eye can follow a row from name to
+// day. A row is never split across a page break; a surname group may be.
+#let birthdays(rows) = {
+  let months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
+
+  pagebreak(weak: true)
+  text(size: 14pt, weight: "bold", "Birthdays")
+  v(0.6em)
+
+  set table.cell(breakable: false)
+  table(
+    columns: (1fr,) + (2.4em,) * 12,
+    inset: (x: 4pt, y: 3pt),
+    align: (x, _) => if x == 0 { left } else { center },
+    stroke: (x, y) => (
+      left: if x > 0 { 0.4pt + luma(170) } else { none },
+      bottom: if y == 0 { 0.6pt + luma(60) } else { none },
+    ),
+    fill: (_, y) => if y > 0 and calc.even(y) { luma(242) },
+    table.header(
+      repeat: true,
+      [],
+      ..months.map(m => text(size: 9pt, weight: "semibold", m)),
+    ),
+    ..rows.map(r => (
+      text(size: 9pt, r.name),
+      ..range(1, 13).map(m => text(size: 9pt, if m == r.month { r.day } else { "" })),
+    )).flatten(),
+  )
+}

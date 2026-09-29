@@ -39,6 +39,23 @@ _Avoid_: Subtree, family line
 The complete published artifact — every Household, ordered and formatted for printing or sharing.
 _Avoid_: Book, export, roster
 
+**Birthday Calendar**:
+Pages at the end of every Directory listing living people by name against the twelve months, with
+the day of each person's birthday in their month — so the family knows when to send a card.
+A person appears only when their birth month is known and their birth date is not withheld; a
+month known without its day shows `?` in that month. The deceased never appear: a row would read
+as a reminder to send them a card.
+
+Each person is listed surname first — `Novak, Patricia "Pat"` — with their given name and any
+nickname exactly as their own row prints it, then any birth name that differs from their surname in
+parentheses, as in the Household Name: `Yoder, Dawn (Mitchell)`. The birth name lets a relative find
+someone by the name they grew up with, and tells apart two people who share a name. Rows are
+ordered by surname and then given name without regard to capitalisation.
+
+A Proof Sheet never carries a Birthday Calendar: it shows one Household's own entry, and the
+calendar lists the whole family.
+_Avoid_: Birthday list, birthday page, calendar
+
 **Proof Sheet**:
 A single Household's own entry, rendered on its own page and sent to that Household so they can
 confirm or correct what the Directory holds about them. Shows their own withheld fields, marked as

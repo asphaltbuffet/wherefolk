@@ -41,6 +41,8 @@ func Build(t *rolo.Tree, tier Tier, asOf time.Time) Directory {
 		return nil
 	})
 
+	d.Birthdays = birthdays(t)
+
 	return d
 }
 

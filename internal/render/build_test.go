@@ -145,6 +145,25 @@ func TestBuildExampleDirectory(t *testing.T) {
 				assert.Equal(t, "robert.langford@example.com", robert.Email)
 			},
 		},
+		{
+			name: "the birthday calendar lists the living, surname first, sorted",
+			checkFunc: func(t *testing.T, d render.Directory) {
+				t.Helper()
+				names := make([]string, 0, len(d.Birthdays))
+				for _, b := range d.Birthdays {
+					names = append(names, b.Name)
+				}
+				assert.Equal(t, []string{
+					"Langford, Claire (Ortega)",
+					"Langford, Daniel",
+					"Langford, Emma",
+					"Langford, Mia",
+					"Langford, Robert",
+					"Langford, Susan (Marsh)",
+					`Novak, Patricia "Pat"`,
+				}, names)
+			},
+		},
 	}
 
 	d := exampleDirectory(t)
@@ -879,6 +898,160 @@ func TestBuildNames(t *testing.T) {
 			assert.Equal(t, tt.wantName, h.Name, "Household Name")
 			assert.Equal(t, tt.wantAdults, names(h.Adults), "adult rows")
 			assert.Equal(t, tt.wantDependents, names(h.Dependents), "dependent rows")
+		})
+	}
+}
+
+// TestBuildBirthdays covers who appears on the Birthday Calendar and what each
+// row says (CONTEXT.md, Birthday Calendar).
+func TestBuildBirthdays(t *testing.T) {
+	person := func(id rolo.PersonID, given, surname string, birth rolo.Date) rolo.Person {
+		return rolo.Person{ID: id, Given: given, Surname: surname, Birth: birth}
+	}
+	// house puts the first person in as the adult and the rest as Dependents.
+	house := func(id rolo.HouseholdID, people ...rolo.Person) rolo.Household {
+		return rolo.Household{ID: id, Adults: people[:1], Dependents: people[1:]}
+	}
+
+	dawn := person("p_dawn01", "Dawn", "Yoder", rolo.Date{Year: 1952, Month: 6, Day: 15})
+
+	deceased := person("p_dead01", "Aden", "Yoder", adultBirth)
+	deceased.Death = deathDate
+
+	withheld := person("p_hide01", "Rhoda", "Weldy", adultBirth)
+	withheld.Hidden.Birth = true
+
+	katie := person("p_kate01", "Katelynn", "Weldy", adultBirth)
+	katie.Aka = "Katie"
+	katie.BirthName = "Birch"
+
+	wilma := person("p_wilm01", "Wilma", "Yoder", adultBirth)
+	wilma.BirthName = "Yoder"
+
+	tests := []struct {
+		name       string
+		tier       render.Tier
+		households []rolo.Household
+		want       []render.Birthday
+	}{
+		{
+			name:       "a living person's day sits in their month",
+			tier:       render.Full,
+			households: []rolo.Household{house("h_cal001", dawn)},
+			want:       []render.Birthday{{Name: "Yoder, Dawn", Month: 6, Day: "15"}},
+		},
+		{
+			name: "a month known without its day shows a question mark",
+			tier: render.Full,
+			households: []rolo.Household{house("h_cal001",
+				person("p_mont01", "Mary", "Weldy", rolo.Date{Year: 1951, Month: 6}))},
+			want: []render.Birthday{{Name: "Weldy, Mary", Month: 6, Day: "?"}},
+		},
+		{
+			name: "a year-only or missing birth date gets no row",
+			tier: render.Full,
+			households: []rolo.Household{house("h_cal001",
+				person("p_year01", "Glenn", "Yoder", yearOnly),
+				person("p_none01", "Heath", "Lechlitner", rolo.Date{}))},
+			want: nil,
+		},
+		{
+			name:       "the deceased never appear",
+			tier:       render.Full,
+			households: []rolo.Household{house("h_cal001", dawn, deceased)},
+			want:       []render.Birthday{{Name: "Yoder, Dawn", Month: 6, Day: "15"}},
+		},
+		{
+			name:       "a withheld birth date gets no row, not a [private] one",
+			tier:       render.Full,
+			households: []rolo.Household{house("h_cal001", dawn, withheld)},
+			want:       []render.Birthday{{Name: "Yoder, Dawn", Month: 6, Day: "15"}},
+		},
+		{
+			name:       "a nickname and a differing birth name follow the given name",
+			tier:       render.Full,
+			households: []rolo.Household{house("h_cal001", katie)},
+			want:       []render.Birthday{{Name: `Weldy, Katelynn "Katie" (Birch)`, Month: 3, Day: "12"}},
+		},
+		{
+			name:       "a birth name equal to the surname is not shown",
+			tier:       render.Full,
+			households: []rolo.Household{house("h_cal001", wilma)},
+			want:       []render.Birthday{{Name: "Yoder, Wilma", Month: 3, Day: "12"}},
+		},
+		{
+			name: "no surname prints the given name alone",
+			tier: render.Full,
+			households: []rolo.Household{house("h_cal001",
+				person("p_cher01", "Cher", "", adultBirth))},
+			want: []render.Birthday{{Name: "Cher", Month: 3, Day: "12"}},
+		},
+		{
+			name: "rows sort by surname then given name, ignoring case, across Households; no surname sorts by given name",
+			tier: render.Full,
+			households: []rolo.Household{
+				house("h_cal001",
+					person("p_zoa001", "Zoa", "Lechlitner", adultBirth),
+					person("p_cour01", "Courtney", "McDaniel", adultBirth)),
+				house("h_cal002",
+					person("p_brad01", "Brady", "Maller", adultBirth),
+					person("p_emma01", "Emma", "de Groot", adultBirth),
+					person("p_abig01", "Abigail", "Lechlitner", adultBirth),
+					person("p_mado01", "Madonna", "", adultBirth)),
+			},
+			want: []render.Birthday{
+				{Name: "de Groot, Emma", Month: 3, Day: "12"},
+				{Name: "Lechlitner, Abigail", Month: 3, Day: "12"},
+				{Name: "Lechlitner, Zoa", Month: 3, Day: "12"},
+				{Name: "Madonna", Month: 3, Day: "12"},
+				{Name: "Maller, Brady", Month: 3, Day: "12"},
+				{Name: "McDaniel, Courtney", Month: 3, Day: "12"},
+			},
+		},
+		{
+			name: "the calendar appears in every tier, minors included",
+			tier: render.Mail,
+			households: []rolo.Household{house("h_cal001",
+				dawn, person("p_mino01", "Mia", "Yoder", minorBirth))},
+			want: []render.Birthday{
+				{Name: "Yoder, Dawn", Month: 6, Day: "15"},
+				{Name: "Yoder, Mia", Month: 4, Day: "30"},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			d := build(t, tt.tier, tt.households...)
+			assert.Equal(t, tt.want, d.Birthdays)
+		})
+	}
+}
+
+// TestBuildBirthdaysIsTheSameInEveryTier pins that no tier rule reaches the
+// Birthday Calendar: a row shows only a month and day, which every tier already
+// prints, so a tier that changed the calendar would be leaking or hiding by
+// accident.
+func TestBuildBirthdaysIsTheSameInEveryTier(t *testing.T) {
+	living := rolo.Person{ID: "p_live01", Given: "Dawn", Surname: "Yoder", Birth: adultBirth, Phone: "555-201-0001"}
+	minor := rolo.Person{ID: "p_mino01", Given: "Mia", Surname: "Yoder", Birth: minorBirth}
+	households := []rolo.Household{{ID: "h_cal001", Adults: []rolo.Person{living}, Dependents: []rolo.Person{minor}}}
+
+	want := build(t, render.Full, households...).Birthdays
+	require.Len(t, want, 2)
+
+	tests := []struct {
+		name string
+		tier render.Tier
+	}{
+		{name: "mail", tier: render.Mail},
+		{name: "call", tier: render.Call},
+		{name: "digital", tier: render.Digital},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, want, build(t, tt.tier, households...).Birthdays)
 		})
 	}
 }

@@ -9,7 +9,7 @@ import (
 // generated markup emits data and calls these; it never sets a margin, a font
 // or a spacing value itself, because layout belongs to the template the
 // Operator edits (ADR-0004, §5.1).
-const templateImport = `#import "directory.typ": directory, household, memorial`
+const templateImport = `#import "directory.typ": directory, household, memorial, birthdays`
 
 // Markup renders d as Typst source.
 //
@@ -30,6 +30,10 @@ func Markup(d Directory) string {
 
 	for _, h := range d.Households {
 		writeHousehold(&b, h)
+	}
+
+	if len(d.Birthdays) > 0 {
+		writeBirthdays(&b, d.Birthdays)
 	}
 
 	b.WriteString("]\n")
@@ -59,6 +63,25 @@ func writeHousehold(b *strings.Builder, h Household) {
 	b.WriteString(",\n    dependents: ")
 	b.WriteString(peopleArray(h.Dependents))
 	b.WriteString(",\n  )\n")
+}
+
+// writeBirthdays emits the Birthday Calendar as one call, inside the
+// directory body so it inherits the page setup and footer. The trailing comma
+// after each row keeps a single-row calendar an array (see peopleArray).
+func writeBirthdays(b *strings.Builder, rows []Birthday) {
+	b.WriteString("  #birthdays((")
+
+	for _, r := range rows {
+		b.WriteString("\n    (name: ")
+		b.WriteString(quote(r.Name))
+		b.WriteString(", month: ")
+		b.WriteString(strconv.Itoa(r.Month))
+		b.WriteString(", day: ")
+		b.WriteString(quote(r.Day))
+		b.WriteString("),")
+	}
+
+	b.WriteString("\n  ))\n")
 }
 
 // peopleArray renders a slice of people as a Typst array of dictionaries.

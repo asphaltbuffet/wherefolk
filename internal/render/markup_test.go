@@ -20,7 +20,7 @@ func TestMarkup(t *testing.T) {
 			in:   render.Directory{GeneratedAt: "2026-09-24"},
 			checkFunc: func(t *testing.T, got string) {
 				t.Helper()
-				assert.Contains(t, got, `#import "directory.typ": directory, household, memorial`,
+				assert.Contains(t, got, `#import "directory.typ": directory, household, memorial, birthdays`,
 					"layout lives in the template on disk (ADR-0004)")
 			},
 		},
@@ -165,6 +165,35 @@ func TestMarkup(t *testing.T) {
 					"the directory content block must be closed")
 			},
 		},
+		{
+			name: "the birthday calendar follows the households",
+			in: render.Directory{
+				GeneratedAt: "Sep 24, 2026",
+				Households:  []render.Household{{Name: "Robert & Susan (Marsh) Langford"}},
+				Birthdays: []render.Birthday{
+					{Name: "Langford, Robert", Month: 3, Day: "12"},
+					{Name: `Novak, Patricia "Pat"`, Month: 5, Day: "?"},
+				},
+			},
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				assert.Contains(t, got, `(name: "Langford, Robert", month: 3, day: "12"),`)
+				assert.Contains(t, got, `(name: "Novak, Patricia \"Pat\"", month: 5, day: "?"),`)
+				assert.Greater(t, strings.Index(got, "#birthdays("), strings.Index(got, "#household("),
+					"the calendar is at the end of the Directory")
+			},
+		},
+		{
+			name: "no birthdays means no calendar",
+			in: render.Directory{
+				GeneratedAt: "Sep 24, 2026",
+				Households:  []render.Household{{Name: "Robert & Susan (Marsh) Langford"}},
+			},
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				assert.NotContains(t, got, "#birthdays(", "an empty table would look broken")
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -200,6 +229,14 @@ func TestMarkupOverExampleDirectory(t *testing.T) {
 				// branch entirely, which is the regression this guards.
 				assert.Equal(t, 1, strings.Count(got, `"42 Elm Street"`),
 					"a shared address is never repeated as lines (§3)")
+			},
+		},
+		{
+			name: "the example's birthday calendar is emitted once",
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				assert.Equal(t, 1, strings.Count(got, "#birthdays("))
+				assert.Equal(t, 7, strings.Count(got, "month: "), "seven living people with known birth dates")
 			},
 		},
 	}
