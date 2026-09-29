@@ -39,7 +39,13 @@ type restoreOutcome struct {
 // looking for is most often the one they just made. Callers hold at least a
 // read lock.
 func (s *Server) trashView(notice string) trashView {
-	entries := slices.Clone(s.trash.Entries)
+	// Purge, not the stored Trash: an expired, unanchored entry is still
+	// restorable until the next Trash write, but showing it here — with a
+	// kept-until date already past — would be dishonest. This is a read; it
+	// writes nothing.
+	trash, _ := s.trash.Purge(s.now())
+
+	entries := slices.Clone(trash.Entries)
 	slices.SortStableFunc(entries, func(a, b store.TrashEntry) int {
 		return b.DeletedAt.Compare(a.DeletedAt)
 	})
@@ -52,7 +58,7 @@ func (s *Server) trashView(notice string) trashView {
 			Name:      e.Household.Name(),
 			Path:      e.Path,
 			Deleted:   e.DeletedAt.Format("January 2, 2006"),
-			KeptUntil: e.Expires().Format("January 2"),
+			KeptUntil: trash.KeptUntil(e.Household.ID).Format("January 2"),
 		})
 	}
 

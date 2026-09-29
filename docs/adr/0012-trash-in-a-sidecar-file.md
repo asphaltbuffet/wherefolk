@@ -16,11 +16,14 @@ Directory, so nothing has to remember anything.
 
 ## Consequences
 
-A deletion or restore changes two files, and no filesystem makes two renames atomic. Every write
-therefore saves the file *gaining* a copy of the Household before the one losing it, so a crash
-between the two leaves the Household in both files rather than in neither, and loading reconciles
-that duplicate by dropping the Trash entry whose ID is already in the document. The document wins
-because it is what the Editor last saw.
+A deletion or restore changes two files, and no filesystem makes two renames atomic. The order is
+decided from the document alone: whenever the document is *gaining* a Household it did not have —
+a restore, or an undo reaching back past one — it is saved first; otherwise the Trash is saved
+first. A Trash *losing* an entry to a purge is not the same thing and never reverses the order,
+because a purge is a deliberate loss, not a Household moving between the two files. Either way, a
+crash between the two writes leaves the Household in both files rather than in neither, and loading
+reconciles that duplicate by dropping the Trash entry whose ID is already in the document. The
+document wins because it is what the Editor last saw.
 
 The Operator's hand-repair path now has a second file to read, but it is the same shape of JSON
 written the same way (atomic, `0600`), and a document restored from a snapshot needs nothing from

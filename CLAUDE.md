@@ -112,8 +112,10 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     file is an empty Trash. `OpenTrash` reconciles (document wins) and purges at startup, writing
     only if something changed.
   - `State{Document, Trash}` is never mutated; `Persist(prev, next)` compares pointers to decide
-    which files changed, and writes the file **gaining** a Household first, so a crash duplicates
-    rather than loses. `Reconcile`/`Purge` return the *same pointer* when nothing changed —
+    which files changed. The order is decided from the **document** alone: it writes the document
+    first iff the document gained a Household (a restore), and otherwise writes the Trash first
+    — a Trash *losing* entries to a purge never drives the order — so a crash duplicates rather
+    than loses. `Reconcile`/`Purge` return the *same pointer* when nothing changed —
     keep it that way or every edit rewrites the Trash.
   - `Purge` keeps an expired entry while any unexpired entry needs it (parent or Shared
     Address, transitively); `Restore` brings that chain back together.

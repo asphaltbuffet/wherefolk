@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/asphaltbuffet/wherefolk/internal/store"
+	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
 // TestPersistOrder proves the add-before-remove rule (ADR-0012) by making one
@@ -17,6 +18,28 @@ func TestPersistOrder(t *testing.T) {
 	doc := sampleDocument()
 	empty := store.NewTrash()
 	full := sampleTrash()
+
+	// withoutCarla is doc missing h_carla, standing in for the document just
+	// after a deletion (or just before a restore) of that Household.
+	withoutCarla := func() *store.Document {
+		d := sampleDocument()
+		d.Households = d.Households[:2]
+		return d
+	}
+
+	// docWithX/docWithoutX and trash entries for h_x and h_p model an undo
+	// that reaches back past a purge: deleting h_x also purged h_p (already
+	// expired); undoing that deletion must restore h_x to the document and
+	// h_p to the Trash, in that order, or a crash mid-write loses h_x
+	// entirely (neither file holds it).
+	docWithX := func() *store.Document {
+		d := sampleDocument()
+		d.Households = append(d.Households, rolo.Household{ID: "h_x"})
+		return d
+	}
+	docWithoutX := sampleDocument
+	trashX := trashOf(entry("h_x", "", "", day(0)))
+	trashP := trashOf(entry("h_p", "", "", day(0)))
 
 	tests := []struct {
 		name       string
@@ -37,7 +60,7 @@ func TestPersistOrder(t *testing.T) {
 		},
 		{
 			name:       "a restore writes the document before the Trash",
-			prev:       store.State{Document: doc, Trash: full},
+			prev:       store.State{Document: withoutCarla(), Trash: full},
 			next:       store.State{Document: sampleDocument(), Trash: empty},
 			breakTrash: true,
 			wantErr:    true,
@@ -55,6 +78,22 @@ func TestPersistOrder(t *testing.T) {
 			prev:      store.State{Document: doc, Trash: empty},
 			next:      store.State{Document: doc, Trash: full},
 			breakDoc:  true,
+			wantTrash: true,
+		},
+		{
+			name:       "undoing a deletion that purged an expired entry writes the document first",
+			prev:       store.State{Document: docWithoutX(), Trash: trashX},
+			next:       store.State{Document: docWithX(), Trash: trashP},
+			breakTrash: true,
+			wantErr:    true,
+			wantDoc:    true,
+		},
+		{
+			name:      "a deletion that also purges writes the Trash first",
+			prev:      store.State{Document: docWithX(), Trash: trashP},
+			next:      store.State{Document: docWithoutX(), Trash: trashX},
+			breakDoc:  true,
+			wantErr:   true,
 			wantTrash: true,
 		},
 	}

@@ -227,6 +227,57 @@ func TestPurge(t *testing.T) {
 	}
 }
 
+func TestKeptUntil(t *testing.T) {
+	tests := []struct {
+		name  string
+		trash *store.Trash
+		id    rolo.HouseholdID
+		want  time.Time
+	}{
+		{
+			name:  "an entry with nothing anchoring it keeps its own expiry",
+			trash: trashOf(entry("h_a", "", "", day(0))),
+			id:    "h_a",
+			want:  entry("h_a", "", "", day(0)).Expires(),
+		},
+		{
+			name: "an entry anchored by a later child keeps the child's expiry",
+			trash: trashOf(
+				entry("h_clyde", "h_aden", "", day(0)),
+				entry("h_dave", "h_clyde", "", day(20)),
+			),
+			id:   "h_clyde",
+			want: entry("h_dave", "h_clyde", "", day(20)).Expires(),
+		},
+		{
+			name: "anchoring reaches through a grandchild transitively",
+			trash: trashOf(
+				entry("h_aden", "", "", day(0)),
+				entry("h_clyde", "h_aden", "", day(1)),
+				entry("h_dave", "h_clyde", "", day(20)),
+			),
+			id:   "h_aden",
+			want: entry("h_dave", "h_clyde", "", day(20)).Expires(),
+		},
+		{
+			name: "anchoring via a Shared Address target keeps the sharer's expiry",
+			trash: trashOf(
+				entry("h_susan", "", "", day(0)),
+				entry("h_harold", "", "h_susan", day(20)),
+			),
+			id:   "h_susan",
+			want: entry("h_harold", "", "h_susan", day(20)).Expires(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.trash.KeptUntil(tt.id)
+			assert.True(t, tt.want.Equal(got), "want %s, got %s", tt.want, got)
+		})
+	}
+}
+
 func TestReconcile(t *testing.T) {
 	doc := &store.Document{Schema: store.CurrentSchema, Households: []rolo.Household{{ID: "h_dave"}}}
 
@@ -296,6 +347,16 @@ func TestChain(t *testing.T) {
 			),
 			id:   "h_harold",
 			want: []rolo.HouseholdID{"h_harold", "h_susan"},
+		},
+		{
+			name: "a trashed parent and a distinct trashed Shared Address target both come back, parent first",
+			trash: trashOf(
+				entry("h_clyde", "h_aden", "", day(0)),
+				entry("h_susan", "h_aden", "", day(0)),
+				entry("h_harold", "h_clyde", "h_susan", day(1)),
+			),
+			id:   "h_harold",
+			want: []rolo.HouseholdID{"h_harold", "h_clyde", "h_susan"},
 		},
 		{
 			name:    "a Household not in the Trash is refused",

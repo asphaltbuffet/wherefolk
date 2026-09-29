@@ -8,7 +8,7 @@
   {{with .Notice}}<p class="announce" role="status">{{.}}</p>{{end}}
 
   {{if .Entries}}
-    <p>Households deleted in the last 30 days. Restoring one puts it back exactly where it was.</p>
+    <p>Deleted households are kept here for at least 30 days. Restoring one puts it back exactly where it was.</p>
     <ul class="trash-list">
       {{range .Entries}}
       <li>

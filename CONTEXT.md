@@ -182,7 +182,8 @@ _Avoid_: Recycle bin, archive, deleted items
 Reverses the Editor's most recent save — an edit, a deletion or a restore — exactly, as offered
 beside the sentence announcing it. One step only, and only while nothing has been saved since:
 undoing a change that later work was built on would discard that work. It lasts as long as the
-service keeps running; beyond that, the Trash and the nightly snapshots are the recovery.
+service keeps running; beyond that, a deleted Household can still be restored from the Trash; any
+other change can only be reversed by editing it back.
 _Avoid_: Revert, rollback, history
 
 ### Dates

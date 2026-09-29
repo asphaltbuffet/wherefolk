@@ -129,6 +129,32 @@ func (e TrashEntry) needs() []rolo.HouseholdID {
 	return out
 }
 
+// KeptUntil is when id can no longer be restored: its own Expires, or, if
+// later, the Expires of any entry that needs it to be restorable — directly
+// or through another entry — since Purge keeps id alive for exactly as long
+// as anything else in the Trash still needs it. This is the date the
+// Recently deleted page shows; Expires alone can read as already past while
+// the entry is still there, restorable, because something newer anchors it.
+func (t *Trash) KeptUntil(id rolo.HouseholdID) time.Time {
+	e, ok := t.Entry(id)
+	if !ok {
+		return time.Time{}
+	}
+
+	latest := e.Expires()
+
+	for _, o := range t.Entries {
+		if slices.Contains(o.needs(), id) {
+			candidate := t.KeptUntil(o.Household.ID)
+			if candidate.After(latest) {
+				latest = candidate
+			}
+		}
+	}
+
+	return latest
+}
+
 // filter returns the entries keep accepts. When it accepts them all it returns
 // t itself, so an unchanged Trash keeps its identity and Persist skips the
 // write.

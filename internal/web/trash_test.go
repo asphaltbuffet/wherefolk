@@ -88,6 +88,81 @@ func TestTrashPage(t *testing.T) {
 	}
 }
 
+// newDatedTrashServer serves sampleDocument with a Household whose own 30
+// days are over but which a newer entry needs, and a separate Household that
+// is expired and unanchored.
+func newDatedTrashServer(t *testing.T) *web.Server {
+	t.Helper()
+
+	doc := sampleDocument()
+	take := func(id rolo.HouseholdID) rolo.Household {
+		i := slices.IndexFunc(doc.Households, func(h rolo.Household) bool { return h.ID == id })
+		require.GreaterOrEqual(t, i, 0)
+		h := doc.Households[i]
+		doc.Households = slices.Delete(doc.Households, i, i+1)
+		return h
+	}
+
+	clyde, dave := take("h_clyde"), take("h_dave")
+
+	// testClock is September 25, 2026. Clyde was deleted August 1 (his own 30
+	// days are long over) but Dave, beneath him, was deleted September 10
+	// (his 30 days end October 10) so Clyde is anchored until then too.
+	// A separate, unrelated Household was deleted August 1 as well and its 30
+	// days are also over, with nothing anchoring it.
+	trash := &store.Trash{
+		Schema: store.CurrentTrashSchema,
+		Entries: []store.TrashEntry{
+			{DeletedAt: time.Date(2026, time.August, 1, 10, 0, 0, 0, time.UTC), Path: "Aden/Nettie › Clyde/Doris", Household: clyde},
+			{DeletedAt: time.Date(2026, time.September, 10, 10, 0, 0, 0, time.UTC), Path: "Aden/Nettie › Clyde/Doris › Dave", Household: dave},
+			{DeletedAt: time.Date(2026, time.August, 1, 10, 0, 0, 0, time.UTC), Path: "Reeve",
+				Household: rolo.Household{ID: "h_unanchored", Adults: []rolo.Person{{ID: "p_nobody", Given: "Norma", Surname: "Nobody"}}}},
+		},
+	}
+
+	nextID := sequentialIDs("h_new")
+	srv, err := web.New(store.State{Document: doc, Trash: trash}, config.Config{}, testLogger(), web.Meta{},
+		(&recordingSaver{}).save,
+		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextID()), nil },
+		func() (rolo.PersonID, error) { return "p_x", nil },
+		&fakeExporter{}, testClock,
+	)
+	require.NoError(t, err)
+
+	return srv
+}
+
+func TestRecentlyDeletedDates(t *testing.T) {
+	tests := []struct {
+		name  string
+		check func(t *testing.T, body string)
+	}{
+		{
+			name: "an entry whose own 30 days are over but which a newer entry needs shows the newer entry's date",
+			check: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, "Clyde &amp; Doris")
+				assert.Contains(t, body, "kept until October 10")
+				assert.NotContains(t, body, "kept until August 31")
+			},
+		},
+		{
+			name: "an expired, unanchored entry is not listed",
+			check: func(t *testing.T, body string) {
+				t.Helper()
+				assert.NotContains(t, body, "Norma Nobody")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := fetch(t, newDatedTrashServer(t), "/trash").Body.String()
+			tt.check(t, body)
+		})
+	}
+}
+
 func TestEmptyTrash(t *testing.T) {
 	tests := []struct {
 		name    string
