@@ -45,7 +45,7 @@ func TestDirectoryPage(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "Clyde Whitlock")
+				assert.Contains(t, body, "<h1>Clyde &amp; Doris (Kowalski) Whitlock")
 				assert.Contains(t, body, "1412 Oak St")
 				assert.Contains(t, body, "Aden &amp; Nettie Whitlock", "the tree pane is still there")
 			},
@@ -118,6 +118,8 @@ func TestDirectoryPage(t *testing.T) {
 				assert.Contains(t, body, "not in the directory")
 				assert.NotContains(t, body, "404", "the Editor never sees an error code")
 				assert.Contains(t, body, "Aden &amp; Nettie Whitlock", "the tree is still navigable from the error")
+				assert.NotContains(t, body, `class="breadcrumb"`, "no Household means no Path to show")
+				assert.Equal(t, 1, strings.Count(body, "Make a Directory to send"), "the top bar still offers the export link")
 			},
 		},
 		{
@@ -135,6 +137,10 @@ func TestDirectoryPage(t *testing.T) {
 				assert.Less(t, crumb, link, "breadcrumb on the left, link on the right")
 				assert.Less(t, link, heading, "both above the heading")
 				assert.Equal(t, 1, strings.Count(body, "Make a Directory to send"), "the link appears once")
+
+				bar := body[top : top+strings.Index(body[top:], "</div>")]
+				assert.Contains(t, bar, `class="breadcrumb"`, "the breadcrumb sits inside .detail-top")
+				assert.Contains(t, bar, "Make a Directory to send", "the export link sits inside .detail-top")
 			},
 		},
 		{
@@ -172,6 +178,8 @@ func TestDirectoryPage(t *testing.T) {
 				// a row without its toggle, breaks the equality.
 				assert.Equal(t, strings.Count(body, `aria-label="Hide `), strings.Count(body, `class="field-row"`),
 					"every Hide sits in a field row with its field")
+				assert.Equal(t, strings.Count(body, `title="Print [private] instead of this in the Directory"`), strings.Count(body, `aria-label="Hide `),
+					"every toggle carries its hover text")
 			},
 		},
 		{

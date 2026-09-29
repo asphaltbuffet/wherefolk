@@ -95,8 +95,10 @@ func (h Household) SharesAddress() bool { return h.Address.SharedWith != "" }
 // tier filter (item 8) ask the same question in the same words.
 func (h Household) AddressHidden() bool { return h.Address.Hidden }
 
-// Label is the Household's name as it appears in the tree and in a Path:
-// the adults' given names joined by a slash, as in "Dave/Diane".
+// Label is the compact Path segment: the adults' given names joined by a
+// slash, as in "Dave/Diane". A Path chains these, so they must stay short.
+// Wherever a Household stands alone — the Directory, the editor's tree and
+// detail heading — use Name.
 func (h Household) Label() string {
 	if len(h.Adults) == 0 {
 		return "(" + string(h.ID) + ")"

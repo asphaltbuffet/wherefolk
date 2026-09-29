@@ -8,7 +8,9 @@ import (
 
 // carriedSurnames is the set of surnames a Household Name prints, which a row
 // beneath it need not repeat. Birth names are not included: a parenthesised
-// "(Mitchell)" is not a surname the Household carries.
+// "(Mitchell)" is not a surname the Household carries. See
+// rolo.Household.Name, which decides which surnames print, so the two stay
+// in step.
 func carriedSurnames(adults []rolo.Person) map[string]bool {
 	carried := make(map[string]bool, len(adults))
 	for _, a := range adults {

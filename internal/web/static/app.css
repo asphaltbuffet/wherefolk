@@ -76,7 +76,7 @@ main { height: 100vh; }
 }
 
 .household-facts { display: grid; grid-template-columns: 8rem 1fr; gap: .5rem var(--gap); align-items: start; }
-.household-facts > label { margin-top: .3rem; }
+.household-form .household-facts > label { margin-top: .3rem; }
 .household-facts dt { color: var(--muted); }
 .household-facts dd { margin: 0; }
 .address-line { display: block; }

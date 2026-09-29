@@ -74,9 +74,10 @@ func paneToggleURL(selected rolo.HouseholdID, isClosed bool) string {
 //
 // HasChildren is therefore separate from len(Children): a collapsed node still
 // needs a disclosure triangle, and the template cannot infer one from the other.
+//
+// Label holds the Household Name (rolo.Household.Name()), not the Path form.
 type treeNode struct {
-	ID rolo.HouseholdID
-	// Label is the Household Name (rolo.Household.Name()), not the Path form.
+	ID          rolo.HouseholdID
 	Label       string
 	Memorial    bool
 	Selected    bool
