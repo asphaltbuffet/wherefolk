@@ -72,6 +72,32 @@ A Household's form offers two blank slots, one for an adult and one for a Depend
 two are structurally different (§3) and a Household with a single adult must still be able to gain
 a Dependent. The slot a person arrives in is what decides where they belong; nothing infers it.
 
+**Household Name**:
+The heading a Household prints under in the Directory — `Daryl & Dawn (Mitchell) Yoder`. Written
+for a reader addressing a card, not for navigation, so it carries surnames and birth names that a
+Path segment omits. Appears in the Directory only; the editing UI and every Path keep the compact
+`Daryl/Dawn` form, because a Path chains several generations and a full name per link would be
+unreadable.
+
+When the adults share a surname it is printed once, last, and each adult who was born under a
+different surname carries it in parentheses after their given name. When their surnames differ,
+each adult is named in full — `Chris Yoder & Sam Patel` — and no birth name is shown, since a birth
+name only reads as "née" beside a surname taken in marriage. A birth name equal to the current
+surname is never shown. A single adult prints as their own name: `Patricia Novak`.
+
+A nickname never appears in the Household Name, which is the formal name one would write on an
+envelope. It appears on the person's own row — `Patricia "Pat"` — where a reader looks for them.
+
+Beneath the Household Name, each person's row drops their surname when that surname already
+appears in it, and prints it otherwise: under `Daryl & Dawn (Mitchell) Yoder`, a Dependent Kyle
+Yoder is `Kyle` but a stepchild Jordan Mitchell is `Jordan Mitchell`, because a parenthesised birth
+name is not a surname the Household carries.
+
+A Memorial Household prints under a Household Name by the same rules, and a Shared Address
+back-reference names the referenced Household by its Household Name, so the pointer matches the
+heading the reader is scanning for.
+_Avoid_: Label (that is the Path segment), title
+
 **Shared Address**:
 A Household whose Address is a reference to its parent Household's Address rather than its own
 text. Stays in sync when the parent's Address changes and renders as a back-reference instead of a
@@ -132,6 +158,9 @@ the year truncates to nothing, because the year is all it holds.
 A date rendered in full, with year — `March 12, 1965`, or `March 1938` and `1938` at lesser
 precision. Used for any date concerning only deceased people — a death, a deceased person's birth,
 or an Anniversary where both adults have died — and for every date in the Full tier.
+
+A deceased person's dates print together as one range, `March 12, 1965 – June 3, 2001`, whether
+they are in a Memorial Household or not.
 
 Both forms spell the month out. A printed Directory is read by relatives, not parsed, and `03-12`
 cannot say whether it means March or December.
