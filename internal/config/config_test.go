@@ -258,3 +258,20 @@ func TestSecretNeverPrints(t *testing.T) {
 		})
 	}
 }
+
+func TestPaths(t *testing.T) {
+	tests := []struct {
+		name string
+		got  func(config.Config) string
+		want string
+	}{
+		{name: "document", got: config.Config.DocumentPath, want: "/data/directory.json"},
+		{name: "trash sits beside the document", got: config.Config.TrashPath, want: "/data/trash.json"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, tt.got(config.Config{DataDir: "/data"}))
+		})
+	}
+}

@@ -26,6 +26,9 @@ const (
 	// Item 6's snapshots/ directory lives beside it, which is why WHEREFOLK_DATA
 	// names a directory rather than a file (§2.1).
 	DocumentName = "directory.json"
+	// TrashName is the Trash's filename within the data directory, beside the
+	// document (ADR-0012).
+	TrashName = "trash.json"
 	// DefaultTemplateDir is where the Typst layout lives inside the container.
 	// It is a directory under the same volume as the document, so the Operator
 	// edits the template through the same mount they already have (§2.1,
@@ -62,6 +65,9 @@ type Config struct {
 
 // DocumentPath is the JSON store's location on disk.
 func (c Config) DocumentPath() string { return filepath.Join(c.DataDir, DocumentName) }
+
+// TrashPath is the Trash file's location on disk.
+func (c Config) TrashPath() string { return filepath.Join(c.DataDir, TrashName) }
 
 // Load reads configuration from getenv, which is [os.Getenv] in production and a
 // map lookup in tests. An unset variable takes its default; an invalid one is an
