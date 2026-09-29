@@ -211,6 +211,15 @@ func TestPurge(t *testing.T) {
 			want:        []rolo.HouseholdID{},
 			wantChanged: true,
 		},
+		{
+			name: "two entries that each need the other do not loop",
+			trash: trashOf(
+				entry("h_a", "h_b", "", day(0)),
+				entry("h_b", "h_a", "", day(0)),
+			),
+			now:  day(29),
+			want: []rolo.HouseholdID{"h_a", "h_b"},
+		},
 	}
 
 	for _, tt := range tests {
@@ -267,6 +276,21 @@ func TestKeptUntil(t *testing.T) {
 			),
 			id:   "h_susan",
 			want: entry("h_harold", "", "h_susan", day(20)).Expires(),
+		},
+		{
+			name:  "an entry that shares its own address does not loop",
+			trash: trashOf(entry("h_a", "", "h_a", day(0))),
+			id:    "h_a",
+			want:  entry("h_a", "", "h_a", day(0)).Expires(),
+		},
+		{
+			name: "two entries that each need the other do not loop",
+			trash: trashOf(
+				entry("h_a", "h_b", "", day(0)),
+				entry("h_b", "h_a", "", day(20)),
+			),
+			id:   "h_a",
+			want: entry("h_b", "h_a", "", day(20)).Expires(),
 		},
 	}
 

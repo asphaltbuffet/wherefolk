@@ -163,6 +163,67 @@ func TestRecentlyDeletedDates(t *testing.T) {
 	}
 }
 
+// newCountTrashServer serves sampleDocument with the given Trash entries
+// directly, for asserting the tree pane's count against the page's list.
+func newCountTrashServer(t *testing.T, entries ...store.TrashEntry) *web.Server {
+	t.Helper()
+
+	srv, err := web.New(
+		store.State{Document: sampleDocument(), Trash: &store.Trash{Schema: store.CurrentTrashSchema, Entries: entries}},
+		config.Config{}, testLogger(), web.Meta{},
+		(&recordingSaver{}).save,
+		func() (rolo.HouseholdID, error) { return "h_new001", nil },
+		func() (rolo.PersonID, error) { return "p_x", nil },
+		&fakeExporter{}, testClock,
+	)
+	require.NoError(t, err)
+
+	return srv
+}
+
+func TestTrashCountMatchesPage(t *testing.T) {
+	// testClock is September 25, 2026.
+	live := store.TrashEntry{
+		DeletedAt: time.Date(2026, time.September, 20, 10, 0, 0, 0, time.UTC),
+		Household: rolo.Household{ID: "h_live", Adults: []rolo.Person{{ID: "p_live", Given: "Liv", Surname: "Ongoing"}}},
+	}
+	expiredUnanchored := store.TrashEntry{
+		DeletedAt: time.Date(2026, time.August, 1, 10, 0, 0, 0, time.UTC),
+		Household: rolo.Household{ID: "h_unanchored", Adults: []rolo.Person{{ID: "p_nobody", Given: "Norma", Surname: "Nobody"}}},
+	}
+
+	tests := []struct {
+		name    string
+		entries []store.TrashEntry
+		want    string
+		notWant string
+	}{
+		{
+			name:    "an expired unanchored entry is not counted alongside a live one",
+			entries: []store.TrashEntry{live, expiredUnanchored},
+			want:    "Recently deleted (1)",
+		},
+		{
+			name:    "an expired unanchored entry alone shows no link at all",
+			entries: []store.TrashEntry{expiredUnanchored},
+			notWant: "Recently deleted",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			body := fetch(t, newCountTrashServer(t, tt.entries...), "/").Body.String()
+
+			if tt.want != "" {
+				assert.Contains(t, body, tt.want)
+			}
+			if tt.notWant != "" {
+				assert.NotContains(t, body, tt.notWant)
+			}
+		})
+	}
+}
+
 func TestEmptyTrash(t *testing.T) {
 	tests := []struct {
 		name    string

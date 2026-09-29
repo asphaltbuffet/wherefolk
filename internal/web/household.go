@@ -39,11 +39,16 @@ func (s *Server) directoryView(
 	rawOpen, closing string,
 	isPaneClosed bool,
 ) directoryView {
+	// Purge, not the stored count: an expired, unanchored entry is still
+	// restorable until the next Trash write, but the count must agree with
+	// what /trash actually lists. This is a read; it writes nothing.
+	purged, _ := s.trash.Purge(s.now())
+
 	view := directoryView{
 		Tree:          s.treeView(id, rawOpen, closing),
 		PaneClosed:    isPaneClosed,
 		PaneToggleURL: paneToggleURL(id, isPaneClosed),
-		TrashCount:    len(s.trash.Entries),
+		TrashCount:    len(purged.Entries),
 	}
 
 	if id == "" {

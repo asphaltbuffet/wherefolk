@@ -135,24 +135,44 @@ func (e TrashEntry) needs() []rolo.HouseholdID {
 // as anything else in the Trash still needs it. This is the date the
 // Recently deleted page shows; Expires alone can read as already past while
 // the entry is still there, restorable, because something newer anchors it.
+// A hand-repaired trash.json can name a cycle (an entry sharing its own
+// address, or two entries each needing the other), so this guards against
+// re-entering an ID it has already visited, the way Purge's mark and Chain's
+// visit do.
 func (t *Trash) KeptUntil(id rolo.HouseholdID) time.Time {
 	e, ok := t.Entry(id)
 	if !ok {
 		return time.Time{}
 	}
 
-	latest := e.Expires()
+	seen := make(map[rolo.HouseholdID]bool)
 
-	for _, o := range t.Entries {
-		if slices.Contains(o.needs(), id) {
-			candidate := t.KeptUntil(o.Household.ID)
-			if candidate.After(latest) {
-				latest = candidate
+	var latest func(id rolo.HouseholdID) time.Time
+	latest = func(id rolo.HouseholdID) time.Time {
+		if seen[id] {
+			return time.Time{}
+		}
+		seen[id] = true
+
+		e, ok := t.Entry(id)
+		if !ok {
+			return time.Time{}
+		}
+
+		best := e.Expires()
+
+		for _, o := range t.Entries {
+			if slices.Contains(o.needs(), id) {
+				if candidate := latest(o.Household.ID); candidate.After(best) {
+					best = candidate
+				}
 			}
 		}
+
+		return best
 	}
 
-	return latest
+	return latest(e.Household.ID)
 }
 
 // filter returns the entries keep accepts. When it accepts them all it returns
