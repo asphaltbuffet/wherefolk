@@ -90,11 +90,11 @@ two are structurally different (§3) and a Household with a single adult must st
 a Dependent. The slot a person arrives in is what decides where they belong; nothing infers it.
 
 **Household Name**:
-The heading a Household prints under in the Directory — `Daryl & Dawn (Mitchell) Yoder`. Written
-for a reader addressing a card, not for navigation, so it carries surnames and birth names that a
-Path segment omits. Appears in the Directory only; the editing UI and every Path keep the compact
-`Daryl/Dawn` form, because a Path chains several generations and a full name per link would be
-unreadable.
+The name a Household goes by wherever it stands alone — `Daryl & Dawn (Mitchell) Yoder`. It heads
+the Household's block in the Directory, and in the editing UI it names the Household in the tree and
+heads its detail pane, so the Editor sees each Household as the family will. It carries surnames
+and birth names that a Path segment omits. Only a Path keeps the compact `Daryl/Dawn` form, because
+a Path chains several generations and a full name per link would be unreadable.
 
 When the adults share a surname it is printed once, last, and each adult who was born under a
 different surname carries it in parentheses after their given name. When their surnames differ,
