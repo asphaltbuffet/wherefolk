@@ -15,7 +15,7 @@
 # a container at all — a host upgrade can then never silently reflow the
 # Directory. The checksum is what makes the pin meaningful: without it, a
 # re-tagged upstream release would be installed without complaint.
-FROM debian:12-slim AS typst
+FROM debian:13-slim AS typst
 
 ARG TARGETARCH
 ARG TYPST_VERSION=0.14.2
@@ -45,7 +45,7 @@ RUN set -eux; \
     /usr/local/bin/typst --version
 
 
-FROM debian:12-slim
+FROM debian:13-slim
 
 ARG TARGETPLATFORM
 
