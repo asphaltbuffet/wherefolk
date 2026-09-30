@@ -122,12 +122,19 @@
   )).flatten(),
 )
 
+// target marks where a Household's block begins, so the Birthday Calendar can
+// link to it and print its page. id is the Household's stored ID; as a label
+// it is never printed and does not appear in the PDF. metadata is invisible
+// and takes no space, so the block looks exactly as it did without it.
+#let target(id) = [#metadata(none)#label(id)]
+
 // household is one block of the Directory.
 //
 // breakable: false is the whole reason this project renders through Typst
 // rather than a Go PDF library (ADR-0004): a Household is never split across a
 // page break, and Typst does that pagination itself.
 #let household(
+  id: "",
   name: "",
   anniversary: "",
   address: (),
@@ -137,6 +144,7 @@
   contents: false,
 ) = {
   block(breakable: false, width: 100%, inset: (y: 0.4em), {
+    target(id)
     // A first-generation Branch is listed in the Table of Contents through a
     // heading that takes no space and prints nothing: the block must look like
     // every other Household, because Branches are never nested in the rendered
@@ -179,6 +187,7 @@
 // still appear in every tier so that descendants group beneath it and no Path
 // points at a node missing from the document (§5.4).
 #let memorial(
+  id: "",
   name: "",
   anniversary: "",
   address: (),
@@ -188,6 +197,7 @@
   contents: false,
 ) = {
   block(breakable: false, width: 100%, inset: (y: 0.3em), {
+    target(id)
     // Listed in the Table of Contents as household() explains.
     if contents { place(hide(heading(level: 2, name))) }
     text(size: 11pt, weight: "bold", fill: luma(60), name)

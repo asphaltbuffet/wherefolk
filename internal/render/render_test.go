@@ -78,9 +78,9 @@ func TestRenderer(t *testing.T) {
 	}
 }
 
-// outlined asks typst which headings the Table of Contents lists, in document
-// order, by querying the generated markup against the on-disk template.
-func outlined(t *testing.T, bin string, d render.Directory) []string {
+// typstQuery stages d's markup beside the on-disk template and returns what
+// `typst query` prints, as JSON, for selector's field.
+func typstQuery(t *testing.T, bin string, d render.Directory, selector, field string) []byte {
 	t.Helper()
 
 	dir := t.TempDir()
@@ -93,13 +93,21 @@ func outlined(t *testing.T, bin string, d render.Directory) []string {
 	require.NoError(t, os.WriteFile(src, []byte(render.Markup(d)), 0o600))
 
 	out, err := exec.CommandContext(t.Context(), bin, "query", "--root", dir, src,
-		"heading.where(outlined: true)", "--field", "body", "--format", "json").Output()
+		selector, "--field", field, "--format", "json").Output()
 	require.NoError(t, err)
+
+	return out
+}
+
+// outlined asks typst which headings the Table of Contents lists, in document
+// order, by querying the generated markup against the on-disk template.
+func outlined(t *testing.T, bin string, d render.Directory) []string {
+	t.Helper()
 
 	var bodies []struct {
 		Text string `json:"text"`
 	}
-	require.NoError(t, json.Unmarshal(out, &bodies))
+	require.NoError(t, json.Unmarshal(typstQuery(t, bin, d, "heading.where(outlined: true)", "body"), &bodies))
 
 	names := make([]string, 0, len(bodies))
 	for _, b := range bodies {
@@ -107,6 +115,17 @@ func outlined(t *testing.T, bin string, d render.Directory) []string {
 	}
 
 	return names
+}
+
+// labels asks typst for a label-valued field of every element selector
+// matches, in document order: "<h_lang01>" for a label, as typst prints it.
+func labels(t *testing.T, bin string, d render.Directory, selector, field string) []string {
+	t.Helper()
+
+	var out []string
+	require.NoError(t, json.Unmarshal(typstQuery(t, bin, d, selector, field), &out))
+
+	return out
 }
 
 func TestRenderedStructure(t *testing.T) {
@@ -151,6 +170,16 @@ func TestRenderedStructure(t *testing.T) {
 				without, err := r.SVG(t.Context(), render.Directory{GeneratedAt: d.GeneratedAt})
 				require.NoError(t, err)
 				assert.Len(t, without, 2, "an empty Directory is its Title page and its Table of Contents")
+			},
+		},
+		{
+			name: "every household block is a link target, in directory order",
+			checkFunc: func(t *testing.T, r render.Renderer, d render.Directory) {
+				t.Helper()
+				assert.Equal(t,
+					[]string{"<h_meml01>", "<h_lang01>", "<h_lang02>", "<h_nova01>"},
+					labels(t, r.Typst.Bin, d, "metadata", "label"),
+					"a Memorial block is a target too: a living Dependent's row may point at it")
 			},
 		},
 	}

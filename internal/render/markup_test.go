@@ -168,6 +168,21 @@ func TestMarkup(t *testing.T) {
 			},
 		},
 		{
+			name: "a household passes its id to the template",
+			in: render.Directory{
+				GeneratedAt: "2026-09-24",
+				Households: []render.Household{
+					{ID: "h_meml01", Name: "Harold & June (Whitfield) Langford", Memorial: true},
+					{ID: "h_lang01", Name: "Robert & Susan (Marsh) Langford"},
+				},
+			},
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				assert.Contains(t, got, "#memorial(\n    id: \"h_meml01\",\n    name: ")
+				assert.Contains(t, got, "#household(\n    id: \"h_lang01\",\n    name: ")
+			},
+		},
+		{
 			name: "the birthday calendar follows the households",
 			in: render.Directory{
 				GeneratedAt: "Sep 24, 2026",
