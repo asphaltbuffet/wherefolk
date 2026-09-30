@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 
+	"github.com/asphaltbuffet/wherefolk/internal/live"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
@@ -50,9 +51,7 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	s.mu.RLock()
-	view := s.searchResults(query)
-	s.mu.RUnlock()
+	view := s.searchResults(s.live.Snapshot(), query)
 
 	err := s.renderFragment(r.Context(), w, "directory", "results", view)
 	if err != nil {
@@ -68,10 +67,9 @@ func (s *Server) handleSearch(w http.ResponseWriter, r *http.Request) {
 func (s *Server) renderSearchPage(w http.ResponseWriter, r *http.Request, query string) {
 	q := r.URL.Query()
 
-	s.mu.RLock()
-	view := s.directoryView("", q.Get("open"), q.Get("close"), q.Get("pane") == paneClosed)
-	view.Results = s.searchResults(query)
-	s.mu.RUnlock()
+	snap := s.live.Snapshot()
+	view := s.directoryView(snap, "", q.Get("open"), q.Get("close"), q.Get("pane") == paneClosed)
+	view.Results = s.searchResults(snap, query)
 
 	err := s.render(r.Context(), w, http.StatusOK, "directory", view)
 	if err != nil {
@@ -82,10 +80,8 @@ func (s *Server) renderSearchPage(w http.ResponseWriter, r *http.Request, query 
 
 // searchResults runs the search and caps the list. Named for what it does rather
 // than what it returns, so it does not collide with the resultsView type.
-//
-// Callers hold at least a read lock.
-func (s *Server) searchResults(query string) resultsView {
-	matches := s.tree.SearchPeople(query)
+func (s *Server) searchResults(snap live.Snapshot, query string) resultsView {
+	matches := snap.Tree.SearchPeople(query)
 
 	view := resultsView{Query: query}
 

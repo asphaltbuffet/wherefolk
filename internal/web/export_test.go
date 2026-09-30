@@ -36,8 +36,7 @@ type TreeNodeForTest = treeNode
 // never uses that way, and would invite pushing openSet's rule down into
 // treeNodes so the isolated call looked right.
 func (s *Server) TreeNodesForTest(selected rolo.HouseholdID, open map[rolo.HouseholdID]bool) []treeNode {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	snap := s.live.Snapshot()
 
 	ids := make([]string, 0, len(open))
 	for id, isOpen := range open {
@@ -46,15 +45,12 @@ func (s *Server) TreeNodesForTest(selected rolo.HouseholdID, open map[rolo.House
 		}
 	}
 
-	return s.treeNodes(selected, s.openSet(selected, strings.Join(ids, ",")))
+	return s.treeNodes(snap, selected, s.openSet(snap, selected, strings.Join(ids, ",")))
 }
 
 // OpenSetForTest exposes openSet to the external test package.
 func (s *Server) OpenSetForTest(selected rolo.HouseholdID, raw string) map[rolo.HouseholdID]bool {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.openSet(selected, raw)
+	return s.openSet(s.live.Snapshot(), selected, raw)
 }
 
 // ToggleURLForTest exposes toggleURL to the external test package.
@@ -67,18 +63,12 @@ type HouseholdViewForTest = householdView
 
 // HouseholdViewForTest exposes householdView to the external test package.
 func (s *Server) HouseholdViewForTest(id rolo.HouseholdID) (householdView, bool) {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.householdView(id)
+	return s.householdView(s.live.Snapshot(), id)
 }
 
 // JoinIDsOrderedForTest exposes joinIDsOrdered to the external test package.
 func (s *Server) JoinIDsOrderedForTest(open map[rolo.HouseholdID]bool) string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return s.joinIDsOrdered(open)
+	return s.joinIDsOrdered(s.live.Snapshot(), open)
 }
 
 // SubmissionForTest is submission, exported for the external test package.

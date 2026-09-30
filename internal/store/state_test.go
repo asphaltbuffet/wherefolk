@@ -205,3 +205,124 @@ func TestPersistSettings(t *testing.T) {
 		})
 	}
 }
+
+// tempPaths names the three files in a fresh directory.
+func tempPaths(t *testing.T) store.Paths {
+	t.Helper()
+	dir := t.TempDir()
+
+	return store.Paths{
+		Document: filepath.Join(dir, "directory.json"),
+		Trash:    filepath.Join(dir, "trash.json"),
+		Settings: filepath.Join(dir, "settings.json"),
+	}
+}
+
+func TestOpen(t *testing.T) {
+	tests := []struct {
+		name      string
+		checkFunc func(t *testing.T)
+	}{
+		{
+			name: "a document alone opens with an empty Trash and an untitled Directory",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				paths := tempPaths(t)
+				require.NoError(t, store.Save(paths.Document, sampleDocument()))
+
+				got, err := store.Open(paths, day(0))
+				require.NoError(t, err)
+
+				assert.Len(t, got.Document.Households, 3)
+				require.NotNil(t, got.Trash)
+				assert.Empty(t, got.Trash.Entries)
+				require.NotNil(t, got.Settings)
+				assert.Empty(t, got.Settings.Title)
+			},
+		},
+		{
+			name: "all three files are read",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				paths := tempPaths(t)
+				require.NoError(t, store.Save(paths.Document, sampleDocument()))
+				require.NoError(t, store.SaveTrash(paths.Trash, trashOf(entry("h_gone", "", "", day(0)))))
+				require.NoError(t, store.SaveSettings(paths.Settings, store.NewSettings().WithTitle("The Whitlocks")))
+
+				got, err := store.Open(paths, day(1))
+				require.NoError(t, err)
+
+				assert.Equal(t, []rolo.HouseholdID{"h_gone"}, ids(got.Trash))
+				assert.Equal(t, "The Whitlocks", got.Settings.Title)
+			},
+		},
+		{
+			name: "the Trash is reconciled against the document before it is served",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				paths := tempPaths(t)
+				require.NoError(t, store.Save(paths.Document, sampleDocument()))
+				// h_carla is in both files, as a crash between two writes leaves it.
+				require.NoError(t, store.SaveTrash(paths.Trash, trashOf(entry("h_carla", "h_clyde", "", day(0)))))
+
+				got, err := store.Open(paths, day(1))
+				require.NoError(t, err)
+
+				assert.Empty(t, got.Trash.Entries, "the document wins")
+			},
+		},
+		{
+			name: "a missing document is refused",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+
+				_, err := store.Open(tempPaths(t), day(0))
+				require.ErrorContains(t, err, "load store")
+			},
+		},
+		{
+			name: "an unreadable Trash is refused",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				paths := tempPaths(t)
+				require.NoError(t, store.Save(paths.Document, sampleDocument()))
+				require.NoError(t, os.WriteFile(paths.Trash, []byte("{not json"), 0o600))
+
+				_, err := store.Open(paths, day(0))
+				require.ErrorContains(t, err, "load trash")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, tt.checkFunc)
+	}
+}
+
+func TestPathsWrite(t *testing.T) {
+	tests := []struct {
+		name      string
+		checkFunc func(t *testing.T)
+	}{
+		{
+			name: "a settings change is written through Persist",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				paths := tempPaths(t)
+				prev := store.State{Document: sampleDocument(), Trash: store.NewTrash(), Settings: store.NewSettings()}
+				next := prev
+				next.Settings = prev.Settings.WithTitle("The Whitlocks")
+
+				require.NoError(t, paths.Write(prev, next))
+
+				got, err := store.LoadSettings(paths.Settings)
+				require.NoError(t, err)
+				assert.Equal(t, "The Whitlocks", got.Title)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, tt.checkFunc)
+	}
+}

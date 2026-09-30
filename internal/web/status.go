@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/asphaltbuffet/wherefolk/internal/buildmeta"
+	"github.com/asphaltbuffet/wherefolk/internal/live"
 )
 
 // statusView is what status.html renders. It is Operator-facing diagnostics —
@@ -25,9 +26,7 @@ type statusView struct {
 }
 
 func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	view := s.statusView()
-	s.mu.RUnlock()
+	view := s.statusView(s.live.Snapshot())
 
 	err := s.render(r.Context(), w, http.StatusOK, "status", view)
 	if err != nil {
@@ -36,9 +35,9 @@ func (s *Server) handleStatus(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// statusView summarises the document. Callers hold at least a read lock.
-func (s *Server) statusView() statusView {
-	roots := s.tree.Roots()
+// statusView summarises the document.
+func (s *Server) statusView(snap live.Snapshot) statusView {
+	roots := snap.Tree.Roots()
 
 	labels := make([]string, 0, len(roots))
 	for _, h := range roots {
@@ -46,15 +45,15 @@ func (s *Server) statusView() statusView {
 	}
 
 	people := 0
-	for _, h := range s.doc.Households {
+	for _, h := range snap.Document.Households {
 		people += len(h.Adults) + len(h.Dependents)
 	}
 
 	return statusView{
 		Version:      buildmeta.ShortVersion(),
 		BuildInfo:    buildmeta.BuildInfo(),
-		Schema:       s.doc.Schema,
-		Households:   len(s.doc.Households),
+		Schema:       snap.Document.Schema,
+		Households:   len(snap.Document.Households),
 		People:       people,
 		Roots:        len(roots),
 		RootLabels:   labels,

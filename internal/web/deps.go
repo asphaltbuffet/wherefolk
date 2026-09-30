@@ -9,9 +9,10 @@ import (
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
-// Saver persists the Directory and its Trash. It is handed the state being
-// replaced as well as the new one, so it can tell which files changed and write
-// them in an order that cannot lose a Household (store.Persist, ADR-0012).
+// Saver persists the Directory, its Trash and the settings. web.New hands it
+// to the live.Copy as its Writer. It is handed the state being replaced as
+// well as the new one, so it can tell which files changed and write them in
+// an order that cannot lose a Household (store.Persist, ADR-0012).
 //
 // It is injected rather than called directly so that internal/web keeps the
 // freedom from filesystem concerns that New's signature exists to preserve:

@@ -8,6 +8,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
+	"github.com/asphaltbuffet/wherefolk/internal/live"
 	"github.com/asphaltbuffet/wherefolk/internal/render"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 )
@@ -105,26 +106,22 @@ func (s *Server) handleTitle(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, exportPageURL(q), http.StatusSeeOther)
 }
 
-// setTitle saves title if it differs from the served one. An unchanged title
-// is not a save: it would spend the one Undo step on nothing.
+// setTitle saves title. An unchanged title is not a save — it would spend the
+// one Undo step on nothing — so it hands back nothing, which live.Copy.Update
+// reports as unchanged.
 func (s *Server) setTitle(title string) (string, bool, error) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	saved, err := s.live.Update(func(snap live.Snapshot) (store.State, error) {
+		if title == snap.Settings.Title {
+			return store.State{}, nil
+		}
 
-	if title == s.settings.Title {
-		return "", false, nil
-	}
-
-	token, err := s.persist(store.State{
-		Document: s.doc,
-		Trash:    s.trash,
-		Settings: s.settings.WithTitle(title),
+		return store.State{Settings: snap.Settings.WithTitle(title)}, nil
 	})
 	if err != nil {
 		return "", false, err
 	}
 
-	return token, true, nil
+	return saved.Undo, saved.Changed, nil
 }
 
 // titleAnnouncement is the sentence beside a title change's Undo.

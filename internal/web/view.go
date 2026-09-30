@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strings"
 
+	"github.com/asphaltbuffet/wherefolk/internal/live"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
@@ -117,18 +118,16 @@ type treeNode struct {
 // two places that could drift, and would silently override treeView's
 // deliberate ordering, which applies a close request before re-adding the
 // selection's chain.
-//
-// Callers hold at least a read lock.
-func (s *Server) treeNodes(selected rolo.HouseholdID, open map[rolo.HouseholdID]bool) []treeNode {
+func (s *Server) treeNodes(snap live.Snapshot, selected rolo.HouseholdID, open map[rolo.HouseholdID]bool) []treeNode {
 	// The selection's chain is pinned: treeView re-opens it after any close, so
 	// a toggle on one of these nodes would render identically to not clicking
 	// it at all.
 	pinned := make(map[rolo.HouseholdID]bool)
-	for _, id := range s.selectionChain(selected) {
+	for _, id := range s.selectionChain(snap, selected) {
 		pinned[id] = true
 	}
 
-	openList := s.joinIDsOrdered(open)
+	openList := s.joinIDsOrdered(snap, open)
 
 	var build func(households []rolo.Household) []treeNode
 
@@ -136,7 +135,7 @@ func (s *Server) treeNodes(selected rolo.HouseholdID, open map[rolo.HouseholdID]
 		nodes := make([]treeNode, 0, len(households))
 
 		for _, h := range households {
-			children := s.tree.Children(h.ID)
+			children := snap.Tree.Children(h.ID)
 
 			node := treeNode{
 				ID:          h.ID,
@@ -162,7 +161,7 @@ func (s *Server) treeNodes(selected rolo.HouseholdID, open map[rolo.HouseholdID]
 		return nodes
 	}
 
-	return build(s.tree.Roots())
+	return build(snap.Tree.Roots())
 }
 
 // selectionChain returns the Households that must be open for selected to be
@@ -172,14 +171,12 @@ func (s *Server) treeNodes(selected rolo.HouseholdID, open map[rolo.HouseholdID]
 //
 // An unknown or empty selection yields nothing, which leaves the tree rendering
 // normally beside whatever the caller puts in the detail pane.
-//
-// Callers hold at least a read lock.
-func (s *Server) selectionChain(selected rolo.HouseholdID) []rolo.HouseholdID {
+func (s *Server) selectionChain(snap live.Snapshot, selected rolo.HouseholdID) []rolo.HouseholdID {
 	if selected == "" {
 		return nil
 	}
 
-	chain, err := s.tree.Path(selected)
+	chain, err := snap.Tree.Path(selected)
 	if err != nil {
 		return nil
 	}
@@ -202,18 +199,16 @@ func (s *Server) selectionChain(selected rolo.HouseholdID) []rolo.HouseholdID {
 // so collapsing a Branch the Editor is not standing in still works.
 //
 // See treeView for the variant that also honours a close request.
-//
-// Callers hold at least a read lock.
-func (s *Server) openSet(selected rolo.HouseholdID, raw string) map[rolo.HouseholdID]bool {
+func (s *Server) openSet(snap live.Snapshot, selected rolo.HouseholdID, raw string) map[rolo.HouseholdID]bool {
 	open := make(map[rolo.HouseholdID]bool)
 
 	for _, id := range parseIDs(raw) {
-		if _, ok := s.tree.Get(id); ok {
+		if _, ok := snap.Tree.Get(id); ok {
 			open[id] = true
 		}
 	}
 
-	for _, id := range s.selectionChain(selected) {
+	for _, id := range s.selectionChain(snap, selected) {
 		open[id] = true
 	}
 
@@ -246,16 +241,16 @@ func parseIDs(raw string) []rolo.HouseholdID {
 // string carries. The order is the tree's own depth-first order rather than map
 // order, so the same expansion always produces the same URL and the Editor's
 // history does not fill with URLs that differ only by shuffling.
-func (s *Server) joinIDsOrdered(open map[rolo.HouseholdID]bool) string {
+func (s *Server) joinIDsOrdered(snap live.Snapshot, open map[rolo.HouseholdID]bool) string {
 	var ids []string
 
-	_ = s.tree.Walk(func(h rolo.Household, _ int) error {
+	_ = snap.Tree.Walk(func(h rolo.Household, _ int) error {
 		// Childless Households are dropped: "open" means "show my children",
 		// which is meaningless for a leaf, and a leaf renders no close link so
 		// nothing could ever remove it again. selectionChain adds the selection
 		// itself, and the selection is frequently a leaf, so without this the
 		// URL would grow monotonically across a session.
-		if open[h.ID] && len(s.tree.Children(h.ID)) > 0 {
+		if open[h.ID] && len(snap.Tree.Children(h.ID)) > 0 {
 			ids = append(ids, string(h.ID))
 		}
 		return nil
@@ -336,14 +331,14 @@ type directoryView struct {
 }
 
 // householdView builds the detail pane for one Household, reporting false if it
-// is not in the tree. Callers hold at least a read lock.
-func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
-	h, ok := s.tree.Get(id)
+// is not in the tree.
+func (s *Server) householdView(snap live.Snapshot, id rolo.HouseholdID) (householdView, bool) {
+	h, ok := snap.Tree.Get(id)
 	if !ok {
 		return householdView{}, false
 	}
 
-	chain, err := s.tree.Path(id)
+	chain, err := snap.Tree.Path(id)
 	if err != nil {
 		// Unreachable: Get and Path fail on exactly the same condition.
 		return householdView{}, false
@@ -370,13 +365,13 @@ func (s *Server) householdView(id rolo.HouseholdID) (householdView, bool) {
 	view.AddressPrivate = h.AddressHidden()
 
 	if h.SharesAddress() {
-		if parent, found := s.tree.Get(h.Address.SharedWith); found {
+		if parent, found := snap.Tree.Get(h.Address.SharedWith); found {
 			view.SharedWith = parent.Name()
 			view.AddressNote = "Same address as " + parent.Name()
 		}
 	}
 
-	block, err := s.tree.DeleteBlock(id)
+	block, err := snap.Tree.DeleteBlock(id)
 	if err == nil {
 		view.Delete.Blocked = deleteBlockedSentence(block)
 	}

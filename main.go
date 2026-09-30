@@ -56,33 +56,16 @@ func run(getenv func(string) string, logOut io.Writer) error {
 
 	// A document that will not load is fatal: a container that boots into an
 	// error page passes its own health check and hides the fault (§2.4).
+	// store.Open reconciles the Trash against the document before anything is
+	// served (ADR-0012); a missing settings file is an untitled Directory
+	// (ADR-0013).
 	docPath := cfg.DocumentPath()
+	paths := store.Paths{Document: docPath, Trash: cfg.TrashPath(), Settings: cfg.SettingsPath()}
 
-	doc, err := store.Load(docPath)
+	state, err := store.Open(paths, time.Now())
 	if err != nil {
-		return fmt.Errorf("load store: %w", err)
+		return err
 	}
-
-	// The Trash is opened against the document it belongs to, so a crash that
-	// left a Household in both files is reconciled before anything is served
-	// (ADR-0012).
-	trashPath := cfg.TrashPath()
-
-	trash, err := store.OpenTrash(trashPath, doc, time.Now())
-	if err != nil {
-		return fmt.Errorf("load trash: %w", err)
-	}
-
-	// A missing settings file is an untitled Directory, so this fails only on
-	// a file that exists and cannot be read (ADR-0013).
-	settingsPath := cfg.SettingsPath()
-
-	settings, err := store.LoadSettings(settingsPath)
-	if err != nil {
-		return fmt.Errorf("load settings: %w", err)
-	}
-
-	paths := store.Paths{Document: docPath, Trash: trashPath, Settings: settingsPath}
 
 	// Typst is a host dependency, not vendored (ADR-0004). Verifying it here
 	// means a missing or unreadable renderer is an Operator-facing startup
@@ -93,13 +76,13 @@ func run(getenv func(string) string, logOut io.Writer) error {
 		return err
 	}
 
-	srv, err := web.New(store.State{Document: doc, Trash: trash, Settings: settings}, cfg, logger,
+	srv, err := web.New(state, cfg, logger,
 		web.Meta{
 			DocumentPath: docPath,
 			TypstVersion: typstVersion,
 			TemplatePath: cfg.TemplateDir,
 		},
-		func(prev, next store.State) error { return store.Persist(paths, prev, next) },
+		paths.Write,
 		store.NewHouseholdID,
 		store.NewPersonID,
 		renderer,
@@ -125,7 +108,7 @@ func run(getenv func(string) string, logOut io.Writer) error {
 		"addr", ln.Addr().String(),
 		"document", docPath,
 		"typst", typstVersion,
-		"households", len(doc.Households))
+		"households", len(state.Document.Households))
 
 	httpSrv := &http.Server{
 		Handler:           srv.Handler(),

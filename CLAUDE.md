@@ -32,7 +32,7 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
 
 ## Architecture
 
-- **`main.go`** — entry point: reads config, loads the store, starts the web server
+- **`main.go`** — entry point: reads config, opens the store (`store.Open`), starts the web server
 - **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_TEMPLATE`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`, `WHEREFOLK_FULL_PASSPHRASE`); `TrashPath()` and `SettingsPath()` sit beside `DocumentPath()`
   - `Config` carries the log *level*; `main` builds the `*slog.Logger` from it and injects it.
     Nothing outside `main` touches slog's package default — constructors take a `*slog.Logger`.
@@ -55,10 +55,9 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     normalise → save → swap the clone in → redirect (ADR-0008). A shallow copy would share every
     Household's `Adults`, `Dependents` and `Address.Lines`, so the clone must be deep or a failed
     save corrupts the served Directory.
-  - `commit` holds the write lock for the mutation and renders nothing; `handleSave` holds no lock
-    and turns the outcome into a response; `refuse` takes its own read lock and releases it before
-    rendering. Rendering under the write lock would let one Editor on a slow connection block every
-    reader for the length of the response.
+  - `commit` makes its change inside `live.Copy.Update` and renders nothing; `handleSave` turns the
+    outcome into a response; `refuse` takes its own Snapshot. Rendering inside `Update` would let
+    one Editor on a slow connection block every other writer for the length of the response.
   - **Two failure modes, deliberately different.** Input that cannot be stored — a date that will
     not parse — refuses the submit with **422** and re-renders the form from the Editor's own
     submission, so their typing survives; it is *not* a `rolo.Finding`. A `Finding` observes a value
@@ -68,8 +67,9 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     template stops rendering would silently clear itself on the next save.
     `TestFormRendersEveryEditableField` guards this. Each checkbox needs its paired hidden `off`
     input for the same reason — without it a hidden flag could never be turned back off.
-  - `store.Save` is reached through an injected `Saver`, and IDs through injected generators, so
-    this package keeps no filesystem dependency and tests get deterministic identities.
+  - `store.Persist` (via `store.Paths.Write`) is reached through an injected `Saver`, handed to
+    `live.Copy` as its Writer, and IDs through injected generators, so this package keeps no
+    filesystem dependency and tests get deterministic identities.
   - **Export** (`export.go`): `GET /export` offers the tiers by description with none pre-selected;
     `?tier=` carries the choice (ADR-0008), and htmx swaps only the `export_result` fragment. The
     preview is every SVG page inline as a `data:` URL — typed `template.URL`, which is trusted only
@@ -78,29 +78,30 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - **Full is never produced unencrypted.** Without a passphrase both routes refuse it before
     rendering; with one, `render.Encrypt` runs before a byte is written.
   - **Directory Title** (`title.go`): the export page's own form, `POST /export/title`, saved through
-    `persist` like any edit, so it is announced on the export page with an Undo that returns there
+    `live.Copy.Update` like any edit, so it is announced on the export page with an Undo that returns there
     (`back=export`). The current tier reaches the form from inside the swapped `export_result`
     fragment via `form="export-title"`, because the radios never reload the form. A title over 80
     characters or containing a control character is refused with 422, re-rendering the Editor's typing.
-    An unchanged title is not a save. Every `persist` call passes `Settings: s.settings` — a State
-    literal without it would swap in nil.
+    An unchanged title is not a save.
   - The renderer arrives as an injected `Exporter` and the time as a `Clock`, so this package's tests
     need no typst and no real clock. `exportDate` turns the host's local calendar date into midnight
     UTC, because `rolo.Person.IsMinor` computes an eighteenth birthday at midnight UTC.
-  - `render.Build` runs under the read lock; the Typst compile does not.
+  - `render.Build` reads a `live.Snapshot`; nothing is held during the Typst compile.
   - fragment-vs-page is decided by `wantsFragment(r)` (templates.go) — an htmx request gets a
     fragment *unless* it is a history restore (`HX-History-Restore-Request`), because htmx swaps a
     restore's response in as the whole body; and the export page sets `hx-history="false"` so htmx
     never snapshots the family's previews into localStorage.
   - **The editing UI never masks** (ADR-0010). `[private]` and deceased-contact suppression belong
     to export; `view.go` renders every stored value.
-  - **Every successful save goes through `persist`** (undo.go): build tree → save → swap →
-    record the one-step undo point. Edits, deletions, restores and Undo itself all use it.
+  - **Every save goes through `live.Copy`** — `Update` for edits, deletions, restores and the
+    Directory Title; `Undo` for Undo. A refusal leaves `Update` as `errRefused`, its details in the
+    caller's outcome.
   - Undo is one step with no redo, held in memory. Its token rides in `?undo=`; `announcementFor`
-    renders the button only while the token is still the latest, and `POST /undo` refuses a
-    stale one with a sentence, not an error.
+    renders the button only while `Snapshot.CanUndo(token)`, and a stale token comes back from
+    `live.Copy.Undo` as not undone, which `handleUndo` turns into a sentence, not an error.
   - Deletion is `GET`/`POST /h/{id}/delete` — a confirmation page, never a form checkbox
-    (ADR-0009). Blocked by `rolo.Tree.DeleteBlock`: Memorial, has children, or has sharers.
+    (ADR-0009). Blocked by `rolo.Tree.DeleteBlock` — Memorial, has children, or has sharers — which
+    `store.Delete` enforces with `store.ErrBlocked`.
   - The Editor-facing name for the Trash is **Recently deleted** (`/trash`).
 - **`pkg/rolo/`** — domain types, no persistence
   - `Person` — a flat record with a stable `PersonID`, partial-precision `Date`s, and per-field `Hidden` flags
@@ -129,6 +130,22 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     Address, transitively); `Restore` brings that chain back together.
   - `Settings` lives in `settings.json` beside the document, at its own schema (ADR-0013). A missing
     file is an untitled Directory. It holds the Directory Title; the printed default is `render.DefaultTitle`.
+  - `Open(paths, now)` loads all three in dependency order — the document, the Trash reconciled
+    against it, then the settings. `Paths.Write` is `Persist` as a `live.Writer`.
+- **`internal/live/`** — the Directory being served, and the only place it changes
+  - `Copy` holds the stored `store.State`, its tree and the one Undo point. Readers call
+    `Snapshot()` and hold no lock: nothing a Snapshot points at is mutated, only replaced.
+  - `Snapshot.Trash` is the *effective* Trash, purged as of `Snapshot.Now`; `Snapshot.State()`
+    carries the stored one and is the base every write builds on.
+  - `Update(build)`: `build` gets a Snapshot and returns the next State. A nil field is left as
+    served, and so is the effective Trash handed back. Same pointers ⇒ not a save: nothing
+    written, no Undo token, the previous Undo stands. An error from `build` is returned untouched.
+  - The Trash is purged only when a write changes it (delete, restore). `Undo` never purges,
+    because Undo is exact, and leaves nothing to undo after it.
+  - `build` runs while other writers wait: no I/O, and never call back into the Copy.
+  - `Writer` is the seam: `store.Paths` itself satisfies it, and `live`'s own tests use it
+    directly (alongside `recordingWriter`); production passes `paths.Write` to `web.New` as its
+    `Saver`, which `web.New` wraps in `live.WriterFunc`.
 - **`internal/render/`** — the Directory as a printed document
   - `Directory`/`Household`/`Person` in `model.go` hold rendered **strings**, not `rolo` values,
     for the same reason `web/view.go` does: a tier rule cannot be forgotten about a value that
