@@ -122,12 +122,19 @@
   )).flatten(),
 )
 
+// target marks where a Household's block begins, so the Birthday Calendar can
+// link to it and print its page. id is the Household's stored ID; as a label
+// it is never printed and does not appear in the PDF. metadata is invisible
+// and takes no space, so the block looks exactly as it did without it.
+#let target(id) = [#metadata(none)#label(id)]
+
 // household is one block of the Directory.
 //
 // breakable: false is the whole reason this project renders through Typst
 // rather than a Go PDF library (ADR-0004): a Household is never split across a
 // page break, and Typst does that pagination itself.
 #let household(
+  id: "",
   name: "",
   anniversary: "",
   address: (),
@@ -137,6 +144,7 @@
   contents: false,
 ) = {
   block(breakable: false, width: 100%, inset: (y: 0.4em), {
+    target(id)
     // A first-generation Branch is listed in the Table of Contents through a
     // heading that takes no space and prints nothing: the block must look like
     // every other Household, because Branches are never nested in the rendered
@@ -179,6 +187,7 @@
 // still appear in every tier so that descendants group beneath it and no Path
 // points at a node missing from the document (§5.4).
 #let memorial(
+  id: "",
   name: "",
   anniversary: "",
   address: (),
@@ -188,6 +197,7 @@
   contents: false,
 ) = {
   block(breakable: false, width: 100%, inset: (y: 0.3em), {
+    target(id)
     // Listed in the Table of Contents as household() explains.
     if contents { place(hide(heading(level: 2, name))) }
     text(size: 11pt, weight: "bold", fill: luma(60), name)
@@ -221,6 +231,14 @@
 // The month header repeats on every page, so page five still says which column
 // is Sep. Alternate rows are shaded so the eye can follow a row from name to
 // day. A row is never split across a page break; a surname group may be.
+//
+// At the right of each name cell is the page the person's Household block
+// begins on, as "p. 14", so a reader can turn to the address; in a PDF viewer
+// the name and the page both jump there. The page is the footer's own counter
+// at the block's target, so the two always agree. The "p." keeps a bare number
+// beside a name from reading as an age, and the italic keeps it quieter than
+// the name. A row's household with no target is a compile error, never an
+// unlinked row.
 #let birthdays(rows) = {
   let months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -242,9 +260,16 @@
       [],
       ..months.map(m => text(size: 9pt, weight: "semibold", m)),
     ),
-    ..rows.map(r => (
-      text(size: 9pt, r.name),
-      ..range(1, 13).map(m => text(size: 9pt, if m == r.month { r.day } else { "" })),
-    )).flatten(),
+    ..rows.map(r => {
+      let home = label(r.household)
+      (
+        text(size: 9pt, {
+          link(home, r.name)
+          h(1fr)
+          link(home, emph(context "p. " + str(counter(page).at(home).first())))
+        }),
+        ..range(1, 13).map(m => text(size: 9pt, if m == r.month { r.day } else { "" })),
+      )
+    }).flatten(),
   )
 }

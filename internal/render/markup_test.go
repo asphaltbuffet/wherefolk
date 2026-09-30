@@ -168,19 +168,34 @@ func TestMarkup(t *testing.T) {
 			},
 		},
 		{
-			name: "the birthday calendar follows the households",
+			name: "a household passes its id to the template",
 			in: render.Directory{
-				GeneratedAt: "Sep 24, 2026",
-				Households:  []render.Household{{Name: "Robert & Susan (Marsh) Langford"}},
-				Birthdays: []render.Birthday{
-					{Name: "Langford, Robert", Month: 3, Day: "12"},
-					{Name: `Novak, Patricia "Pat"`, Month: 5, Day: "?"},
+				GeneratedAt: "2026-09-24",
+				Households: []render.Household{
+					{ID: "h_meml01", Name: "Harold & June (Whitfield) Langford", Memorial: true},
+					{ID: "h_lang01", Name: "Robert & Susan (Marsh) Langford"},
 				},
 			},
 			checkFunc: func(t *testing.T, got string) {
 				t.Helper()
-				assert.Contains(t, got, `(name: "Langford, Robert", month: 3, day: "12"),`)
-				assert.Contains(t, got, `(name: "Novak, Patricia \"Pat\"", month: 5, day: "?"),`)
+				assert.Contains(t, got, "#memorial(\n    id: \"h_meml01\",\n    name: ")
+				assert.Contains(t, got, "#household(\n    id: \"h_lang01\",\n    name: ")
+			},
+		},
+		{
+			name: "the birthday calendar follows the households",
+			in: render.Directory{
+				GeneratedAt: "Sep 24, 2026",
+				Households:  []render.Household{{ID: "h_lang01", Name: "Robert & Susan (Marsh) Langford"}},
+				Birthdays: []render.Birthday{
+					{Name: "Langford, Robert", HouseholdID: "h_lang01", Month: 3, Day: "12"},
+					{Name: `Novak, Patricia "Pat"`, HouseholdID: "h_nova01", Month: 5, Day: "?"},
+				},
+			},
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				assert.Contains(t, got, `(name: "Langford, Robert", household: "h_lang01", month: 3, day: "12"),`)
+				assert.Contains(t, got, `(name: "Novak, Patricia \"Pat\"", household: "h_nova01", month: 5, day: "?"),`)
 				assert.Greater(t, strings.Index(got, "#birthdays("), strings.Index(got, "#household("),
 					"the calendar is at the end of the Directory")
 			},

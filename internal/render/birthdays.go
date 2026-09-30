@@ -57,7 +57,12 @@ func birthdays(t *rolo.Tree) []Birthday {
 				rows = append(rows, row{
 					surname: strings.ToLower(surname),
 					given:   strings.ToLower(p.Given),
-					out:     Birthday{Name: calendarName(p), Month: p.Birth.Month, Day: day},
+					out: Birthday{
+						Name:        calendarName(p),
+						HouseholdID: string(h.ID),
+						Month:       p.Birth.Month,
+						Day:         day,
+					},
 				})
 			}
 		}
