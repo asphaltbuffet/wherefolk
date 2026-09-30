@@ -267,6 +267,7 @@ func TestPaths(t *testing.T) {
 	}{
 		{name: "document", got: config.Config.DocumentPath, want: "/data/directory.json"},
 		{name: "trash sits beside the document", got: config.Config.TrashPath, want: "/data/trash.json"},
+		{name: "settings sit beside the document", got: config.Config.SettingsPath, want: "/data/settings.json"},
 	}
 
 	for _, tt := range tests {
