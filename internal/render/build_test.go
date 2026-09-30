@@ -465,6 +465,15 @@ func TestBuildHousehold(t *testing.T) {
 				assert.Empty(t, h.Dependents[0].Email)
 			},
 		},
+		{
+			name:      "carries its stored ID, which is a link target and never printed",
+			tier:      render.Mail,
+			household: rolo.Household{ID: "h_test01", Adults: []rolo.Person{subject()}},
+			checkFunc: func(t *testing.T, h render.Household) {
+				t.Helper()
+				assert.Equal(t, "h_test01", h.ID)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -938,14 +947,14 @@ func TestBuildBirthdays(t *testing.T) {
 			name:       "a living person's day sits in their month",
 			tier:       render.Full,
 			households: []rolo.Household{house("h_cal001", dawn)},
-			want:       []render.Birthday{{Name: "Yoder, Dawn", Month: 6, Day: "15"}},
+			want:       []render.Birthday{{Name: "Yoder, Dawn", HouseholdID: "h_cal001", Month: 6, Day: "15"}},
 		},
 		{
 			name: "a month known without its day shows a question mark",
 			tier: render.Full,
 			households: []rolo.Household{house("h_cal001",
 				person("p_mont01", "Mary", "Weldy", rolo.Date{Year: 1951, Month: 6}))},
-			want: []render.Birthday{{Name: "Weldy, Mary", Month: 6, Day: "?"}},
+			want: []render.Birthday{{Name: "Weldy, Mary", HouseholdID: "h_cal001", Month: 6, Day: "?"}},
 		},
 		{
 			name: "a year-only or missing birth date gets no row",
@@ -959,32 +968,34 @@ func TestBuildBirthdays(t *testing.T) {
 			name:       "the deceased never appear",
 			tier:       render.Full,
 			households: []rolo.Household{house("h_cal001", dawn, deceased)},
-			want:       []render.Birthday{{Name: "Yoder, Dawn", Month: 6, Day: "15"}},
+			want:       []render.Birthday{{Name: "Yoder, Dawn", HouseholdID: "h_cal001", Month: 6, Day: "15"}},
 		},
 		{
 			name:       "a withheld birth date gets no row, not a [private] one",
 			tier:       render.Full,
 			households: []rolo.Household{house("h_cal001", dawn, withheld)},
-			want:       []render.Birthday{{Name: "Yoder, Dawn", Month: 6, Day: "15"}},
+			want:       []render.Birthday{{Name: "Yoder, Dawn", HouseholdID: "h_cal001", Month: 6, Day: "15"}},
 		},
 		{
 			name:       "a nickname and a differing birth name follow the given name",
 			tier:       render.Full,
 			households: []rolo.Household{house("h_cal001", katie)},
-			want:       []render.Birthday{{Name: `Weldy, Katelynn "Katie" (Birch)`, Month: 3, Day: "12"}},
+			want: []render.Birthday{
+				{Name: `Weldy, Katelynn "Katie" (Birch)`, HouseholdID: "h_cal001", Month: 3, Day: "12"},
+			},
 		},
 		{
 			name:       "a birth name equal to the surname is not shown",
 			tier:       render.Full,
 			households: []rolo.Household{house("h_cal001", wilma)},
-			want:       []render.Birthday{{Name: "Yoder, Wilma", Month: 3, Day: "12"}},
+			want:       []render.Birthday{{Name: "Yoder, Wilma", HouseholdID: "h_cal001", Month: 3, Day: "12"}},
 		},
 		{
 			name: "no surname prints the given name alone",
 			tier: render.Full,
 			households: []rolo.Household{house("h_cal001",
 				person("p_cher01", "Cher", "", adultBirth))},
-			want: []render.Birthday{{Name: "Cher", Month: 3, Day: "12"}},
+			want: []render.Birthday{{Name: "Cher", HouseholdID: "h_cal001", Month: 3, Day: "12"}},
 		},
 		{
 			name: "rows sort by surname then given name, ignoring case, across Households; no surname sorts by given name",
@@ -1000,12 +1011,12 @@ func TestBuildBirthdays(t *testing.T) {
 					person("p_mado01", "Madonna", "", adultBirth)),
 			},
 			want: []render.Birthday{
-				{Name: "de Groot, Emma", Month: 3, Day: "12"},
-				{Name: "Lechlitner, Abigail", Month: 3, Day: "12"},
-				{Name: "Lechlitner, Zoa", Month: 3, Day: "12"},
-				{Name: "Madonna", Month: 3, Day: "12"},
-				{Name: "Maller, Brady", Month: 3, Day: "12"},
-				{Name: "McDaniel, Courtney", Month: 3, Day: "12"},
+				{Name: "de Groot, Emma", HouseholdID: "h_cal002", Month: 3, Day: "12"},
+				{Name: "Lechlitner, Abigail", HouseholdID: "h_cal002", Month: 3, Day: "12"},
+				{Name: "Lechlitner, Zoa", HouseholdID: "h_cal001", Month: 3, Day: "12"},
+				{Name: "Madonna", HouseholdID: "h_cal002", Month: 3, Day: "12"},
+				{Name: "Maller, Brady", HouseholdID: "h_cal002", Month: 3, Day: "12"},
+				{Name: "McDaniel, Courtney", HouseholdID: "h_cal001", Month: 3, Day: "12"},
 			},
 		},
 		{
@@ -1014,9 +1025,15 @@ func TestBuildBirthdays(t *testing.T) {
 			households: []rolo.Household{house("h_cal001",
 				dawn, person("p_mino01", "Mia", "Yoder", minorBirth))},
 			want: []render.Birthday{
-				{Name: "Yoder, Dawn", Month: 6, Day: "15"},
-				{Name: "Yoder, Mia", Month: 4, Day: "30"},
+				{Name: "Yoder, Dawn", HouseholdID: "h_cal001", Month: 6, Day: "15"},
+				{Name: "Yoder, Mia", HouseholdID: "h_cal001", Month: 4, Day: "30"},
 			},
+		},
+		{
+			name:       "a living Dependent of a Memorial Household points at the Memorial block",
+			tier:       render.Full,
+			households: []rolo.Household{house("h_meml99", deceased, dawn)},
+			want:       []render.Birthday{{Name: "Yoder, Dawn", HouseholdID: "h_meml99", Month: 6, Day: "15"}},
 		},
 	}
 
@@ -1103,6 +1120,49 @@ func TestBuildContents(t *testing.T) {
 					"Daniel & Claire (Ortega) Langford":  false, // grandchild: found after Robert & Susan
 					"Patricia Novak":                     true,  // standalone root
 				}, listed)
+			},
+		},
+	}
+
+	d := exampleDirectory(t)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.checkFunc(t, d)
+		})
+	}
+}
+
+// TestBuildLinkTargets pins that every Birthday Calendar row names a Household
+// block that is in the same Directory, so no row can link to nothing.
+func TestBuildLinkTargets(t *testing.T) {
+	tests := []struct {
+		name      string
+		checkFunc func(t *testing.T, d render.Directory)
+	}{
+		{
+			name: "every calendar row names a household block in the directory",
+			checkFunc: func(t *testing.T, d render.Directory) {
+				t.Helper()
+				blocks := map[string]bool{}
+				for _, h := range d.Households {
+					blocks[h.ID] = true
+				}
+				require.NotEmpty(t, d.Birthdays)
+				for _, b := range d.Birthdays {
+					assert.True(t, blocks[b.HouseholdID], "%s points at %q", b.Name, b.HouseholdID)
+				}
+			},
+		},
+		{
+			name: "household blocks carry their stored IDs in directory order",
+			checkFunc: func(t *testing.T, d render.Directory) {
+				t.Helper()
+				ids := make([]string, 0, len(d.Households))
+				for _, h := range d.Households {
+					ids = append(ids, h.ID)
+				}
+				assert.Equal(t, []string{"h_meml01", "h_lang01", "h_lang02", "h_nova01"}, ids)
 			},
 		},
 	}

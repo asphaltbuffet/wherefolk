@@ -36,6 +36,11 @@ type Person struct {
 // Blocks are a flat sequence: a Household never nests inside its parent's block
 // regardless of depth (ADR-0002, §5.1).
 type Household struct {
+	// ID is the Household's stored ID. It is never printed: the template turns
+	// it into a label marking where this block begins, so a Birthday Calendar
+	// row can link to the block and print its page.
+	ID string
+
 	// Name is the Household Name the block prints under, e.g.
 	// "Daryl & Dawn (Mitchell) Yoder" (CONTEXT.md). It is not rolo's Label:
 	// that compact "Daryl/Dawn" form is a Path segment, for navigation, and
@@ -77,10 +82,14 @@ type Household struct {
 // Month is a column number, 1–12, not a date: which month a person's row marks
 // is layout, and every rule about whether they appear at all was applied in
 // Build. Day is "15", or "?" when the month is known without its day.
+//
+// HouseholdID is the ID of the Household whose block lists this person. The
+// row links to that block and prints its page. It is never printed itself.
 type Birthday struct {
-	Name  string
-	Month int
-	Day   string
+	Name        string
+	HouseholdID string
+	Month       int
+	Day         string
 }
 
 // Directory is the whole printable document.
