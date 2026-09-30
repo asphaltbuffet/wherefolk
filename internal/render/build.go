@@ -80,6 +80,7 @@ func (f filter) household(h rolo.Household) Household {
 	carried := carriedSurnames(h.Adults)
 
 	out := Household{
+		ID:          string(h.ID),
 		Name:        h.Name(),
 		Memorial:    memorial,
 		Anniversary: f.date(h.Anniversary, memorial),
