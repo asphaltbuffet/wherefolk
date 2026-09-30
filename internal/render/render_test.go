@@ -198,6 +198,23 @@ func TestRenderedStructure(t *testing.T) {
 					"the calendar holds the Directory's only links")
 			},
 		},
+		{
+			name: "a calendar link resolves to a household many pages later",
+			checkFunc: func(t *testing.T, r render.Renderer, _ render.Directory) {
+				t.Helper()
+
+				many := manyHouseholds(100)
+				last := many.Households[len(many.Households)-1].ID
+
+				many.Birthdays = []render.Birthday{
+					{Name: "Adult 99", HouseholdID: last, Month: 3, Day: "12"},
+				}
+
+				dest := "<" + last + ">"
+				assert.Equal(t, []string{dest, dest}, labels(t, r.Typst.Bin, many, "link", "dest"),
+					"the name and the page both jump to the last household, pages away")
+			},
+		},
 	}
 
 	r := requireRenderer(t)
