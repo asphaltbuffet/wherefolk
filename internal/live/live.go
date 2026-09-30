@@ -196,6 +196,35 @@ func (c *Copy) Update(build func(Snapshot) (store.State, error)) (Saved, error) 
 	return Saved{Snapshot: snapshotOf(sv, snap.Now), Changed: true, Undo: sv.undo.token}, nil
 }
 
+// Undo returns to the state before the latest save, if token names that save.
+// A token that is empty, was never issued, or was retired by a newer save is
+// not an error: Undo reports false and changes nothing.
+//
+// Undo is exact — it does not purge the Trash it restores — and it is one
+// step: afterwards there is nothing to undo, so Undo is never a toggle. It
+// returns the Snapshot it leaves served, so a caller checking what still
+// exists sees the state the Undo produced rather than a later one.
+func (c *Copy) Undo(token string) (Snapshot, bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	cur := c.current.Load()
+	now := c.now()
+
+	if token == "" || cur.undo == nil || token != cur.undo.token {
+		return snapshotOf(cur, now), false, nil
+	}
+
+	sv, err := c.write(cur, cur.undo.before)
+	if err != nil {
+		return snapshotOf(cur, now), false, err
+	}
+
+	c.current.Store(sv)
+
+	return snapshotOf(sv, now), true, nil
+}
+
 // write builds next's tree and saves it, returning what to serve. It swaps
 // nothing: on an error the caller goes on serving cur.
 func (c *Copy) write(cur *served, next store.State) (*served, error) {

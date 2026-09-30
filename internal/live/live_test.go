@@ -2,6 +2,7 @@ package live_test
 
 import (
 	"errors"
+	"path/filepath"
 	"slices"
 	"sync"
 	"testing"
@@ -437,6 +438,162 @@ func TestUpdate(t *testing.T) {
 				}
 
 				wg.Wait()
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, tt.checkFunc)
+	}
+}
+
+func TestUndo(t *testing.T) {
+	tests := []struct {
+		name      string
+		checkFunc func(t *testing.T)
+	}{
+		{
+			name: "Undo returns to the state before the latest save",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				w := &recordingWriter{}
+				c := newCopy(t, store.State{Document: sampleDocument()}, w)
+				original := c.Snapshot().Settings
+				saved, err := c.Update(retitle("The Whitlocks"))
+				require.NoError(t, err)
+
+				snap, undone, err := c.Undo(saved.Undo)
+				require.NoError(t, err)
+
+				assert.True(t, undone)
+				assert.Same(t, original, snap.Settings)
+				assert.Same(t, original, c.Snapshot().Settings)
+				require.Len(t, w.writes, 2)
+				assert.Same(t, original, w.writes[1].next.Settings)
+			},
+		},
+		{
+			name: "after an Undo there is nothing to undo",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				w := &recordingWriter{}
+				c := newCopy(t, store.State{Document: sampleDocument()}, w)
+				saved, err := c.Update(retitle("The Whitlocks"))
+				require.NoError(t, err)
+				_, _, err = c.Undo(saved.Undo)
+				require.NoError(t, err)
+
+				snap, undone, err := c.Undo(saved.Undo)
+				require.NoError(t, err)
+
+				assert.False(t, undone, "Undo is never a toggle")
+				assert.False(t, snap.CanUndo(saved.Undo))
+				assert.Len(t, w.writes, 2)
+			},
+		},
+		{
+			name: "a token retired by a newer save is refused",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				w := &recordingWriter{}
+				c := newCopy(t, store.State{Document: sampleDocument()}, w)
+				first, err := c.Update(retitle("One"))
+				require.NoError(t, err)
+				_, err = c.Update(retitle("Two"))
+				require.NoError(t, err)
+
+				_, undone, err := c.Undo(first.Undo)
+				require.NoError(t, err)
+
+				assert.False(t, undone)
+				assert.Equal(t, "Two", c.Snapshot().Settings.Title)
+				assert.Len(t, w.writes, 2)
+			},
+		},
+		{
+			name: "an empty token is refused",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				w := &recordingWriter{}
+				c := newCopy(t, store.State{Document: sampleDocument()}, w)
+
+				_, undone, err := c.Undo("")
+				require.NoError(t, err)
+
+				assert.False(t, undone)
+				assert.Empty(t, w.writes)
+			},
+		},
+		{
+			name: "a failed Undo keeps the Undo",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				w := &recordingWriter{}
+				c := newCopy(t, store.State{Document: sampleDocument()}, w)
+				saved, err := c.Update(retitle("The Whitlocks"))
+				require.NoError(t, err)
+
+				diskFull := errors.New("disk full")
+				w.err = diskFull
+				_, undone, err := c.Undo(saved.Undo)
+
+				require.ErrorIs(t, err, diskFull)
+				assert.False(t, undone)
+				assert.Equal(t, "The Whitlocks", c.Snapshot().Settings.Title)
+				assert.True(t, c.Snapshot().CanUndo(saved.Undo))
+			},
+		},
+		{
+			name: "Undo restores the Trash exactly, without purging it",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				w := &recordingWriter{}
+				stored := expiredTrash()
+				c := newCopy(t, store.State{Document: sampleDocument(), Trash: stored}, w)
+				saved, err := c.Update(deleteCarla) // also purges h_gone
+				require.NoError(t, err)
+
+				_, undone, err := c.Undo(saved.Undo)
+				require.NoError(t, err)
+
+				assert.True(t, undone)
+				require.Len(t, w.writes, 2)
+				assert.Same(t, stored, w.writes[1].next.Trash)
+				assert.Equal(t, []rolo.HouseholdID{"h_gone"}, trashIDs(w.writes[1].next.Trash))
+			},
+		},
+		{
+			name: "a deletion and its Undo round-trip through the files",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				dir := t.TempDir()
+				paths := store.Paths{
+					Document: filepath.Join(dir, "directory.json"),
+					Trash:    filepath.Join(dir, "trash.json"),
+					Settings: filepath.Join(dir, "settings.json"),
+				}
+				require.NoError(t, store.Save(paths.Document, sampleDocument()))
+
+				initial, err := store.Open(paths, day(0))
+				require.NoError(t, err)
+				c := newCopy(t, initial, paths)
+
+				saved, err := c.Update(deleteCarla)
+				require.NoError(t, err)
+
+				onDisk, err := store.Open(paths, day(0))
+				require.NoError(t, err)
+				assert.Len(t, onDisk.Document.Households, 2)
+				assert.Equal(t, []rolo.HouseholdID{"h_carla"}, trashIDs(onDisk.Trash))
+
+				_, undone, err := c.Undo(saved.Undo)
+				require.NoError(t, err)
+				require.True(t, undone)
+
+				back, err := store.Open(paths, day(0))
+				require.NoError(t, err)
+				assert.Len(t, back.Document.Households, 3)
+				assert.Empty(t, back.Trash.Entries)
 			},
 		},
 	}
