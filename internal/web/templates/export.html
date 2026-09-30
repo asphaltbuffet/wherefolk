@@ -10,6 +10,20 @@
   <p class="export-back"><a href="/">← Back to the family list</a></p>
   <h1>Make a Directory to send</h1>
 
+  {{if .Announcement.Message}}{{template "announce" .Announcement}}{{end}}
+
+  <!-- The title prints on the Directory's cover. The tier this form carries
+       arrives from inside #export-result (form="export-title"), because the
+       tier radios swap only that fragment. -->
+  <form id="export-title" class="export-title" action="/export/title" method="post">
+    <label for="export-title-input">Title on the cover</label>
+    <input id="export-title-input" type="text" name="title" value="{{.Title.Value}}"
+           placeholder="{{.DefaultTitle}}" maxlength="{{.MaxTitle}}"
+           {{- with .Title.Error}} aria-invalid="true" aria-describedby="export-title-error"{{end}}>
+    <button type="submit">Save title</button>
+    {{with .Title.Error}}<p id="export-title-error" class="export-error" role="alert">{{.}}</p>{{end}}
+  </form>
+
   <form class="export-tiers" action="/export" method="get"
         hx-get="/export" hx-trigger="change" hx-target="#export-result"
         hx-swap="outerHTML" hx-push-url="true">

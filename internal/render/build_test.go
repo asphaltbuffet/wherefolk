@@ -28,7 +28,7 @@ func exampleDirectory(t *testing.T) render.Directory {
 	tree, err := doc.Tree()
 	require.NoError(t, err)
 
-	return render.Build(tree, render.Full, asOf)
+	return render.Build(tree, render.Full, asOf, "")
 }
 
 // build runs Build over a synthetic set of Households.
@@ -38,7 +38,7 @@ func build(t *testing.T, tier render.Tier, hs ...rolo.Household) render.Director
 	tree, err := rolo.BuildTree(hs)
 	require.NoError(t, err)
 
-	return render.Build(tree, tier, asOf)
+	return render.Build(tree, tier, asOf, "")
 }
 
 // Fixture dates, relative to asOf (2026-09-24).
@@ -1052,6 +1052,66 @@ func TestBuildBirthdaysIsTheSameInEveryTier(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, want, build(t, tt.tier, households...).Birthdays)
+		})
+	}
+}
+
+func TestBuildTitle(t *testing.T) {
+	tests := []struct {
+		name  string
+		title string
+		want  string
+	}{
+		{name: "an untitled Directory is titled Family Directory", title: "", want: "Family Directory"},
+		{name: "a blank title is untitled", title: "   ", want: render.DefaultTitle},
+		{
+			name:  "a title prints as the Editor set it",
+			title: "The Langford Family Directory",
+			want:  "The Langford Family Directory",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree, err := rolo.BuildTree([]rolo.Household{{ID: "h_test01", Adults: []rolo.Person{anchor()}}})
+			require.NoError(t, err)
+
+			for _, tier := range []render.Tier{render.Mail, render.Call, render.Digital, render.Full} {
+				d := render.Build(tree, tier, asOf, tt.title)
+				assert.Equal(t, tt.want, d.Title, "the title is the same in every tier (%s)", tier)
+			}
+		})
+	}
+}
+
+func TestBuildContents(t *testing.T) {
+	tests := []struct {
+		name      string
+		checkFunc func(t *testing.T, d render.Directory)
+	}{
+		{
+			name: "the example lists roots and their children, not grandchildren",
+			checkFunc: func(t *testing.T, d render.Directory) {
+				t.Helper()
+				listed := map[string]bool{}
+				for _, h := range d.Households {
+					listed[h.Name] = h.Contents
+				}
+				assert.Equal(t, map[string]bool{
+					"Harold & June (Whitfield) Langford": true,  // Memorial root
+					"Robert & Susan (Marsh) Langford":    true,  // child of a root
+					"Daniel & Claire (Ortega) Langford":  false, // grandchild: found after Robert & Susan
+					"Patricia Novak":                     true,  // standalone root
+				}, listed)
+			},
+		},
+	}
+
+	d := exampleDirectory(t)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.checkFunc(t, d)
 		})
 	}
 }

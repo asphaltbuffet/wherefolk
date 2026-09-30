@@ -457,3 +457,40 @@ func TestExportPage(t *testing.T) {
 		})
 	}
 }
+
+func TestExportCarriesTheDirectoryTitle(t *testing.T) {
+	tests := []struct {
+		name     string
+		settings *store.Settings
+		want     string
+	}{
+		{name: "an untitled Directory", settings: nil, want: render.DefaultTitle},
+		{
+			name:     "a titled Directory",
+			settings: store.NewSettings().WithTitle("The Whitlock Directory"),
+			want:     "The Whitlock Directory",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ex := &fakeExporter{pdf: []byte("%PDF-fake")}
+
+			srv, err := web.New(store.State{Document: sampleDocument(), Settings: tt.settings},
+				config.Config{}, testLogger(), web.Meta{},
+				func(_, _ store.State) error { return nil },
+				func() (rolo.HouseholdID, error) { return "h_x", nil },
+				func() (rolo.PersonID, error) { return "p_x", nil },
+				ex, testClock,
+			)
+			require.NoError(t, err)
+
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/export/pdf?tier=mail", nil))
+
+			require.Equal(t, http.StatusOK, rec.Code)
+			require.Len(t, ex.got, 1)
+			assert.Equal(t, tt.want, ex.got[0].Title)
+		})
+	}
+}

@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/url"
 
+	"github.com/asphaltbuffet/wherefolk/internal/render"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -36,6 +37,11 @@ type undoForm struct {
 	At    rolo.HouseholdID
 	Open  string
 	Pane  string
+
+	// Export sends the Editor back to the export page rather than the tree,
+	// with Tier as the preview to show; a title change is announced there.
+	Export bool
+	Tier   string
 }
 
 // persist makes next the served state: it builds the tree, saves, swaps both
@@ -57,7 +63,7 @@ func (s *Server) persist(next store.State) (string, error) {
 		return "", fmt.Errorf("save document: %w", err)
 	}
 
-	s.doc, s.trash, s.tree = next.Document, next.Trash, tree
+	s.doc, s.trash, s.settings, s.tree = next.Document, next.Trash, next.Settings, tree
 
 	token := rand.Text()
 	s.undo = &undoPoint{token: token, before: prev}
@@ -78,6 +84,19 @@ func (s *Server) handleUndo(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		s.log.ErrorContext(r.Context(), "undo", "error", err)
 		http.Error(w, "the change could not be undone", http.StatusInternalServerError)
+
+		return
+	}
+
+	if r.PostForm.Get("back") == "export" {
+		q := url.Values{}
+		q.Set(saidKey, msg)
+
+		if tier, ok := render.ParseTier(r.PostForm.Get("tier")); ok {
+			q.Set("tier", tier.Key())
+		}
+
+		http.Redirect(w, r, exportPageURL(q), http.StatusSeeOther)
 
 		return
 	}

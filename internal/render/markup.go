@@ -9,7 +9,7 @@ import (
 // generated markup emits data and calls these; it never sets a margin, a font
 // or a spacing value itself, because layout belongs to the template the
 // Operator edits (ADR-0004, §5.1).
-const templateImport = `#import "directory.typ": directory, household, memorial, birthdays`
+const templateImport = `#import "directory.typ": directory, households, household, memorial, birthdays`
 
 // Markup renders d as Typst source.
 //
@@ -20,7 +20,9 @@ func Markup(d Directory) string {
 	var b strings.Builder
 
 	b.WriteString(templateImport)
-	b.WriteString("\n\n#directory(generated: ")
+	b.WriteString("\n\n#directory(title: ")
+	b.WriteString(quote(d.Title))
+	b.WriteString(", generated: ")
 	b.WriteString(quote(d.GeneratedAt))
 	b.WriteString(", tier: ")
 	b.WriteString(quote(d.Tier))
@@ -28,8 +30,16 @@ func Markup(d Directory) string {
 	b.WriteString(strconv.FormatBool(d.Restricted))
 	b.WriteString(")[\n")
 
-	for _, h := range d.Households {
-		writeHousehold(&b, h)
+	// The section's heading is template copy, like the Birthday Calendar's, so
+	// the call wraps the blocks rather than naming them.
+	if len(d.Households) > 0 {
+		b.WriteString("  #households[\n")
+
+		for _, h := range d.Households {
+			writeHousehold(&b, h)
+		}
+
+		b.WriteString("  ]\n")
 	}
 
 	if len(d.Birthdays) > 0 {
@@ -62,6 +72,8 @@ func writeHousehold(b *strings.Builder, h Household) {
 	b.WriteString(peopleArray(h.Adults))
 	b.WriteString(",\n    dependents: ")
 	b.WriteString(peopleArray(h.Dependents))
+	b.WriteString(",\n    contents: ")
+	b.WriteString(strconv.FormatBool(h.Contents))
 	b.WriteString(",\n  )\n")
 }
 

@@ -13,6 +13,8 @@
       <input type="hidden" name="at" value="{{.At}}">
       <input type="hidden" name="open" value="{{.Open}}">
       <input type="hidden" name="pane" value="{{.Pane}}">
+      {{if .Export}}<input type="hidden" name="back" value="export">{{if .Tier}}
+      <input type="hidden" name="tier" value="{{.Tier}}">{{end}}{{end}}
       <button type="submit">Undo</button>
     </form>
     {{end}}

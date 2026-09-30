@@ -1,6 +1,7 @@
 package render
 
 import (
+	"strings"
 	"time"
 
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
@@ -13,6 +14,14 @@ import (
 // font stack, needs no legend, and reads correctly aloud to a screen reader.
 const Private = "[private]"
 
+// DefaultTitle is the Directory Title of a Directory the Editor has not named
+// (CONTEXT.md).
+const DefaultTitle = "Family Directory"
+
+// contentsDepth is the deepest Walk depth the Table of Contents lists: roots
+// are depth 0 and their children depth 1 (CONTEXT.md, Table of Contents).
+const contentsDepth = 1
+
 // Build renders every Household in t for one audience, in the depth-first
 // order the printed Directory uses.
 //
@@ -23,10 +32,16 @@ const Private = "[private]"
 //
 // asOf is a parameter rather than [time.Now] so the caller owns the time
 // dependency: age gating makes exports non-reproducible (§5.7).
-func Build(t *rolo.Tree, tier Tier, asOf time.Time) Directory {
+// title is the Directory Title as the Editor set it; blank means untitled.
+func Build(t *rolo.Tree, tier Tier, asOf time.Time, title string) Directory {
 	f := filter{tree: t, tier: tier, asOf: asOf}
 
+	if strings.TrimSpace(title) == "" {
+		title = DefaultTitle
+	}
+
 	d := Directory{
+		Title:       title,
 		GeneratedAt: asOf.Format(dateStamp),
 		Tier:        tier.String(),
 		Restricted:  tier.full(),
@@ -35,8 +50,10 @@ func Build(t *rolo.Tree, tier Tier, asOf time.Time) Directory {
 	// Walk visits roots in sibling order and descends depth-first, which is
 	// precisely §5.1's ordering. The callback never errors, so the returned
 	// error is always nil.
-	_ = t.Walk(func(h rolo.Household, _ int) error {
-		d.Households = append(d.Households, f.household(h))
+	_ = t.Walk(func(h rolo.Household, depth int) error {
+		out := f.household(h)
+		out.Contents = depth <= contentsDepth
+		d.Households = append(d.Households, out)
 
 		return nil
 	})

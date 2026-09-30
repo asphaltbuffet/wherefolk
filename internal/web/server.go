@@ -34,6 +34,9 @@ type Server struct {
 	// trash holds deleted Households (ADR-0012). Like doc it is replaced, never
 	// mutated, and only after a save succeeds.
 	trash *store.Trash
+	// settings are the Editor's Directory-wide choices (ADR-0013). Replaced,
+	// never mutated, and only after a save succeeds. Never nil after New.
+	settings *store.Settings
 	// undo is the one step Undo can return to, or nil. See undo.go.
 	undo *undoPoint
 	meta Meta
@@ -101,6 +104,11 @@ func New(
 		trash = store.NewTrash()
 	}
 
+	settings := state.Settings
+	if settings == nil {
+		settings = store.NewSettings()
+	}
+
 	if logger == nil {
 		return nil, errors.New("web: logger is nil")
 	}
@@ -134,6 +142,7 @@ func New(
 		doc:            doc,
 		tree:           tree,
 		trash:          trash,
+		settings:       settings,
 		meta:           meta,
 		cfg:            cfg,
 		log:            logger,
@@ -147,7 +156,7 @@ func New(
 
 // state is what the server currently serves. Callers hold at least a read lock.
 func (s *Server) state() store.State {
-	return store.State{Document: s.doc, Trash: s.trash}
+	return store.State{Document: s.doc, Trash: s.trash, Settings: s.settings}
 }
 
 // Handler returns the server's routes.
@@ -181,6 +190,7 @@ func (s *Server) Handler() http.Handler {
 	// Export (§5). The page previews; /export/pdf is the file itself.
 	mux.HandleFunc("GET /export", s.handleExport)
 	mux.HandleFunc("GET /export/pdf", s.handleExportPDF)
+	mux.HandleFunc("POST /export/title", s.handleTitle)
 
 	// Vendored assets, served from the embedded FS so the binary stays a single
 	// file with no runtime dependency on a directory beside it. The embed root

@@ -48,6 +48,13 @@ type Household struct {
 	// beneath it and no Path points at a missing node (§5.4).
 	Memorial bool
 
+	// Contents marks a Household the Table of Contents lists: a root, or a
+	// child of a root (CONTEXT.md). A deeper Household's block follows its
+	// ancestor's, so the reader finds it from that entry. It is a layout flag,
+	// not a rule about what the audience may see: every tier lists the same
+	// Households, because every tier prints every Household.
+	Contents bool
+
 	// AddressLines is the Household's own address. Empty when it has none, and
 	// also when it shares another Household's, in which case SharedWith is set.
 	AddressLines []string
@@ -78,6 +85,11 @@ type Birthday struct {
 
 // Directory is the whole printable document.
 type Directory struct {
+	// Title is the Directory Title the Title page and the PDF's metadata
+	// carry. Build supplies DefaultTitle when the Editor has set none, so it is
+	// never empty in a built Directory.
+	Title string
+
 	// GeneratedAt is the stamp every export carries. Age gating is computed at
 	// export time, so the same Directory exported months apart differs as people
 	// turn 18 — the date is what makes that legible (§5.7).

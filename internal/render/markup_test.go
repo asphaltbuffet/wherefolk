@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/asphaltbuffet/wherefolk/internal/render"
 )
@@ -20,7 +21,8 @@ func TestMarkup(t *testing.T) {
 			in:   render.Directory{GeneratedAt: "2026-09-24"},
 			checkFunc: func(t *testing.T, got string) {
 				t.Helper()
-				assert.Contains(t, got, `#import "directory.typ": directory, household, memorial, birthdays`,
+				assert.Contains(t, got,
+					`#import "directory.typ": directory, households, household, memorial, birthdays`,
 					"layout lives in the template on disk (ADR-0004)")
 			},
 		},
@@ -192,6 +194,49 @@ func TestMarkup(t *testing.T) {
 			checkFunc: func(t *testing.T, got string) {
 				t.Helper()
 				assert.NotContains(t, got, "#birthdays(", "an empty table would look broken")
+			},
+		},
+		{
+			name: "passes the directory title",
+			in:   render.Directory{Title: `The "Langford" Directory`, GeneratedAt: "2026-09-24"},
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				assert.Contains(t, got, `#directory(title: "The \"Langford\" Directory", generated: "2026-09-24"`,
+					"the title reaches Typst as a quoted string literal")
+			},
+		},
+		{
+			name: "households sit inside the households section",
+			in: render.Directory{
+				GeneratedAt: "2026-09-24",
+				Households:  []render.Household{{Name: "Patricia Novak", Contents: true}},
+			},
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				section := strings.Index(got, "#households[")
+				block := strings.Index(got, "#household(")
+				require.GreaterOrEqual(t, section, 0, "the section call is emitted")
+				assert.Less(t, section, block, "each Household is inside the section")
+				assert.Contains(t, got, "contents: true")
+			},
+		},
+		{
+			name: "a household the contents do not list says so",
+			in: render.Directory{
+				GeneratedAt: "2026-09-24",
+				Households:  []render.Household{{Name: "Daniel & Claire (Ortega) Langford"}},
+			},
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				assert.Contains(t, got, "contents: false")
+			},
+		},
+		{
+			name: "no households section without households",
+			in:   render.Directory{GeneratedAt: "2026-09-24"},
+			checkFunc: func(t *testing.T, got string) {
+				t.Helper()
+				assert.NotContains(t, got, "#households[", "an empty section would print a heading over nothing")
 			},
 		},
 	}

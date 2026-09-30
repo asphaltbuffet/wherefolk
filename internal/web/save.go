@@ -139,7 +139,7 @@ func (s *Server) commit(r *http.Request, id rolo.HouseholdID) saveOutcome {
 		next.Households[i].Normalize()
 	}
 
-	token, err := s.persist(store.State{Document: next, Trash: s.trash})
+	token, err := s.persist(store.State{Document: next, Trash: s.trash, Settings: s.settings})
 	if err != nil {
 		return saveOutcome{sub: sub, err: err}
 	}

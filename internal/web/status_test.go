@@ -111,11 +111,12 @@ func sampleDocument() *store.Document {
 // the server would go on to serve. savedTrash is the Trash that save wrote
 // alongside it.
 type recordingSaver struct {
-	attempted  *store.Document
-	saved      *store.Document
-	savedTrash *store.Trash
-	err        error
-	calls      int
+	attempted     *store.Document
+	saved         *store.Document
+	savedTrash    *store.Trash
+	savedSettings *store.Settings
+	err           error
+	calls         int
 }
 
 func (r *recordingSaver) save(_, next store.State) error {
@@ -126,6 +127,7 @@ func (r *recordingSaver) save(_, next store.State) error {
 	}
 	r.saved = next.Document
 	r.savedTrash = next.Trash
+	r.savedSettings = next.Settings
 	return nil
 }
 

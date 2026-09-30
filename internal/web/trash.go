@@ -129,7 +129,7 @@ func (s *Server) restoreHousehold(id rolo.HouseholdID) restoreOutcome {
 
 	trash, _ = trash.Purge(s.now())
 
-	token, err := s.persist(store.State{Document: doc, Trash: trash})
+	token, err := s.persist(store.State{Document: doc, Trash: trash, Settings: s.settings})
 	if err != nil {
 		return restoreOutcome{name: name, err: err}
 	}

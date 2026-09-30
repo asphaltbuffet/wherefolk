@@ -29,6 +29,9 @@ const (
 	// TrashName is the Trash's filename within the data directory, beside the
 	// document (ADR-0012).
 	TrashName = "trash.json"
+	// SettingsName is the settings file's name within the data directory,
+	// beside the document (ADR-0013).
+	SettingsName = "settings.json"
 	// DefaultTemplateDir is where the Typst layout lives inside the container.
 	// It is a directory under the same volume as the document, so the Operator
 	// edits the template through the same mount they already have (§2.1,
@@ -68,6 +71,9 @@ func (c Config) DocumentPath() string { return filepath.Join(c.DataDir, Document
 
 // TrashPath is the Trash file's location on disk.
 func (c Config) TrashPath() string { return filepath.Join(c.DataDir, TrashName) }
+
+// SettingsPath is the settings file's location on disk.
+func (c Config) SettingsPath() string { return filepath.Join(c.DataDir, SettingsName) }
 
 // Load reads configuration from getenv, which is [os.Getenv] in production and a
 // map lookup in tests. An unset variable takes its default; an invalid one is an

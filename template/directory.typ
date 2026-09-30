@@ -2,15 +2,40 @@
 //
 // This file is deliberately NOT embedded in the binary (ADR-0004): adjusting
 // spacing or type is an edit here plus a restart, not a rebuild and redeploy.
-// The Go side emits data and calls three of these functions (directory,
-// household, memorial); it sets no margins, fonts or spacing of its own, so
-// every layout decision is in this file.
+// The Go side emits data and calls these functions (directory, households,
+// household, memorial, birthdays); it sets no margins, fonts or spacing of its
+// own, so every layout decision — and every word of section copy — is in this
+// file.
 //
 // Layout is not customisable (§5.1). There is one typeface, one set of margins
 // and one block format, on purpose: the Editor wants a directory that looks
 // right, not a document to design.
 
-#let directory(generated: "", tier: "", restricted: false, body) = {
+// title-page is page 1 of every Directory (CONTEXT.md, Title page). It states
+// the Directory Title and the facts that let a reader judge a copy at a
+// glance; the footer prints DO NOT DISTRIBUTE beneath it for Full.
+#let title-page(title, generated, tier) = {
+  align(center + horizon, {
+    text(size: 28pt, weight: "bold", title)
+    v(1.2em)
+    text(size: 11pt, fill: luma(80), "Generated " + generated)
+    if tier != "" {
+      linebreak()
+      text(size: 11pt, fill: luma(80), tier + " tier")
+    }
+  })
+  pagebreak()
+}
+
+// contents-page is the Table of Contents (CONTEXT.md). Level 1 is a section;
+// level 2 is a first-generation Branch, whose heading household() hides.
+#let contents-page() = {
+  outline(title: "Contents", depth: 2)
+  pagebreak(weak: true)
+}
+
+#let directory(title: "", generated: "", tier: "", restricted: false, body) = {
+  set document(title: title)
   set page(
     paper: "us-letter",
     margin: (x: 2cm, y: 2cm),
@@ -20,15 +45,36 @@
         text(weight: "bold", fill: luma(0), "DO NOT DISTRIBUTE")
         h(0.8em)
       }
-      #if tier != "" { tier + " tier · " }Generated #generated
-      #h(1fr)
-      #counter(page).display("1 of 1", both: true)
+      // The Title page counts as page 1 but states its tier and date in its
+      // body, so its footer carries neither them nor a page number.
+      #if counter(page).get().first() > 1 [
+        #if tier != "" { tier + " tier · " }Generated #generated
+        #h(1fr)
+        #counter(page).display("1 of 1", both: true)
+      ]
     ],
   )
 
   set text(font: ("Libertinus Serif", "DejaVu Serif"), size: 10pt)
   set par(justify: false)
 
+  // A section starts on a fresh page under a plain bold heading. The
+  // Table of Contents' own title is a level-1 heading too, and takes the same
+  // look.
+  show heading.where(level: 1): it => {
+    pagebreak(weak: true)
+    text(size: 14pt, weight: "bold", it.body)
+    v(0.6em)
+  }
+
+  title-page(title, generated, tier)
+  contents-page()
+  body
+}
+
+// households is the section holding every Household block.
+#let households(body) = {
+  heading(level: 1, "Households")
   body
 }
 
@@ -88,8 +134,15 @@
   shared: "",
   adults: (),
   dependents: (),
+  contents: false,
 ) = {
   block(breakable: false, width: 100%, inset: (y: 0.4em), {
+    // A first-generation Branch is listed in the Table of Contents through a
+    // heading that takes no space and prints nothing: the block must look like
+    // every other Household, because Branches are never nested in the rendered
+    // output (ADR-0002). place() keeps it out of the flow; hide() keeps it
+    // locatable, so the outline still knows its page.
+    if contents { place(hide(heading(level: 2, name))) }
     text(size: 12pt, weight: "bold", name)
 
     if address.len() > 0 {
@@ -132,8 +185,11 @@
   shared: "",
   adults: (),
   dependents: (),
+  contents: false,
 ) = {
   block(breakable: false, width: 100%, inset: (y: 0.3em), {
+    // Listed in the Table of Contents as household() explains.
+    if contents { place(hide(heading(level: 2, name))) }
     text(size: 11pt, weight: "bold", fill: luma(60), name)
 
     if anniversary != "" {
@@ -160,7 +216,8 @@
 // against the twelve months, with the day of their birthday in its month.
 //
 // Who appears, what each name says and the order were all decided in Go; this
-// only lays the rows out. It starts on a fresh page after the last Household.
+// only lays the rows out. It is its own section, so it starts on a fresh page
+// and is listed in the Table of Contents.
 // The month header repeats on every page, so page five still says which column
 // is Sep. Alternate rows are shaded so the eye can follow a row from name to
 // day. A row is never split across a page break; a surname group may be.
@@ -168,9 +225,7 @@
   let months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
 
-  pagebreak(weak: true)
-  text(size: 14pt, weight: "bold", "Birthdays")
-  v(0.6em)
+  heading(level: 1, "Birthdays")
 
   set table.cell(breakable: false)
   table(

@@ -33,7 +33,7 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
 ## Architecture
 
 - **`main.go`** — entry point: reads config, loads the store, starts the web server
-- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_TEMPLATE`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`, `WHEREFOLK_FULL_PASSPHRASE`); `TrashPath()` sits beside `DocumentPath()`
+- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_TEMPLATE`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`, `WHEREFOLK_FULL_PASSPHRASE`); `TrashPath()` and `SettingsPath()` sit beside `DocumentPath()`
   - `Config` carries the log *level*; `main` builds the `*slog.Logger` from it and injects it.
     Nothing outside `main` touches slog's package default — constructors take a `*slog.Logger`.
   - `FullPassphrase` is a `config.Secret`: `%v`, `%+v`, `%#v` and slog all print `[redacted]`, and
@@ -77,6 +77,13 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     `family_directory_<tier>_<YYYY-MM-DD>.pdf`. Both send `Cache-Control: no-store`.
   - **Full is never produced unencrypted.** Without a passphrase both routes refuse it before
     rendering; with one, `render.Encrypt` runs before a byte is written.
+  - **Directory Title** (`title.go`): the export page's own form, `POST /export/title`, saved through
+    `persist` like any edit, so it is announced on the export page with an Undo that returns there
+    (`back=export`). The current tier reaches the form from inside the swapped `export_result`
+    fragment via `form="export-title"`, because the radios never reload the form. A title over 80
+    characters or containing a control character is refused with 422, re-rendering the Editor's typing.
+    An unchanged title is not a save. Every `persist` call passes `Settings: s.settings` — a State
+    literal without it would swap in nil.
   - The renderer arrives as an injected `Exporter` and the time as a `Clock`, so this package's tests
     need no typst and no real clock. `exportDate` turns the host's local calendar date into midnight
     UTC, because `rolo.Person.IsMinor` computes an eighteenth birthday at midnight UTC.
@@ -111,19 +118,22 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - `Trash` lives in `trash.json` beside the document, at its own schema (ADR-0012). A missing
     file is an empty Trash. `OpenTrash` reconciles (document wins) and purges at startup, writing
     only if something changed.
-  - `State{Document, Trash}` is never mutated; `Persist(prev, next)` compares pointers to decide
-    which files changed. The order is decided from the **document** alone: it writes the document
+  - `State{Document, Trash, Settings}` is never mutated; `Persist(paths, prev, next)` compares pointers to decide
+    which files changed. A settings change is written alone — a save that changes `settings.json` together
+    with the document or Trash is refused with `ErrMixedSave` (ADR-0013). The order is decided from the **document** alone: it writes the document
     first iff the document gained a Household (a restore), and otherwise writes the Trash first
     — a Trash *losing* entries to a purge never drives the order — so a crash duplicates rather
     than loses. `Reconcile`/`Purge` return the *same pointer* when nothing changed —
     keep it that way or every edit rewrites the Trash.
   - `Purge` keeps an expired entry while any unexpired entry needs it (parent or Shared
     Address, transitively); `Restore` brings that chain back together.
+  - `Settings` lives in `settings.json` beside the document, at its own schema (ADR-0013). A missing
+    file is an untitled Directory. It holds the Directory Title; the printed default is `render.DefaultTitle`.
 - **`internal/render/`** — the Directory as a printed document
   - `Directory`/`Household`/`Person` in `model.go` hold rendered **strings**, not `rolo` values,
     for the same reason `web/view.go` does: a tier rule cannot be forgotten about a value that
     never arrives here as a date or a flag.
-  - **`Build(tree, tier, asOf)` is the tier filter, and the only constructor.** Every audience
+  - **`Build(tree, tier, asOf, title)` is the tier filter, and the only constructor.** Every audience
     rule — tier gating, the 18+ rule (missing birth date fails closed), deceased and Memorial
     suppression, Truncated vs. Whole dates, `[private]`, Shared Address resolution — is applied
     there, while values are still `rolo` types. Suppression is decided before withholding, so
@@ -139,6 +149,12 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     first, sorted case-insensitively. `Directory.Birthdays` carries a column number and a day string
     per row, and `Markup` omits the `#birthdays` call entirely when it is empty. The table layout,
     including the repeating header, is `birthdays` in `template/directory.typ`.
+  - The Directory opens with a **Title page** (page 1, no page number) and a **Table of Contents**,
+    then the `households` and `birthdays` sections, each a level-1 heading on a fresh page. The
+    contents list roots and children of roots: `Build` sets `Household.Contents` from `Walk`'s depth,
+    and the template gives those blocks a `place(hide(heading(level: 2)))` so the block looks like
+    every other Household (ADR-0002) while `outline()` still knows its page. The Directory Title is
+    `Directory.Title` (`DefaultTitle` when unset) and is also the PDF's metadata title.
   - Export dates name the month as a three-letter abbreviation (`Mar 12, 1965`, truncated `Mar 12`) by `dates.go`.
     `rolo.Date.String()` stays ISO because the store and the editing form depend on it.
   - **Every value reaches Typst inside a string literal**, so `quote` escapes the backslash and the
@@ -192,7 +208,7 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
 - Tests that invoke `typst` call `requireTypst(t)`, which **skips** when the binary is absent.
   Typst is a host dependency (ADR-0004) provided by the devShell in `flake.nix`, so inside
   `nix develop` (or any shell with `typst` on `PATH`) `go test ./...` runs everything, and outside
-  it exactly seven render tests skip rather than fail. A skipped render test is not a passing one —
+  it exactly eight render tests skip rather than fail. A skipped render test is not a passing one —
   check the output for `SKIP` before believing the pipeline works.
 
 ## Notes
