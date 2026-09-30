@@ -182,6 +182,22 @@ func TestRenderedStructure(t *testing.T) {
 					"a Memorial block is a target too: a living Dependent's row may point at it")
 			},
 		},
+		{
+			name: "each calendar row's name and page both jump to its household",
+			checkFunc: func(t *testing.T, r render.Renderer, d render.Directory) {
+				t.Helper()
+				require.Len(t, d.Birthdays, 7, "seven living people with known birth dates")
+
+				want := make([]string, 0, 2*len(d.Birthdays))
+				for _, b := range d.Birthdays {
+					dest := "<" + b.HouseholdID + ">"
+					want = append(want, dest, dest) // the name, then the page number
+				}
+
+				assert.Equal(t, want, labels(t, r.Typst.Bin, d, "link", "dest"),
+					"the calendar holds the Directory's only links")
+			},
+		},
 	}
 
 	r := requireRenderer(t)

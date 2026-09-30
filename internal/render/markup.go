@@ -88,6 +88,8 @@ func writeBirthdays(b *strings.Builder, rows []Birthday) {
 	for _, r := range rows {
 		b.WriteString("\n    (name: ")
 		b.WriteString(quote(r.Name))
+		b.WriteString(", household: ")
+		b.WriteString(quote(r.HouseholdID))
 		b.WriteString(", month: ")
 		b.WriteString(strconv.Itoa(r.Month))
 		b.WriteString(", day: ")
