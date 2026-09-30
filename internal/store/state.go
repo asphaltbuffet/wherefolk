@@ -2,7 +2,9 @@ package store
 
 import (
 	"errors"
+	"fmt"
 	"slices"
+	"time"
 
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -24,6 +26,34 @@ type Paths struct {
 	Document string
 	Trash    string
 	Settings string
+}
+
+// Write persists next over prev at these paths. It is Persist as a
+// live.Writer, so the production adapter needs no glue.
+func (p Paths) Write(prev, next State) error { return Persist(p, prev, next) }
+
+// Open loads everything the service persists, in the order the files depend
+// on one another: the document, then the Trash reconciled against it — so a
+// crash that left a Household in both files is settled before anything is
+// served (ADR-0012) — then the settings, where a missing file is an untitled
+// Directory (ADR-0013).
+func Open(p Paths, now time.Time) (State, error) {
+	doc, err := Load(p.Document)
+	if err != nil {
+		return State{}, fmt.Errorf("load store: %w", err)
+	}
+
+	trash, err := OpenTrash(p.Trash, doc, now)
+	if err != nil {
+		return State{}, fmt.Errorf("load trash: %w", err)
+	}
+
+	settings, err := LoadSettings(p.Settings)
+	if err != nil {
+		return State{}, fmt.Errorf("load settings: %w", err)
+	}
+
+	return State{Document: doc, Trash: trash, Settings: settings}, nil
 }
 
 // ErrMixedSave means one save changed the settings together with the document
