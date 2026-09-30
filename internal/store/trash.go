@@ -140,8 +140,7 @@ func (e TrashEntry) needs() []rolo.HouseholdID {
 // re-entering an ID it has already visited, the way Purge's mark and Chain's
 // visit do.
 func (t *Trash) KeptUntil(id rolo.HouseholdID) time.Time {
-	e, ok := t.Entry(id)
-	if !ok {
+	if _, ok := t.Entry(id); !ok {
 		return time.Time{}
 	}
 
@@ -172,7 +171,7 @@ func (t *Trash) KeptUntil(id rolo.HouseholdID) time.Time {
 		return best
 	}
 
-	return latest(e.Household.ID)
+	return latest(id)
 }
 
 // filter returns the entries keep accepts. When it accepts them all it returns

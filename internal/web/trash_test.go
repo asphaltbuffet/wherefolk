@@ -36,8 +36,16 @@ func newTrashServer(t *testing.T, saver *recordingSaver) *web.Server {
 	trash := &store.Trash{
 		Schema: store.CurrentTrashSchema,
 		Entries: []store.TrashEntry{
-			{DeletedAt: time.Date(2026, time.September, 1, 10, 0, 0, 0, time.UTC), Path: "Aden/Nettie › Clyde/Doris", Household: clyde},
-			{DeletedAt: time.Date(2026, time.September, 20, 10, 0, 0, 0, time.UTC), Path: "Aden/Nettie › Clyde/Doris › Dave", Household: dave},
+			{
+				DeletedAt: time.Date(2026, time.September, 1, 10, 0, 0, 0, time.UTC),
+				Path:      "Aden/Nettie › Clyde/Doris",
+				Household: clyde,
+			},
+			{
+				DeletedAt: time.Date(2026, time.September, 20, 10, 0, 0, 0, time.UTC),
+				Path:      "Aden/Nettie › Clyde/Doris › Dave",
+				Household: dave,
+			},
 		},
 	}
 
@@ -113,10 +121,24 @@ func newDatedTrashServer(t *testing.T) *web.Server {
 	trash := &store.Trash{
 		Schema: store.CurrentTrashSchema,
 		Entries: []store.TrashEntry{
-			{DeletedAt: time.Date(2026, time.August, 1, 10, 0, 0, 0, time.UTC), Path: "Aden/Nettie › Clyde/Doris", Household: clyde},
-			{DeletedAt: time.Date(2026, time.September, 10, 10, 0, 0, 0, time.UTC), Path: "Aden/Nettie › Clyde/Doris › Dave", Household: dave},
-			{DeletedAt: time.Date(2026, time.August, 1, 10, 0, 0, 0, time.UTC), Path: "Reeve",
-				Household: rolo.Household{ID: "h_unanchored", Adults: []rolo.Person{{ID: "p_nobody", Given: "Norma", Surname: "Nobody"}}}},
+			{
+				DeletedAt: time.Date(2026, time.August, 1, 10, 0, 0, 0, time.UTC),
+				Path:      "Aden/Nettie › Clyde/Doris",
+				Household: clyde,
+			},
+			{
+				DeletedAt: time.Date(2026, time.September, 10, 10, 0, 0, 0, time.UTC),
+				Path:      "Aden/Nettie › Clyde/Doris › Dave",
+				Household: dave,
+			},
+			{
+				DeletedAt: time.Date(2026, time.August, 1, 10, 0, 0, 0, time.UTC),
+				Path:      "Reeve",
+				Household: rolo.Household{
+					ID:     "h_unanchored",
+					Adults: []rolo.Person{{ID: "p_nobody", Given: "Norma", Surname: "Nobody"}},
+				},
+			},
 		},
 	}
 
@@ -169,12 +191,18 @@ func newCountTrashServer(t *testing.T, entries ...store.TrashEntry) *web.Server 
 	t.Helper()
 
 	srv, err := web.New(
-		store.State{Document: sampleDocument(), Trash: &store.Trash{Schema: store.CurrentTrashSchema, Entries: entries}},
-		config.Config{}, testLogger(), web.Meta{},
+		store.State{
+			Document: sampleDocument(),
+			Trash:    &store.Trash{Schema: store.CurrentTrashSchema, Entries: entries},
+		},
+		config.Config{},
+		testLogger(),
+		web.Meta{},
 		(&recordingSaver{}).save,
 		func() (rolo.HouseholdID, error) { return "h_new001", nil },
 		func() (rolo.PersonID, error) { return "p_x", nil },
-		&fakeExporter{}, testClock,
+		&fakeExporter{},
+		testClock,
 	)
 	require.NoError(t, err)
 
@@ -185,11 +213,17 @@ func TestTrashCountMatchesPage(t *testing.T) {
 	// testClock is September 25, 2026.
 	live := store.TrashEntry{
 		DeletedAt: time.Date(2026, time.September, 20, 10, 0, 0, 0, time.UTC),
-		Household: rolo.Household{ID: "h_live", Adults: []rolo.Person{{ID: "p_live", Given: "Liv", Surname: "Ongoing"}}},
+		Household: rolo.Household{
+			ID:     "h_live",
+			Adults: []rolo.Person{{ID: "p_live", Given: "Liv", Surname: "Ongoing"}},
+		},
 	}
 	expiredUnanchored := store.TrashEntry{
 		DeletedAt: time.Date(2026, time.August, 1, 10, 0, 0, 0, time.UTC),
-		Household: rolo.Household{ID: "h_unanchored", Adults: []rolo.Person{{ID: "p_nobody", Given: "Norma", Surname: "Nobody"}}},
+		Household: rolo.Household{
+			ID:     "h_unanchored",
+			Adults: []rolo.Person{{ID: "p_nobody", Given: "Norma", Surname: "Nobody"}},
+		},
 	}
 
 	tests := []struct {

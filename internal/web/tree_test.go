@@ -26,7 +26,12 @@ func TestTreeFragment(t *testing.T) {
 				t.Helper()
 				assert.Contains(t, body, "Aden &amp; Nettie Whitlock")
 				assert.Contains(t, body, "Ray Reeves")
-				assert.NotContains(t, body, "Clyde &amp; Doris (Kowalski) Whitlock", "a collapsed root hides its children")
+				assert.NotContains(
+					t,
+					body,
+					"Clyde &amp; Doris (Kowalski) Whitlock",
+					"a collapsed root hides its children",
+				)
 			},
 		},
 		{
@@ -44,7 +49,12 @@ func TestTreeFragment(t *testing.T) {
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
-				assert.Contains(t, body, "Clyde &amp; Doris (Kowalski) Whitlock", "the selection's ancestors are expanded to reveal it")
+				assert.Contains(
+					t,
+					body,
+					"Clyde &amp; Doris (Kowalski) Whitlock",
+					"the selection's ancestors are expanded to reveal it",
+				)
 			},
 		},
 		{

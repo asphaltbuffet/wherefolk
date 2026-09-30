@@ -50,12 +50,12 @@ func TestLoadTrash(t *testing.T) {
 		},
 		{
 			name:     "a Trash newer than the binary is refused",
-			contents: ptr(`{"schema": 99, "entries": []}`),
+			contents: new(`{"schema": 99, "entries": []}`),
 			wantErr:  store.ErrSchemaTooNew,
 		},
 		{
 			name:     "a Trash with no schema is refused",
-			contents: ptr(`{"entries": []}`),
+			contents: new(`{"entries": []}`),
 			wantErr:  store.ErrSchemaMissing,
 		},
 	}
@@ -120,8 +120,6 @@ func TestSaveTrashRoundTrip(t *testing.T) {
 		})
 	}
 }
-
-func ptr(s string) *string { return &s }
 
 // day is a day after the fixture's epoch, for readable retention arithmetic.
 func day(n int) time.Time {

@@ -254,6 +254,30 @@ func TestBuildTreeAcceptsMultipleRoots(t *testing.T) {
 	assert.Equal(t, rolo.HouseholdID("h_novak"), roots[1].ID)
 }
 
+// sampleWith returns sampleHouseholds with edit applied to the Household id,
+// for rows that need one variation on the shared fixture.
+func sampleWith(id rolo.HouseholdID, edit func(*rolo.Household)) func() []rolo.Household {
+	return func() []rolo.Household {
+		hs := sampleHouseholds()
+		for i := range hs {
+			if hs[i].ID == id {
+				edit(&hs[i])
+			}
+		}
+		return hs
+	}
+}
+
+// householdIDs lists the IDs of hs in order, nil when there are none, so a
+// row that expects nothing can leave its field unset.
+func householdIDs(hs []rolo.Household) []rolo.HouseholdID {
+	var out []rolo.HouseholdID
+	for _, h := range hs {
+		out = append(out, h.ID)
+	}
+	return out
+}
+
 func TestDeleteBlock(t *testing.T) {
 	tests := []struct {
 		name         string
@@ -279,32 +303,20 @@ func TestDeleteBlock(t *testing.T) {
 		},
 		{
 			name: "a Household whose Address another shares cannot",
-			households: func() []rolo.Household {
-				hs := sampleHouseholds()
-				for i := range hs {
-					if hs[i].ID == "h_harold" {
-						hs[i].Address.SharedWith = "h_susan"
-					}
-				}
-				return hs
-			},
+			households: sampleWith("h_harold", func(h *rolo.Household) {
+				h.Address.SharedWith = "h_susan"
+			}),
 			id:          "h_susan",
 			wantBlocked: true,
 			wantSharers: []rolo.HouseholdID{"h_harold"},
 		},
 		{
 			name: "a Memorial Household never can, even as a leaf",
-			households: func() []rolo.Household {
-				hs := sampleHouseholds()
-				for i := range hs {
-					if hs[i].ID == "h_dave" {
-						for j := range hs[i].Adults {
-							hs[i].Adults[j].Death = rolo.Date{Year: 2020}
-						}
-					}
+			households: sampleWith("h_dave", func(h *rolo.Household) {
+				for j := range h.Adults {
+					h.Adults[j].Death = rolo.Date{Year: 2020}
 				}
-				return hs
-			},
+			}),
 			id:           "h_dave",
 			wantBlocked:  true,
 			wantMemorial: true,
@@ -315,14 +327,6 @@ func TestDeleteBlock(t *testing.T) {
 			id:         "h_unknown",
 			wantErr:    rolo.ErrUnknownHousehold,
 		},
-	}
-
-	householdIDs := func(hs []rolo.Household) []rolo.HouseholdID {
-		out := []rolo.HouseholdID{}
-		for _, h := range hs {
-			out = append(out, h.ID)
-		}
-		return out
 	}
 
 	for _, tt := range tests {
@@ -342,12 +346,6 @@ func TestDeleteBlock(t *testing.T) {
 			assert.Equal(t, tt.wantBlocked, got.Blocked())
 			assert.Equal(t, tt.wantMemorial, got.Memorial)
 
-			if tt.wantChildren == nil {
-				tt.wantChildren = []rolo.HouseholdID{}
-			}
-			if tt.wantSharers == nil {
-				tt.wantSharers = []rolo.HouseholdID{}
-			}
 			assert.Equal(t, tt.wantChildren, householdIDs(got.Children))
 			assert.Equal(t, tt.wantSharers, householdIDs(got.Sharers))
 		})

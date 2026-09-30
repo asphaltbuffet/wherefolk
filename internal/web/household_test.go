@@ -119,7 +119,12 @@ func TestDirectoryPage(t *testing.T) {
 				assert.NotContains(t, body, "404", "the Editor never sees an error code")
 				assert.Contains(t, body, "Aden &amp; Nettie Whitlock", "the tree is still navigable from the error")
 				assert.NotContains(t, body, `class="breadcrumb"`, "no Household means no Path to show")
-				assert.Equal(t, 1, strings.Count(body, "Make a Directory to send"), "the top bar still offers the export link")
+				assert.Equal(
+					t,
+					1,
+					strings.Count(body, "Make a Directory to send"),
+					"the top bar still offers the export link",
+				)
 			},
 		},
 		{
@@ -178,8 +183,12 @@ func TestDirectoryPage(t *testing.T) {
 				// a row without its toggle, breaks the equality.
 				assert.Equal(t, strings.Count(body, `aria-label="Hide `), strings.Count(body, `class="field-row"`),
 					"every Hide sits in a field row with its field")
-				assert.Equal(t, strings.Count(body, `title="Print [private] instead of this in the Directory"`), strings.Count(body, `aria-label="Hide `),
-					"every toggle carries its hover text")
+				assert.Equal(
+					t,
+					strings.Count(body, `title="Print [private] instead of this in the Directory"`),
+					strings.Count(body, `aria-label="Hide `),
+					"every toggle carries its hover text",
+				)
 			},
 		},
 		{

@@ -353,11 +353,16 @@ func getHTMX(t *testing.T, doc *store.Document, target string) *httptest.Respons
 	nextHousehold := sequentialIDs("h_new")
 	nextPerson := sequentialIDs("p_new")
 
-	srv, err := web.New(store.State{Document: doc}, config.Config{}, testLogger(), web.Meta{DocumentPath: "/tmp/test/directory.json"},
+	srv, err := web.New(
+		store.State{Document: doc},
+		config.Config{},
+		testLogger(),
+		web.Meta{DocumentPath: "/tmp/test/directory.json"},
 		func(_, _ store.State) error { return nil },
 		func() (rolo.HouseholdID, error) { return rolo.HouseholdID(nextHousehold()), nil },
 		func() (rolo.PersonID, error) { return rolo.PersonID(nextPerson()), nil },
-		&fakeExporter{}, testClock,
+		&fakeExporter{},
+		testClock,
 	)
 	require.NoError(t, err)
 

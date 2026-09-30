@@ -3,6 +3,7 @@ package web
 import (
 	"crypto/rand"
 	"fmt"
+	"maps"
 	"net/http"
 	"net/url"
 
@@ -126,9 +127,7 @@ func (s *Server) undoLatest(token string) (string, error) {
 // id is the directory root, which has no sub-pages.
 func pageURL(id rolo.HouseholdID, action, open, pane string, extra url.Values) string {
 	q := url.Values{}
-	for k, v := range extra {
-		q[k] = v
-	}
+	maps.Copy(q, extra)
 
 	if open != "" {
 		q.Set("open", open)
