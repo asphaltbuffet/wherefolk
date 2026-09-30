@@ -56,10 +56,33 @@ A Proof Sheet never carries a Birthday Calendar: it shows one Household's own en
 calendar lists the whole family.
 _Avoid_: Birthday list, birthday page, calendar
 
+**Title page**:
+The first page of a Directory, and page 1 of its numbering, though it prints no page number. It
+carries the Directory Title and the facts that let a reader judge a copy at a glance: when it was
+generated and which audience it was made for. A Directory for the Full audience says DO NOT
+DISTRIBUTE here too, because the cover is the page most likely to be seen on its own.
+_Avoid_: Cover sheet, front matter
+
+**Directory Title**:
+The name the Editor gives the Directory as a whole — `The Langford Family Directory`. One line,
+the same in every tier, never withheld. When the Editor has not named it, the Directory is titled
+`Family Directory`. Changing it is an edit like any other and can be undone.
+_Avoid_: Name (that belongs to a Person or a Household), heading
+
+**Table of Contents**:
+The page near the front of a Directory that lists where to find each first-generation Branch.
+It names every root Household and every child of a root Household by its Household Name, with the
+page its block starts on. Deeper Households are not listed: each one's block follows its parent's
+in the Directory, so the reader finds it by turning a page or two from its ancestor's entry. The
+Birthday Calendar and any other sections are listed too.
+_Avoid_: Index (that would imply every Household or every person), outline
+
 **Proof Sheet**:
 A single Household's own entry, rendered on its own page and sent to that Household so they can
 confirm or correct what the Directory holds about them. Shows their own withheld fields, marked as
 withheld; never shows another Household's. Produced only for Households with a living member.
+It carries no Title page and no Table of Contents, whose entries would name other Households —
+only the Directory Title as a line at its head, so the recipient knows what they are checking.
 _Avoid_: Review sheet, verification page
 
 ### Structure and navigation
