@@ -82,7 +82,7 @@ func (s *Server) renderNotFound(w http.ResponseWriter, r *http.Request) {
 }
 
 // saveOutcome is what commit decided, for handleSave to turn into a response.
-// Separating the two keeps the write lock off the rendering path.
+// Separating the two keeps rendering outside live.Copy.Update.
 type saveOutcome struct {
 	sub       submission
 	changes   []change

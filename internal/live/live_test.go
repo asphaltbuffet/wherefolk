@@ -2,6 +2,7 @@ package live_test
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"slices"
 	"sync"
@@ -342,9 +343,11 @@ func TestUpdate(t *testing.T) {
 
 				diskFull := errors.New("disk full")
 				w.err = diskFull
-				_, err = c.Update(retitle("Something Else"))
+				saved, err := c.Update(retitle("Something Else"))
 
 				require.ErrorIs(t, err, diskFull)
+				assert.False(t, saved.Changed)
+				assert.Empty(t, saved.Undo)
 				assert.Equal(t, "The Whitlocks", c.Snapshot().Settings.Title)
 				assert.True(t, c.Snapshot().CanUndo(first.Undo))
 			},
@@ -355,13 +358,17 @@ func TestUpdate(t *testing.T) {
 				t.Helper()
 				w := &recordingWriter{}
 				c := newCopy(t, store.State{Document: sampleDocument()}, w)
+				before := c.Snapshot()
 
-				_, err := c.Update(func(live.Snapshot) (store.State, error) {
+				saved, err := c.Update(func(live.Snapshot) (store.State, error) {
 					return store.State{Document: orphanDocument()}, nil
 				})
 
 				require.ErrorIs(t, err, live.ErrUnbuildable)
+				assert.False(t, saved.Changed)
+				assert.Empty(t, saved.Undo)
 				assert.Empty(t, w.writes)
+				assert.Same(t, before.Document, c.Snapshot().Document)
 			},
 		},
 		{
@@ -385,12 +392,15 @@ func TestUpdate(t *testing.T) {
 				w := &recordingWriter{}
 				stored := expiredTrash()
 				c := newCopy(t, store.State{Document: sampleDocument(), Trash: stored}, w)
+				before := c.Snapshot()
 
 				_, err := c.Update(renameCarla)
 				require.NoError(t, err)
 
 				require.Len(t, w.writes, 1)
 				assert.Same(t, stored, w.writes[0].next.Trash)
+				assert.Same(t, before.Settings, w.writes[0].next.Settings,
+					"a write that leaves the settings alone keeps the served ones")
 			},
 		},
 		{
@@ -425,15 +435,33 @@ func TestUpdate(t *testing.T) {
 					wg.Go(func() {
 						for range 200 {
 							s := c.Snapshot()
-							_, ok := s.Tree.Get("h_carla")
+							carla, ok := s.Tree.Get("h_carla")
 							assert.True(t, ok)
 							assert.NotNil(t, s.Settings)
+							assert.Equal(t, s.Document.Households[2].Adults[0].Given, carla.Adults[0].Given,
+								"Tree and Document come from one generation")
 						}
 					})
 				}
 
 				for i := range 50 {
-					_, err := c.Update(retitle(string(rune('A' + i%26))))
+					var err error
+					if i%2 == 0 {
+						_, err = c.Update(retitle(string(rune('A' + i%26))))
+					} else {
+						given := fmt.Sprintf("Carla%d", i)
+						_, err = c.Update(func(s live.Snapshot) (store.State, error) {
+							doc := &store.Document{
+								Schema:     s.Document.Schema,
+								Households: slices.Clone(s.Document.Households),
+							}
+							doc.Households[2].Adults = []rolo.Person{
+								{ID: "p_carla01", Given: given, Surname: "Whitlock"},
+							}
+
+							return store.State{Document: doc}, nil
+						})
+					}
 					require.NoError(t, err)
 				}
 

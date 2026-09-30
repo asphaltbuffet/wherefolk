@@ -67,8 +67,9 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     template stops rendering would silently clear itself on the next save.
     `TestFormRendersEveryEditableField` guards this. Each checkbox needs its paired hidden `off`
     input for the same reason — without it a hidden flag could never be turned back off.
-  - `store.Save` is reached through an injected `Saver`, and IDs through injected generators, so
-    this package keeps no filesystem dependency and tests get deterministic identities.
+  - `store.Persist` (via `store.Paths.Write`) is reached through an injected `Saver`, handed to
+    `live.Copy` as its Writer, and IDs through injected generators, so this package keeps no
+    filesystem dependency and tests get deterministic identities.
   - **Export** (`export.go`): `GET /export` offers the tiers by description with none pre-selected;
     `?tier=` carries the choice (ADR-0008), and htmx swaps only the `export_result` fragment. The
     preview is every SVG page inline as a `data:` URL — typed `template.URL`, which is trusted only
@@ -142,8 +143,9 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - The Trash is purged only when a write changes it (delete, restore). `Undo` never purges,
     because Undo is exact, and leaves nothing to undo after it.
   - `build` runs while other writers wait: no I/O, and never call back into the Copy.
-  - `Writer` is the seam: `store.Paths` in production; web tests reach it through `web.New`'s
-    `Saver` (`live.WriterFunc`), `live`'s own tests use `recordingWriter` and real files.
+  - `Writer` is the seam: `store.Paths` itself satisfies it, and `live`'s own tests use it
+    directly (alongside `recordingWriter`); production passes `paths.Write` to `web.New` as its
+    `Saver`, which `web.New` wraps in `live.WriterFunc`.
 - **`internal/render/`** — the Directory as a printed document
   - `Directory`/`Household`/`Person` in `model.go` hold rendered **strings**, not `rolo` values,
     for the same reason `web/view.go` does: a tier rule cannot be forgotten about a value that
