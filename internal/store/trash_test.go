@@ -447,6 +447,17 @@ func TestDeleteAndRestore(t *testing.T) {
 			},
 		},
 		{
+			name: "deleting a Household something depends on is refused",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				doc := sampleDocument()
+				clyde := doc.Households[1] // h_carla is beneath it and shares its Address.
+
+				_, _, err := store.Delete(doc, store.NewTrash(), store.TrashEntry{DeletedAt: day(0), Household: clyde})
+				require.ErrorIs(t, err, store.ErrBlocked)
+			},
+		},
+		{
 			name: "restore brings back the chain and reports it, requested first",
 			checkFunc: func(t *testing.T) {
 				t.Helper()

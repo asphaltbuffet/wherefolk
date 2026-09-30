@@ -96,6 +96,11 @@ var (
 
 	// ErrNotInDocument means a deletion named a Household the document does not hold.
 	ErrNotInDocument = errors.New("household is not in the directory")
+
+	// ErrBlocked means a deletion named a Household something depends on: a
+	// Household beneath it, one sharing its Address, or its being Memorial
+	// (rolo.Tree.DeleteBlock).
+	ErrBlocked = errors.New("household cannot be deleted while something depends on it")
 )
 
 // Entry returns the entry holding id.
@@ -301,16 +306,29 @@ func (t *Trash) Chain(id rolo.HouseholdID, doc *Document) ([]rolo.HouseholdID, e
 }
 
 // Delete moves entry's Household out of doc and into t, returning new values
-// and leaving both inputs untouched. It enforces nothing about *whether* the
-// Household may go — that is rolo.Tree.DeleteBlock's, checked by the caller —
-// but a caller that skipped the check would still be stopped when the result
-// failed to build a tree.
+// and leaving both inputs untouched. It refuses a Household that
+// rolo.Tree.DeleteBlock says something depends on, with ErrBlocked, so no
+// caller can leave a Household pointing at one that is gone.
 func Delete(doc *Document, t *Trash, entry TrashEntry) (*Document, *Trash, error) {
 	id := entry.Household.ID
 
 	i := slices.IndexFunc(doc.Households, func(h rolo.Household) bool { return h.ID == id })
 	if i < 0 {
 		return nil, nil, fmt.Errorf("%w: %s", ErrNotInDocument, id)
+	}
+
+	tree, err := doc.Tree()
+	if err != nil {
+		return nil, nil, err
+	}
+
+	block, err := tree.DeleteBlock(id)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if block.Blocked() {
+		return nil, nil, fmt.Errorf("%w: %s", ErrBlocked, id)
 	}
 
 	nextDoc := &Document{
