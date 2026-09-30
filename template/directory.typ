@@ -232,12 +232,12 @@
 // is Sep. Alternate rows are shaded so the eye can follow a row from name to
 // day. A row is never split across a page break; a surname group may be.
 //
-// Beside each name is the page the person's Household block begins on, so a
-// reader can turn to the address; on screen the name and the page both jump
-// there. The page is the footer's own counter at the block's target, so the two
-// always agree. The column is headed "Page" because a bare number beside a
-// name reads as an age. A row's household with no target is a compile error,
-// never an unlinked row.
+// At the right of each name cell is the page the person's Household block
+// begins on, as "p. 14", so a reader can turn to the address; in a PDF viewer
+// the name and the page both jump there. The page is the footer's own counter
+// at the block's target, so the two always agree. The "p." keeps a bare number
+// beside a name from reading as an age. A row's household with no target is a
+// compile error, never an unlinked row.
 #let birthdays(rows) = {
   let months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -246,9 +246,9 @@
 
   set table.cell(breakable: false)
   table(
-    columns: (1fr, 3em) + (2.4em,) * 12,
+    columns: (1fr,) + (2.4em,) * 12,
     inset: (x: 4pt, y: 3pt),
-    align: (x, _) => if x == 0 { left } else if x == 1 { right } else { center },
+    align: (x, _) => if x == 0 { left } else { center },
     stroke: (x, y) => (
       left: if x > 0 { 0.4pt + luma(170) } else { none },
       bottom: if y == 0 { 0.6pt + luma(60) } else { none },
@@ -257,14 +257,16 @@
     table.header(
       repeat: true,
       [],
-      text(size: 9pt, weight: "semibold", "Page"),
       ..months.map(m => text(size: 9pt, weight: "semibold", m)),
     ),
     ..rows.map(r => {
       let home = label(r.household)
       (
-        link(home, text(size: 9pt, r.name)),
-        link(home, text(size: 9pt, context str(counter(page).at(home).first()))),
+        text(size: 9pt, {
+          link(home, r.name)
+          h(1fr)
+          link(home, context "p. " + str(counter(page).at(home).first()))
+        }),
         ..range(1, 13).map(m => text(size: 9pt, if m == r.month { r.day } else { "" })),
       )
     }).flatten(),
