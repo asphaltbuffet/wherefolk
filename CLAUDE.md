@@ -168,7 +168,7 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     including the repeating header, is `birthdays` in `template/directory.typ`.
   - **Link targets**: `Household.ID` and `Birthday.HouseholdID` are the model's only strings that are
     never printed. The template turns each block's ID into a label on an invisible `metadata`, and
-    each calendar row links its name and its `Page` cell to that label, printing
+    each calendar row links its name and its right-aligned `p. N` to that label, printing
     `counter(page).at(label)` so it matches the footer. A row whose label is missing is a Typst
     compile error, deliberately — never an unlinked row. The SVG preview embeds pages as `<img>`,
     so the links work only in the PDF; assert on them with `typst query link --field dest`.
