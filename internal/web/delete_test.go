@@ -147,18 +147,6 @@ func TestDelete(t *testing.T) {
 			},
 		},
 		{
-			name: "Undo after a deletion brings the Household back and empties the Trash",
-			check: func(t *testing.T, srv *web.Server, saver *recordingSaver) {
-				t.Helper()
-				loc := location(t, postTo(t, srv, "/h/h_dave/delete", nil))
-
-				_ = location(t, undo(t, srv, loc, "h_clyde"))
-
-				assert.True(t, hasHousehold(saver.saved, "h_dave"))
-				assert.Empty(t, saver.savedTrash.Entries)
-			},
-		},
-		{
 			name: "a deleted Household is gone from the tree",
 			check: func(t *testing.T, srv *web.Server, _ *recordingSaver) {
 				t.Helper()

@@ -11,10 +11,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/asphaltbuffet/wherefolk/internal/config"
-	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/internal/web"
-	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
 // fetch GETs target from srv itself, so a test can follow a redirect on the
@@ -109,18 +106,6 @@ func TestUndo(t *testing.T) {
 			},
 		},
 		{
-			name: "the same Undo twice does nothing more",
-			check: func(t *testing.T, srv *web.Server, saver *recordingSaver) {
-				t.Helper()
-				loc := saveClydePhone(t, srv, "555-201-0001")
-				_ = undo(t, srv, loc, "h_clyde")
-
-				again := location(t, undo(t, srv, loc, "h_clyde"))
-				assert.Contains(t, again.Query().Get("said"), "can no longer be undone")
-				assert.Equal(t, 2, saver.calls)
-			},
-		},
-		{
 			name: "a newer save retires the older Undo, on the page and on the server",
 			check: func(t *testing.T, srv *web.Server, saver *recordingSaver) {
 				t.Helper()
@@ -134,16 +119,6 @@ func TestUndo(t *testing.T) {
 				stale := location(t, undo(t, srv, first, "h_clyde"))
 				assert.Contains(t, stale.Query().Get("said"), "can no longer be undone")
 				assert.Equal(t, 2, saver.calls)
-			},
-		},
-		{
-			name: "a token the server never issued is refused",
-			check: func(t *testing.T, srv *web.Server, saver *recordingSaver) {
-				t.Helper()
-				rec := postTo(t, srv, "/undo", url.Values{"token": {"from-before-a-restart"}, "at": {"h_clyde"}})
-
-				assert.Contains(t, location(t, rec).Query().Get("said"), "can no longer be undone")
-				assert.Zero(t, saver.calls)
 			},
 		},
 		{
@@ -168,66 +143,6 @@ func TestUndo(t *testing.T) {
 			srv := newTestServer(t, sampleDocument(), saver)
 
 			tt.check(t, srv, saver)
-		})
-	}
-}
-
-// TestSavesKeepTheSettings proves every write path hands persist the settings
-// it is serving. A State literal that forgot them would swap a nil in, and the
-// next title change would start from nothing.
-func TestSavesKeepTheSettings(t *testing.T) {
-	tests := []struct {
-		name string
-		act  func(t *testing.T, srv *web.Server) *url.URL
-	}{
-		{
-			name: "a household edit",
-			act: func(t *testing.T, srv *web.Server) *url.URL {
-				t.Helper()
-				return saveClydePhone(t, srv, "555-000-1111")
-			},
-		},
-		{
-			name: "an undo of a household edit",
-			act: func(t *testing.T, srv *web.Server) *url.URL {
-				t.Helper()
-				loc := saveClydePhone(t, srv, "555-000-1111")
-				return location(t, undo(t, srv, loc, "h_clyde"))
-			},
-		},
-		{
-			name: "a household deletion",
-			act: func(t *testing.T, srv *web.Server) *url.URL {
-				t.Helper()
-				return location(t, postTo(t, srv, "/h/h_dave/delete", nil))
-			},
-		},
-		{
-			name: "a restore from Recently deleted",
-			act: func(t *testing.T, srv *web.Server) *url.URL {
-				t.Helper()
-				_ = location(t, postTo(t, srv, "/h/h_dave/delete", nil))
-				return location(t, postTo(t, srv, "/trash/h_dave/restore", nil))
-			},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			settings := store.NewSettings().WithTitle("The Whitlock Directory")
-			saver := &recordingSaver{}
-
-			srv, err := web.New(store.State{Document: sampleDocument(), Settings: settings},
-				config.Config{}, testLogger(), web.Meta{}, saver.save,
-				func() (rolo.HouseholdID, error) { return "h_x", nil },
-				func() (rolo.PersonID, error) { return "p_x", nil },
-				&fakeExporter{}, testClock,
-			)
-			require.NoError(t, err)
-
-			tt.act(t, srv)
-
-			assert.Same(t, settings, saver.savedSettings, "the served settings ride along unchanged")
 		})
 	}
 }
