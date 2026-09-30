@@ -1,10 +1,16 @@
 package render_test
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"testing"
 
+	"github.com/pdfcpu/pdfcpu/pkg/api"
+	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -58,6 +64,93 @@ func TestRenderer(t *testing.T) {
 				out, err := r.PDF(context.Background(), render.Directory{GeneratedAt: "2026-09-24"})
 				require.NoError(t, err, "a Directory with no Households must still produce a document")
 				assert.Equal(t, "%PDF", string(out[:4]))
+			},
+		},
+	}
+
+	r := requireRenderer(t)
+	d := exampleDirectory(t)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tt.checkFunc(t, r, d)
+		})
+	}
+}
+
+// outlined asks typst which headings the Table of Contents lists, in document
+// order, by querying the generated markup against the on-disk template.
+func outlined(t *testing.T, bin string, d render.Directory) []string {
+	t.Helper()
+
+	dir := t.TempDir()
+
+	tmpl, err := os.ReadFile(filepath.Join(templateDir, render.TemplateName))
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, render.TemplateName), tmpl, 0o600))
+
+	src := filepath.Join(dir, "main.typ")
+	require.NoError(t, os.WriteFile(src, []byte(render.Markup(d)), 0o600))
+
+	out, err := exec.CommandContext(t.Context(), bin, "query", "--root", dir, src,
+		"heading.where(outlined: true)", "--field", "body", "--format", "json").Output()
+	require.NoError(t, err)
+
+	var bodies []struct {
+		Text string `json:"text"`
+	}
+	require.NoError(t, json.Unmarshal(out, &bodies))
+
+	names := make([]string, 0, len(bodies))
+	for _, b := range bodies {
+		names = append(names, b.Text)
+	}
+
+	return names
+}
+
+func TestRenderedStructure(t *testing.T) {
+	tests := []struct {
+		name      string
+		checkFunc func(t *testing.T, r render.Renderer, d render.Directory)
+	}{
+		{
+			name: "the table of contents lists the sections and the first-generation branches in order",
+			checkFunc: func(t *testing.T, r render.Renderer, d render.Directory) {
+				t.Helper()
+				assert.Equal(t, []string{
+					"Households",
+					"Harold & June (Whitfield) Langford",
+					"Robert & Susan (Marsh) Langford",
+					"Patricia Novak",
+					"Birthdays",
+				}, outlined(t, r.Typst.Bin, d), "Daniel & Claire are a grandchild and are not listed")
+			},
+		},
+		{
+			name: "the pdf's metadata title is the directory title",
+			checkFunc: func(t *testing.T, r render.Renderer, d render.Directory) {
+				t.Helper()
+				d.Title = "The Langford Family Directory"
+
+				out, err := r.PDF(t.Context(), d)
+				require.NoError(t, err)
+
+				api.DisableConfigDir()
+				info, err := api.PDFInfo(
+					bytes.NewReader(out), "directory.pdf", nil, false, model.NewDefaultConfiguration(),
+				)
+				require.NoError(t, err)
+				assert.Equal(t, "The Langford Family Directory", info.Title)
+			},
+		},
+		{
+			name: "a title page and a contents page precede the households",
+			checkFunc: func(t *testing.T, r render.Renderer, d render.Directory) {
+				t.Helper()
+				without, err := r.SVG(t.Context(), render.Directory{GeneratedAt: d.GeneratedAt})
+				require.NoError(t, err)
+				assert.Len(t, without, 2, "an empty Directory is its Title page and its Table of Contents")
 			},
 		},
 	}

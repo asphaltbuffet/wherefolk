@@ -142,6 +142,12 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     first, sorted case-insensitively. `Directory.Birthdays` carries a column number and a day string
     per row, and `Markup` omits the `#birthdays` call entirely when it is empty. The table layout,
     including the repeating header, is `birthdays` in `template/directory.typ`.
+  - The Directory opens with a **Title page** (page 1, no page number) and a **Table of Contents**,
+    then the `households` and `birthdays` sections, each a level-1 heading on a fresh page. The
+    contents list roots and children of roots: `Build` sets `Household.Contents` from `Walk`'s depth,
+    and the template gives those blocks a `place(hide(heading(level: 2)))` so the block looks like
+    every other Household (ADR-0002) while `outline()` still knows its page. The Directory Title is
+    `Directory.Title` (`DefaultTitle` when unset) and is also the PDF's metadata title.
   - Export dates name the month as a three-letter abbreviation (`Mar 12, 1965`, truncated `Mar 12`) by `dates.go`.
     `rolo.Date.String()` stays ISO because the store and the editing form depend on it.
   - **Every value reaches Typst inside a string literal**, so `quote` escapes the backslash and the
@@ -195,7 +201,7 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
 - Tests that invoke `typst` call `requireTypst(t)`, which **skips** when the binary is absent.
   Typst is a host dependency (ADR-0004) provided by the devShell in `flake.nix`, so inside
   `nix develop` (or any shell with `typst` on `PATH`) `go test ./...` runs everything, and outside
-  it exactly seven render tests skip rather than fail. A skipped render test is not a passing one —
+  it exactly eight render tests skip rather than fail. A skipped render test is not a passing one —
   check the output for `SKIP` before believing the pipeline works.
 
 ## Notes
