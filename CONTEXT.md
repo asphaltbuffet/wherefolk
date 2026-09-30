@@ -53,7 +53,7 @@ someone by the name they grew up with, and tells apart two people who share a na
 ordered by surname and then given name without regard to capitalisation.
 
 Beside each name is the page on which that person's Household begins, so a reader who wants to
-send the card can turn straight to the address. On screen, the name and the page both jump there.
+send the card can turn straight to the address. In a PDF viewer, the name and the page both jump there.
 
 A Proof Sheet never carries a Birthday Calendar: it shows one Household's own entry, and the
 calendar lists the whole family.

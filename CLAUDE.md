@@ -166,7 +166,7 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     first, sorted case-insensitively. `Directory.Birthdays` carries a column number and a day string
     per row, and `Markup` omits the `#birthdays` call entirely when it is empty. The table layout,
     including the repeating header, is `birthdays` in `template/directory.typ`.
-  - **Link targets**: `Household.ID` and `Birthday.HouseholdID` are the model's only values that are
+  - **Link targets**: `Household.ID` and `Birthday.HouseholdID` are the model's only strings that are
     never printed. The template turns each block's ID into a label on an invisible `metadata`, and
     each calendar row links its name and its `Page` cell to that label, printing
     `counter(page).at(label)` so it matches the footer. A row whose label is missing is a Typst
