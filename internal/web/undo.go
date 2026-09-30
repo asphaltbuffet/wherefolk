@@ -57,7 +57,7 @@ func (s *Server) persist(next store.State) (string, error) {
 		return "", fmt.Errorf("save document: %w", err)
 	}
 
-	s.doc, s.trash, s.tree = next.Document, next.Trash, tree
+	s.doc, s.trash, s.settings, s.tree = next.Document, next.Trash, next.Settings, tree
 
 	token := rand.Text()
 	s.undo = &undoPoint{token: token, before: prev}

@@ -73,6 +73,17 @@ func run(getenv func(string) string, logOut io.Writer) error {
 		return fmt.Errorf("load trash: %w", err)
 	}
 
+	// A missing settings file is an untitled Directory, so this fails only on
+	// a file that exists and cannot be read (ADR-0013).
+	settingsPath := cfg.SettingsPath()
+
+	settings, err := store.LoadSettings(settingsPath)
+	if err != nil {
+		return fmt.Errorf("load settings: %w", err)
+	}
+
+	paths := store.Paths{Document: docPath, Trash: trashPath, Settings: settingsPath}
+
 	// Typst is a host dependency, not vendored (ADR-0004). Verifying it here
 	// means a missing or unreadable renderer is an Operator-facing startup
 	// failure in the logs, rather than an opaque error the Editor meets
@@ -82,13 +93,13 @@ func run(getenv func(string) string, logOut io.Writer) error {
 		return err
 	}
 
-	srv, err := web.New(store.State{Document: doc, Trash: trash}, cfg, logger,
+	srv, err := web.New(store.State{Document: doc, Trash: trash, Settings: settings}, cfg, logger,
 		web.Meta{
 			DocumentPath: docPath,
 			TypstVersion: typstVersion,
 			TemplatePath: cfg.TemplateDir,
 		},
-		func(prev, next store.State) error { return store.Persist(docPath, trashPath, prev, next) },
+		func(prev, next store.State) error { return store.Persist(paths, prev, next) },
 		store.NewHouseholdID,
 		store.NewPersonID,
 		renderer,

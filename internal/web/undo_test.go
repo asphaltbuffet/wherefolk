@@ -11,7 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/asphaltbuffet/wherefolk/internal/config"
+	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/internal/web"
+	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
 // fetch GETs target from srv itself, so a test can follow a redirect on the
@@ -165,6 +168,51 @@ func TestUndo(t *testing.T) {
 			srv := newTestServer(t, sampleDocument(), saver)
 
 			tt.check(t, srv, saver)
+		})
+	}
+}
+
+// TestSavesKeepTheSettings proves every write path hands persist the settings
+// it is serving. A State literal that forgot them would swap a nil in, and the
+// next title change would start from nothing.
+func TestSavesKeepTheSettings(t *testing.T) {
+	tests := []struct {
+		name string
+		act  func(t *testing.T, srv *web.Server) *url.URL
+	}{
+		{
+			name: "a household edit",
+			act: func(t *testing.T, srv *web.Server) *url.URL {
+				t.Helper()
+				return saveClydePhone(t, srv, "555-000-1111")
+			},
+		},
+		{
+			name: "an undo of a household edit",
+			act: func(t *testing.T, srv *web.Server) *url.URL {
+				t.Helper()
+				loc := saveClydePhone(t, srv, "555-000-1111")
+				return location(t, undo(t, srv, loc, "h_clyde"))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := store.NewSettings().WithTitle("The Whitlock Directory")
+			saver := &recordingSaver{}
+
+			srv, err := web.New(store.State{Document: sampleDocument(), Settings: settings},
+				config.Config{}, testLogger(), web.Meta{}, saver.save,
+				func() (rolo.HouseholdID, error) { return "h_x", nil },
+				func() (rolo.PersonID, error) { return "p_x", nil },
+				&fakeExporter{}, testClock,
+			)
+			require.NoError(t, err)
+
+			tt.act(t, srv)
+
+			assert.Same(t, settings, saver.savedSettings, "the served settings ride along unchanged")
 		})
 	}
 }

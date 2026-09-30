@@ -33,7 +33,7 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
 ## Architecture
 
 - **`main.go`** — entry point: reads config, loads the store, starts the web server
-- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_TEMPLATE`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`, `WHEREFOLK_FULL_PASSPHRASE`); `TrashPath()` sits beside `DocumentPath()`
+- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_TEMPLATE`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`, `WHEREFOLK_FULL_PASSPHRASE`); `TrashPath()` and `SettingsPath()` sit beside `DocumentPath()`
   - `Config` carries the log *level*; `main` builds the `*slog.Logger` from it and injects it.
     Nothing outside `main` touches slog's package default — constructors take a `*slog.Logger`.
   - `FullPassphrase` is a `config.Secret`: `%v`, `%+v`, `%#v` and slog all print `[redacted]`, and
@@ -111,14 +111,17 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - `Trash` lives in `trash.json` beside the document, at its own schema (ADR-0012). A missing
     file is an empty Trash. `OpenTrash` reconciles (document wins) and purges at startup, writing
     only if something changed.
-  - `State{Document, Trash}` is never mutated; `Persist(prev, next)` compares pointers to decide
-    which files changed. The order is decided from the **document** alone: it writes the document
+  - `State{Document, Trash, Settings}` is never mutated; `Persist(paths, prev, next)` compares pointers to decide
+    which files changed. A settings change is written alone — a save that changes `settings.json` together
+    with the document or Trash is refused with `ErrMixedSave` (ADR-0013). The order is decided from the **document** alone: it writes the document
     first iff the document gained a Household (a restore), and otherwise writes the Trash first
     — a Trash *losing* entries to a purge never drives the order — so a crash duplicates rather
     than loses. `Reconcile`/`Purge` return the *same pointer* when nothing changed —
     keep it that way or every edit rewrites the Trash.
   - `Purge` keeps an expired entry while any unexpired entry needs it (parent or Shared
     Address, transitively); `Restore` brings that chain back together.
+  - `Settings` lives in `settings.json` beside the document, at its own schema (ADR-0013). A missing
+    file is an untitled Directory. It holds the Directory Title; the printed default is `render.DefaultTitle`.
 - **`internal/render/`** — the Directory as a printed document
   - `Directory`/`Household`/`Person` in `model.go` hold rendered **strings**, not `rolo` values,
     for the same reason `web/view.go` does: a tier rule cannot be forgotten about a value that

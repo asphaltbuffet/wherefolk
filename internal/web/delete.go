@@ -232,7 +232,7 @@ func (s *Server) deleteHousehold(id rolo.HouseholdID) deleteOutcome {
 	// Purging on every Trash write keeps expiry free of a timer (CONTEXT.md, Trash).
 	trash, _ = trash.Purge(now)
 
-	token, err := s.persist(store.State{Document: doc, Trash: trash})
+	token, err := s.persist(store.State{Document: doc, Trash: trash, Settings: s.settings})
 	if err != nil {
 		return deleteOutcome{err: err}
 	}

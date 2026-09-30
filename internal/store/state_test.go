@@ -111,7 +111,11 @@ func TestPersistOrder(t *testing.T) {
 				trashPath = filepath.Join(dir, "missing", "trash.json")
 			}
 
-			err := store.Persist(docPath, trashPath, tt.prev, tt.next)
+			err := store.Persist(store.Paths{
+				Document: docPath,
+				Trash:    trashPath,
+				Settings: filepath.Join(dir, "settings.json"),
+			}, tt.prev, tt.next)
 
 			if tt.wantErr {
 				require.Error(t, err)
@@ -123,6 +127,81 @@ func TestPersistOrder(t *testing.T) {
 			_, trashErr := os.Stat(trashPath)
 			assert.Equal(t, tt.wantDoc, docErr == nil, "directory.json written")
 			assert.Equal(t, tt.wantTrash, trashErr == nil, "trash.json written")
+		})
+	}
+}
+
+// TestPersistSettings proves a title change touches only settings.json, and
+// that a save mixing it with a document or Trash change is refused before
+// anything is written (ADR-0013).
+func TestPersistSettings(t *testing.T) {
+	doc := sampleDocument()
+	trash := store.NewTrash()
+	before := store.NewSettings()
+	after := before.WithTitle("The Langford Family Directory")
+
+	tests := []struct {
+		name         string
+		prev, next   store.State
+		wantErr      error
+		wantDoc      bool
+		wantTrash    bool
+		wantSettings bool
+	}{
+		{
+			name:         "a title change writes only the settings file",
+			prev:         store.State{Document: doc, Trash: trash, Settings: before},
+			next:         store.State{Document: doc, Trash: trash, Settings: after},
+			wantSettings: true,
+		},
+		{
+			name:    "an unchanged settings file is not written",
+			prev:    store.State{Document: doc, Trash: trash, Settings: before},
+			next:    store.State{Document: sampleDocument(), Trash: trash, Settings: before},
+			wantDoc: true,
+		},
+		{
+			name:    "a save changing the settings and the document is refused before any write",
+			prev:    store.State{Document: doc, Trash: trash, Settings: before},
+			next:    store.State{Document: sampleDocument(), Trash: trash, Settings: after},
+			wantErr: store.ErrMixedSave,
+		},
+		{
+			name:    "a save changing the settings and the Trash is refused before any write",
+			prev:    store.State{Document: doc, Trash: trash, Settings: before},
+			next:    store.State{Document: doc, Trash: sampleTrash(), Settings: after},
+			wantErr: store.ErrMixedSave,
+		},
+		{
+			name: "a nil settings is never written",
+			prev: store.State{Document: doc, Trash: trash, Settings: before},
+			next: store.State{Document: doc, Trash: trash},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			dir := t.TempDir()
+			paths := store.Paths{
+				Document: filepath.Join(dir, "directory.json"),
+				Trash:    filepath.Join(dir, "trash.json"),
+				Settings: filepath.Join(dir, "settings.json"),
+			}
+
+			err := store.Persist(paths, tt.prev, tt.next)
+
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+
+			_, docErr := os.Stat(paths.Document)
+			_, trashErr := os.Stat(paths.Trash)
+			_, settingsErr := os.Stat(paths.Settings)
+			assert.Equal(t, tt.wantDoc, docErr == nil, "directory.json written")
+			assert.Equal(t, tt.wantTrash, trashErr == nil, "trash.json written")
+			assert.Equal(t, tt.wantSettings, settingsErr == nil, "settings.json written")
 		})
 	}
 }
