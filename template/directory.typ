@@ -236,8 +236,9 @@
 // begins on, as "p. 14", so a reader can turn to the address; in a PDF viewer
 // the name and the page both jump there. The page is the footer's own counter
 // at the block's target, so the two always agree. The "p." keeps a bare number
-// beside a name from reading as an age. A row's household with no target is a
-// compile error, never an unlinked row.
+// beside a name from reading as an age, and the italic keeps it quieter than
+// the name. A row's household with no target is a compile error, never an
+// unlinked row.
 #let birthdays(rows) = {
   let months = ("Jan", "Feb", "Mar", "Apr", "May", "Jun",
                 "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
@@ -265,7 +266,7 @@
         text(size: 9pt, {
           link(home, r.name)
           h(1fr)
-          link(home, context "p. " + str(counter(page).at(home).first()))
+          link(home, emph(context "p. " + str(counter(page).at(home).first())))
         }),
         ..range(1, 13).map(m => text(size: 9pt, if m == r.month { r.day } else { "" })),
       )
