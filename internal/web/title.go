@@ -12,8 +12,9 @@ import (
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 )
 
-// maxTitleLength is the longest Directory Title accepted, in characters: what
-// fits one line of the Title page at its type size.
+// maxTitleLength is a sanity cap on the submitted title, in characters, not a
+// measurement of what fits on the Title page: "one line" means the input
+// carries no line break, and the Title page may still wrap a long title.
 const maxTitleLength = 80
 
 var (
@@ -28,7 +29,7 @@ var (
 func parseTitle(raw string) (string, string) {
 	title := strings.TrimSpace(raw)
 
-	if strings.ContainsFunc(title, unicode.IsControl) {
+	if strings.ContainsFunc(title, isRefusedTitleRune) {
 		return "", titleNotOneLine
 	}
 
@@ -37,6 +38,14 @@ func parseTitle(raw string) (string, string) {
 	}
 
 	return title, ""
+}
+
+// isRefusedTitleRune reports whether r breaks the single-line rule: a control
+// character, a Unicode line or paragraph separator (U+2028, U+2029), or a
+// format character such as a bidi override (U+202E) that could make the
+// rendered title read differently than it was typed.
+func isRefusedTitleRune(r rune) bool {
+	return unicode.IsControl(r) || unicode.In(r, unicode.Zl, unicode.Zp, unicode.Cf)
 }
 
 // exportPageURL is the export page carrying q.

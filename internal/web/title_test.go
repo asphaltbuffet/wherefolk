@@ -113,6 +113,26 @@ func TestSetTitle(t *testing.T) {
 				assert.Contains(t, rec.Body.String(), "A title must be a single line.")
 			},
 		},
+		{
+			name:       "a title with a Unicode line separator is refused",
+			form:       url.Values{"title": {"The Langford Family Directory"}},
+			wantStatus: http.StatusUnprocessableEntity,
+			checkFunc: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver) {
+				t.Helper()
+				assert.Zero(t, saver.calls)
+				assert.Contains(t, rec.Body.String(), "A title must be a single line.")
+			},
+		},
+		{
+			name:       "a title with a bidi override character is refused",
+			form:       url.Values{"title": {"The Langford" + string(rune(0x202E)) + "Family Directory"}},
+			wantStatus: http.StatusUnprocessableEntity,
+			checkFunc: func(t *testing.T, rec *httptest.ResponseRecorder, saver *recordingSaver) {
+				t.Helper()
+				assert.Zero(t, saver.calls)
+				assert.Contains(t, rec.Body.String(), "A title must be a single line.")
+			},
+		},
 	}
 
 	for _, tt := range tests {

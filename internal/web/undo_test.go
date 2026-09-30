@@ -195,6 +195,21 @@ func TestSavesKeepTheSettings(t *testing.T) {
 				return location(t, undo(t, srv, loc, "h_clyde"))
 			},
 		},
+		{
+			name: "a household deletion",
+			act: func(t *testing.T, srv *web.Server) *url.URL {
+				t.Helper()
+				return location(t, postTo(t, srv, "/h/h_dave/delete", nil))
+			},
+		},
+		{
+			name: "a restore from Recently deleted",
+			act: func(t *testing.T, srv *web.Server) *url.URL {
+				t.Helper()
+				_ = location(t, postTo(t, srv, "/h/h_dave/delete", nil))
+				return location(t, postTo(t, srv, "/trash/h_dave/restore", nil))
+			},
+		},
 	}
 
 	for _, tt := range tests {

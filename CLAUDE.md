@@ -133,7 +133,7 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - `Directory`/`Household`/`Person` in `model.go` hold rendered **strings**, not `rolo` values,
     for the same reason `web/view.go` does: a tier rule cannot be forgotten about a value that
     never arrives here as a date or a flag.
-  - **`Build(tree, tier, asOf)` is the tier filter, and the only constructor.** Every audience
+  - **`Build(tree, tier, asOf, title)` is the tier filter, and the only constructor.** Every audience
     rule — tier gating, the 18+ rule (missing birth date fails closed), deceased and Memorial
     suppression, Truncated vs. Whole dates, `[private]`, Shared Address resolution — is applied
     there, while values are still `rolo` types. Suppression is decided before withholding, so
