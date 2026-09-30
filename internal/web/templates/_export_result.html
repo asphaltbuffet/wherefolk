@@ -1,5 +1,6 @@
 {{define "export_result"}}<section id="export-result" class="export-result">
 {{- if .}}
+  <input type="hidden" name="tier" value="{{.TierKey}}" form="export-title">
   {{- if .Error}}
   <p class="export-error" role="alert">{{.Error}}</p>
   {{- else}}

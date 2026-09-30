@@ -77,6 +77,13 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     `family_directory_<tier>_<YYYY-MM-DD>.pdf`. Both send `Cache-Control: no-store`.
   - **Full is never produced unencrypted.** Without a passphrase both routes refuse it before
     rendering; with one, `render.Encrypt` runs before a byte is written.
+  - **Directory Title** (`title.go`): the export page's own form, `POST /export/title`, saved through
+    `persist` like any edit, so it is announced on the export page with an Undo that returns there
+    (`back=export`). The current tier reaches the form from inside the swapped `export_result`
+    fragment via `form="export-title"`, because the radios never reload the form. A title over 80
+    characters or containing a control character is refused with 422, re-rendering the Editor's typing.
+    An unchanged title is not a save. Every `persist` call passes `Settings: s.settings` — a State
+    literal without it would swap in nil.
   - The renderer arrives as an injected `Exporter` and the time as a `Clock`, so this package's tests
     need no typst and no real clock. `exportDate` turns the host's local calendar date into midnight
     UTC, because `rolo.Person.IsMinor` computes an eighteenth birthday at midnight UTC.

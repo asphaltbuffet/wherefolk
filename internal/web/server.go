@@ -190,6 +190,7 @@ func (s *Server) Handler() http.Handler {
 	// Export (§5). The page previews; /export/pdf is the file itself.
 	mux.HandleFunc("GET /export", s.handleExport)
 	mux.HandleFunc("GET /export/pdf", s.handleExportPDF)
+	mux.HandleFunc("POST /export/title", s.handleTitle)
 
 	// Vendored assets, served from the embedded FS so the binary stays a single
 	// file with no runtime dependency on a directory beside it. The embed root

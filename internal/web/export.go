@@ -153,15 +153,31 @@ type previewPage struct {
 
 // exportResult is the part of the page that changes with the chosen tier.
 type exportResult struct {
+	// TierKey is the tier this result shows. The fragment carries it into the
+	// title form, because the tier radios change by htmx swap without
+	// reloading the form around them.
+	TierKey     string
 	DownloadURL string
 	Pages       []previewPage
 	// Error is an Editor-facing message when the preview could not be made.
 	Error string
 }
 
+// exportTitle is the title form's state.
+type exportTitle struct {
+	// Value is what the input shows: the served title, or the Editor's own
+	// refused submission so their typing survives a 422.
+	Value string
+	Error string
+}
+
 // exportView is the export page.
 type exportView struct {
-	Options []tierOption
+	Announcement announcement
+	Title        exportTitle
+	DefaultTitle string
+	MaxTitle     int
+	Options      []tierOption
 	// Result is nil until a tier is chosen, which is what keeps the page from
 	// defaulting to an audience the Editor did not pick.
 	Result *exportResult
@@ -173,12 +189,46 @@ type exportView struct {
 func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	noStore(w)
 
-	tier, chosen := render.ParseTier(r.URL.Query().Get("tier"))
+	q := r.URL.Query()
+
+	tier, chosen := render.ParseTier(q.Get("tier"))
 	if tier == render.Full && !s.fullAvailable() {
 		chosen = false
 	}
 
-	view := exportView{Options: s.tierOptions(tier, chosen)}
+	s.mu.RLock()
+	title := exportTitle{Value: s.settings.Title}
+	ann := s.announcementFor(q, "", "")
+	s.mu.RUnlock()
+
+	// A title change is announced here, so its Undo returns here too.
+	if ann.Undo != nil {
+		ann.Undo.Export = true
+		if chosen {
+			ann.Undo.Tier = tier.Key()
+		}
+	}
+
+	s.renderExport(w, r, http.StatusOK, tier, chosen, title, ann)
+}
+
+// renderExport writes the export page, or its result fragment for htmx.
+func (s *Server) renderExport(
+	w http.ResponseWriter,
+	r *http.Request,
+	status int,
+	tier render.Tier,
+	chosen bool,
+	title exportTitle,
+	ann announcement,
+) {
+	view := exportView{
+		Announcement: ann,
+		Title:        title,
+		DefaultTitle: render.DefaultTitle,
+		MaxTitle:     maxTitleLength,
+		Options:      s.tierOptions(tier, chosen),
+	}
 
 	if chosen {
 		res := s.previewFor(r, tier)
@@ -190,7 +240,7 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 	if wantsFragment(r) {
 		err = s.renderFragment(r.Context(), w, "export", "export_result", view.Result)
 	} else {
-		err = s.render(r.Context(), w, http.StatusOK, "export", view)
+		err = s.render(r.Context(), w, status, "export", view)
 	}
 
 	if err != nil {
@@ -232,10 +282,11 @@ func (s *Server) previewFor(r *http.Request, tier render.Tier) exportResult {
 	pages, err := s.exporter.SVG(r.Context(), d)
 	if err != nil {
 		s.log.ErrorContext(r.Context(), "export preview", "tier", tier.Key(), "error", err)
-		return exportResult{Error: exportFailed}
+		return exportResult{TierKey: tier.Key(), Error: exportFailed}
 	}
 
 	res := exportResult{
+		TierKey:     tier.Key(),
 		DownloadURL: exportURL(tier),
 		Pages:       make([]previewPage, 0, len(pages)),
 	}
