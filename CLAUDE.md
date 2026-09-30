@@ -166,6 +166,12 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     first, sorted case-insensitively. `Directory.Birthdays` carries a column number and a day string
     per row, and `Markup` omits the `#birthdays` call entirely when it is empty. The table layout,
     including the repeating header, is `birthdays` in `template/directory.typ`.
+  - **Link targets**: `Household.ID` and `Birthday.HouseholdID` are the model's only values that are
+    never printed. The template turns each block's ID into a label on an invisible `metadata`, and
+    each calendar row links its name and its `Page` cell to that label, printing
+    `counter(page).at(label)` so it matches the footer. A row whose label is missing is a Typst
+    compile error, deliberately — never an unlinked row. The SVG preview embeds pages as `<img>`,
+    so the links work only in the PDF; assert on them with `typst query link --field dest`.
   - The Directory opens with a **Title page** (page 1, no page number) and a **Table of Contents**,
     then the `households` and `birthdays` sections, each a level-1 heading on a fresh page. The
     contents list roots and children of roots: `Build` sets `Household.Contents` from `Walk`'s depth,
