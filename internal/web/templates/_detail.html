@@ -79,6 +79,16 @@
         <button type="submit">Save</button>
       </form>
       {{end}}
+
+      {{/* Outside the form: following the link must never submit it, and
+           deleting is a deliberate act with its own page (ADR-0009). */}}
+      {{with .Delete}}
+        {{if .URL}}
+          <p class="delete-link"><a href="{{.URL}}">Delete this household…</a></p>
+        {{else if .Blocked}}
+          <p class="field-note delete-blocked">{{.Blocked}}</p>
+        {{end}}
+      {{end}}
     {{end}}
   {{else}}
     <h1>Choose a household</h1>

@@ -9,16 +9,19 @@ import (
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
-// Saver persists the whole Directory. It is injected rather than called
-// directly so that internal/web keeps the freedom from filesystem concerns
-// that New's signature exists to preserve: main closes over the document path
-// and this package never learns it.
+// Saver persists the Directory and its Trash. It is handed the state being
+// replaced as well as the new one, so it can tell which files changed and write
+// them in an order that cannot lose a Household (store.Persist, ADR-0012).
+//
+// It is injected rather than called directly so that internal/web keeps the
+// freedom from filesystem concerns that New's signature exists to preserve:
+// main closes over the document path and this package never learns it.
 //
 // It is called synchronously inside the request that triggered it. The atomic
 // temp/fsync/rename in internal/store protects a write that has begun, not one
 // that never got to run, and main's graceful shutdown waits for in-flight
 // requests — a save handed to a goroutine would escape both.
-type Saver func(*store.Document) error
+type Saver func(prev, next store.State) error
 
 // NewHouseholdIDFunc mints a stable identity for a new Household. Injected so
 // that tests can assert on whole documents with fixed IDs rather than matching

@@ -53,19 +53,9 @@ func Load(path string) (*Document, error) {
 	// Decode the schema first: a document from a newer binary may contain
 	// shapes this one cannot parse, so its version must be checked before any
 	// attempt to read the rest.
-	var probe struct {
-		Schema *int `json:"schema"`
-	}
-	err = json.Unmarshal(b, &probe)
+	err = checkSchema(b, path, CurrentSchema)
 	if err != nil {
-		return nil, fmt.Errorf("read document schema: %w", err)
-	}
-	if probe.Schema == nil {
-		return nil, fmt.Errorf("%w: %s", ErrSchemaMissing, path)
-	}
-	if *probe.Schema > CurrentSchema {
-		return nil, fmt.Errorf("%w: document is version %d, this binary reads up to %d",
-			ErrSchemaTooNew, *probe.Schema, CurrentSchema)
+		return nil, err
 	}
 
 	var doc Document
@@ -84,20 +74,50 @@ func Load(path string) (*Document, error) {
 }
 
 // Save writes the document to path atomically.
-//
-// The output is indented because the Operator repairs this file by hand over
-// SSH; a single-line document would make that impractical.
 func Save(path string, doc *Document) error {
-	b, err := json.MarshalIndent(doc, "", "  ")
-	if err != nil {
-		return fmt.Errorf("encode document: %w", err)
-	}
-	b = append(b, '\n')
-
-	err = writeFileAtomic(path, b)
+	err := writeJSON(path, doc)
 	if err != nil {
 		return fmt.Errorf("save document: %w", err)
 	}
 
 	return nil
+}
+
+// checkSchema reads only the schema field of b and refuses a version newer
+// than current. It is shared by every file the store writes, because each has
+// the same rollback hazard: a binary that decodes a newer shape silently drops
+// the fields it does not know, and its next save erases them.
+func checkSchema(b []byte, path string, current int) error {
+	var probe struct {
+		Schema *int `json:"schema"`
+	}
+
+	err := json.Unmarshal(b, &probe)
+	if err != nil {
+		return fmt.Errorf("read schema of %s: %w", path, err)
+	}
+
+	if probe.Schema == nil {
+		return fmt.Errorf("%w: %s", ErrSchemaMissing, path)
+	}
+
+	if *probe.Schema > current {
+		return fmt.Errorf("%w: %s is version %d, this binary reads up to %d",
+			ErrSchemaTooNew, path, *probe.Schema, current)
+	}
+
+	return nil
+}
+
+// writeJSON writes v to path as indented JSON, atomically. Indented because the
+// Operator repairs these files by hand over SSH.
+func writeJSON(path string, v any) error {
+	b, err := json.MarshalIndent(v, "", "  ")
+	if err != nil {
+		return fmt.Errorf("encode: %w", err)
+	}
+
+	b = append(b, '\n')
+
+	return writeFileAtomic(path, b)
 }

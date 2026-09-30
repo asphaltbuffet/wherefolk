@@ -33,7 +33,7 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
 ## Architecture
 
 - **`main.go`** — entry point: reads config, loads the store, starts the web server
-- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_TEMPLATE`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`, `WHEREFOLK_FULL_PASSPHRASE`)
+- **`internal/config/`** — environment parsing (`WHEREFOLK_DATA`, `WHEREFOLK_TEMPLATE`, `WHEREFOLK_PORT`, `WHEREFOLK_LOG_LEVEL`, `WHEREFOLK_FULL_PASSPHRASE`); `TrashPath()` sits beside `DocumentPath()`
   - `Config` carries the log *level*; `main` builds the `*slog.Logger` from it and injects it.
     Nothing outside `main` touches slog's package default — constructors take a `*slog.Logger`.
   - `FullPassphrase` is a `config.Secret`: `%v`, `%+v`, `%#v` and slog all print `[redacted]`, and
@@ -87,6 +87,14 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     never snapshots the family's previews into localStorage.
   - **The editing UI never masks** (ADR-0010). `[private]` and deceased-contact suppression belong
     to export; `view.go` renders every stored value.
+  - **Every successful save goes through `persist`** (undo.go): build tree → save → swap →
+    record the one-step undo point. Edits, deletions, restores and Undo itself all use it.
+  - Undo is one step with no redo, held in memory. Its token rides in `?undo=`; `announcementFor`
+    renders the button only while the token is still the latest, and `POST /undo` refuses a
+    stale one with a sentence, not an error.
+  - Deletion is `GET`/`POST /h/{id}/delete` — a confirmation page, never a form checkbox
+    (ADR-0009). Blocked by `rolo.Tree.DeleteBlock`: Memorial, has children, or has sharers.
+  - The Editor-facing name for the Trash is **Recently deleted** (`/trash`).
 - **`pkg/rolo/`** — domain types, no persistence
   - `Person` — a flat record with a stable `PersonID`, partial-precision `Date`s, and per-field `Hidden` flags
   - `Household` — adults, dependents, anniversary, address, and a `Parent` link. Children are **not** stored
@@ -100,6 +108,17 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - `Load` validates the schema version and the tree, refusing a document newer than `CurrentSchema`
   - `Save` writes atomically (temp → fsync → rename) with `0600` permissions
   - `NewPersonID`/`NewHouseholdID` generate prefixed nanoids over a Crockford base32 alphabet
+  - `Trash` lives in `trash.json` beside the document, at its own schema (ADR-0012). A missing
+    file is an empty Trash. `OpenTrash` reconciles (document wins) and purges at startup, writing
+    only if something changed.
+  - `State{Document, Trash}` is never mutated; `Persist(prev, next)` compares pointers to decide
+    which files changed. The order is decided from the **document** alone: it writes the document
+    first iff the document gained a Household (a restore), and otherwise writes the Trash first
+    — a Trash *losing* entries to a purge never drives the order — so a crash duplicates rather
+    than loses. `Reconcile`/`Purge` return the *same pointer* when nothing changed —
+    keep it that way or every edit rewrites the Trash.
+  - `Purge` keeps an expired entry while any unexpired entry needs it (parent or Shared
+    Address, transitively); `Restore` brings that chain back together.
 - **`internal/render/`** — the Directory as a printed document
   - `Directory`/`Household`/`Person` in `model.go` hold rendered **strings**, not `rolo` values,
     for the same reason `web/view.go` does: a tier rule cannot be forgotten about a value that

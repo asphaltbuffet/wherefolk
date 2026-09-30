@@ -57,11 +57,11 @@ func TestNew(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := web.New(
-				tt.doc,
+				store.State{Document: tt.doc},
 				config.Config{},
 				testLogger(),
 				web.Meta{DocumentPath: "/tmp/test/directory.json"},
-				func(*store.Document) error { return nil },
+				func(_, _ store.State) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_test01", nil },
 				func() (rolo.PersonID, error) { return "p_test01", nil },
 				&fakeExporter{}, testClock,
@@ -93,7 +93,7 @@ func TestNewRejectsMissingDependencies(t *testing.T) {
 	}{
 		{
 			name:           "all dependencies present",
-			save:           func(*store.Document) error { return nil },
+			save:           func(_, _ store.State) error { return nil },
 			newHouseholdID: func() (rolo.HouseholdID, error) { return "h_test01", nil },
 			newPersonID:    func() (rolo.PersonID, error) { return "p_test01", nil },
 			exporter:       &fakeExporter{},
@@ -110,7 +110,7 @@ func TestNewRejectsMissingDependencies(t *testing.T) {
 		},
 		{
 			name:           "nil household id generator",
-			save:           func(*store.Document) error { return nil },
+			save:           func(_, _ store.State) error { return nil },
 			newHouseholdID: nil,
 			newPersonID:    func() (rolo.PersonID, error) { return "p_test01", nil },
 			exporter:       &fakeExporter{},
@@ -119,7 +119,7 @@ func TestNewRejectsMissingDependencies(t *testing.T) {
 		},
 		{
 			name:           "nil person id generator",
-			save:           func(*store.Document) error { return nil },
+			save:           func(_, _ store.State) error { return nil },
 			newHouseholdID: func() (rolo.HouseholdID, error) { return "h_test01", nil },
 			newPersonID:    nil,
 			exporter:       &fakeExporter{},
@@ -128,7 +128,7 @@ func TestNewRejectsMissingDependencies(t *testing.T) {
 		},
 		{
 			name:            "nil exporter",
-			save:            func(*store.Document) error { return nil },
+			save:            func(_, _ store.State) error { return nil },
 			newHouseholdID:  func() (rolo.HouseholdID, error) { return "h_test01", nil },
 			newPersonID:     func() (rolo.PersonID, error) { return "p_test01", nil },
 			exporter:        nil,
@@ -138,7 +138,7 @@ func TestNewRejectsMissingDependencies(t *testing.T) {
 		},
 		{
 			name:            "nil clock",
-			save:            func(*store.Document) error { return nil },
+			save:            func(_, _ store.State) error { return nil },
 			newHouseholdID:  func() (rolo.HouseholdID, error) { return "h_test01", nil },
 			newPersonID:     func() (rolo.PersonID, error) { return "p_test01", nil },
 			exporter:        &fakeExporter{},
@@ -151,7 +151,7 @@ func TestNewRejectsMissingDependencies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			got, err := web.New(
-				sampleDocument(),
+				store.State{Document: sampleDocument()},
 				config.Config{},
 				testLogger(),
 				web.Meta{DocumentPath: "/tmp/test/directory.json"},
@@ -204,11 +204,11 @@ func TestRouting(t *testing.T) {
 	// Work item 5's mutating routes will need a fresh server per row, or the
 	// rows become order-dependent.
 	srv, err := web.New(
-		sampleDocument(),
+		store.State{Document: sampleDocument()},
 		config.Config{},
 		testLogger(),
 		web.Meta{DocumentPath: "/tmp/test/directory.json"},
-		func(*store.Document) error { return nil },
+		func(_, _ store.State) error { return nil },
 		func() (rolo.HouseholdID, error) { return "h_test01", nil },
 		func() (rolo.PersonID, error) { return "p_test01", nil },
 		&fakeExporter{}, testClock,
@@ -271,8 +271,8 @@ func TestRenderFragmentOmitsLayout(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			srv, err := web.New(sampleDocument(), config.Config{}, testLogger(), web.Meta{},
-				func(*store.Document) error { return nil },
+			srv, err := web.New(store.State{Document: sampleDocument()}, config.Config{}, testLogger(), web.Meta{},
+				func(_, _ store.State) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_test01", nil },
 				func() (rolo.PersonID, error) { return "p_test01", nil },
 				&fakeExporter{}, testClock,
@@ -316,11 +316,11 @@ func TestConcurrentReads(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			srv, err := web.New(
-				sampleDocument(),
+				store.State{Document: sampleDocument()},
 				config.Config{},
 				testLogger(),
 				web.Meta{DocumentPath: "/tmp/test/directory.json"},
-				func(*store.Document) error { return nil },
+				func(_, _ store.State) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_test01", nil },
 				func() (rolo.PersonID, error) { return "p_test01", nil },
 				&fakeExporter{}, testClock,

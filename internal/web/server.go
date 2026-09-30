@@ -22,8 +22,8 @@ import (
 const Host = "127.0.0.1"
 
 // Server holds the loaded Directory and renders it. The document is authoritative
-// in memory: the server is the single writer, which is what lets item 6's undo
-// have a coherent place to live.
+// in memory: the server is the single writer, which is what gives Undo a
+// coherent place to live (undo.go).
 type Server struct {
 	mu  sync.RWMutex
 	doc *store.Document
@@ -31,6 +31,11 @@ type Server struct {
 	// must rebuild it inside the same write lock that mutates doc, or the two
 	// silently disagree and navigation renders a tree that no longer exists.
 	tree *rolo.Tree
+	// trash holds deleted Households (ADR-0012). Like doc it is replaced, never
+	// mutated, and only after a save succeeds.
+	trash *store.Trash
+	// undo is the one step Undo can return to, or nil. See undo.go.
+	undo *undoPoint
 	meta Meta
 	cfg  config.Config
 	log  *slog.Logger
@@ -76,7 +81,7 @@ type Meta struct {
 // struct so that a caller cannot leave one unset by forgetting a field; every
 // one is checked here.
 func New(
-	doc *store.Document,
+	state store.State,
 	cfg config.Config,
 	logger *slog.Logger,
 	meta Meta,
@@ -86,8 +91,14 @@ func New(
 	exporter Exporter,
 	now Clock,
 ) (*Server, error) {
+	doc := state.Document
 	if doc == nil {
 		return nil, errors.New("web: document is nil")
+	}
+
+	trash := state.Trash
+	if trash == nil {
+		trash = store.NewTrash()
 	}
 
 	if logger == nil {
@@ -122,6 +133,7 @@ func New(
 	return &Server{
 		doc:            doc,
 		tree:           tree,
+		trash:          trash,
 		meta:           meta,
 		cfg:            cfg,
 		log:            logger,
@@ -131,6 +143,11 @@ func New(
 		exporter:       exporter,
 		now:            now,
 	}, nil
+}
+
+// state is what the server currently serves. Callers hold at least a read lock.
+func (s *Server) state() store.State {
+	return store.State{Document: s.doc, Trash: s.trash}
 }
 
 // Handler returns the server's routes.
@@ -146,6 +163,17 @@ func (s *Server) Handler() http.Handler {
 	// The write path. It redirects rather than swapping a fragment, so the
 	// tree and the detail pane always re-render together. See ADR-0008.
 	mux.HandleFunc("POST /h/{id}", s.handleSave)
+
+	// Undo reverses the most recent save — edit, deletion or restore.
+	mux.HandleFunc("POST /undo", s.handleUndo)
+
+	// Deletion asks first (ADR-0009); the POST moves the Household to the Trash.
+	mux.HandleFunc("GET /h/{id}/delete", s.handleDeleteConfirm)
+	mux.HandleFunc("POST /h/{id}/delete", s.handleDelete)
+
+	// Recently deleted (the Trash): list, and restore with whatever it needs.
+	mux.HandleFunc("GET /trash", s.handleTrash)
+	mux.HandleFunc("POST /trash/{id}/restore", s.handleRestore)
 
 	mux.HandleFunc("GET /tree", s.handleTree)
 	mux.HandleFunc("GET /search", s.handleSearch)

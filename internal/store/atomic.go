@@ -15,9 +15,9 @@ import (
 // flushed to disk, and are then renamed over the target — rename is atomic
 // within a filesystem.
 //
-// The file is written with documentPerm: the document is the only thing this
-// package writes, so the permission is a property of the store, not a choice
-// the caller makes.
+// The file is written with documentPerm: the store writes only the document and
+// its Trash, and both hold relatives' personal details, so the permission is a
+// property of the store, not a choice the caller makes.
 func writeFileAtomic(path string, data []byte) error {
 	dir := filepath.Dir(path)
 

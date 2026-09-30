@@ -172,6 +172,9 @@ main { height: 100vh; }
   margin-bottom: 1rem;
 }
 
+.announce p { margin: 0 0 .5rem; }
+.announce-actions form { margin: 0; }
+
 /* Export (§5). One column that reads top to bottom: choose, download, look. */
 .export { max-width: 60rem; margin: 0 auto; padding: var(--gap); }
 .export-link { margin: 0 0 var(--gap); text-align: right; }
@@ -213,3 +216,17 @@ main { height: 100vh; }
   gap: var(--gap);
 }
 .preview img { width: 100%; border: 1px solid var(--rule); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
+
+/* Deletion. Set apart from Save so it is never clicked by habit. */
+.delete-link { margin-top: 2rem; }
+.delete-blocked { margin-top: 2rem; color: var(--muted); }
+.confirm { max-width: 40rem; margin: 0 auto; padding: var(--gap); }
+.confirm-actions { display: flex; gap: 1rem; align-items: baseline; }
+button.danger { background: #a22; color: #fff; border: 1px solid #811; padding: .4rem 1rem; }
+
+/* Recently deleted. */
+.trash { max-width: 40rem; margin: 0 auto; padding: var(--gap); }
+.trash-list { list-style: none; padding: 0; }
+.trash-list li { border-top: 1px solid var(--rule); padding: .75rem 0; }
+.trash-list h2 { margin: 0; font-size: 1.1rem; }
+.trash-link { margin-top: var(--gap); }

@@ -1,0 +1,28 @@
+{{define "title"}}Recently deleted{{end}}
+
+{{define "body"}}
+<section class="trash" aria-labelledby="trash-heading">
+  <p><a href="/">Back to the directory</a></p>
+  <h1 id="trash-heading">Recently deleted</h1>
+
+  {{with .Notice}}<p class="announce" role="status">{{.}}</p>{{end}}
+
+  {{if .Entries}}
+    <p>Deleted households are kept here for at least 30 days. Restoring one puts it back exactly where it was.</p>
+    <ul class="trash-list">
+      {{range .Entries}}
+      <li>
+        <h2>{{.Name}}</h2>
+        <p class="breadcrumb">{{.Path}}</p>
+        <p class="field-note">Deleted {{.Deleted}} · kept until {{.KeptUntil}}</p>
+        <form method="post" action="/trash/{{.ID}}/restore">
+          <button type="submit">Restore</button>
+        </form>
+      </li>
+      {{end}}
+    </ul>
+  {{else}}
+    <p>Nothing has been deleted recently.</p>
+  {{end}}
+</section>
+{{end}}

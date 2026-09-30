@@ -46,7 +46,12 @@ func TestHandleSave(t *testing.T) {
 				t.Helper()
 
 				assert.Equal(t, http.StatusSeeOther, rec.Code)
-				assert.Equal(t, "/h/h_clyde", rec.Header().Get("Location"))
+
+				location, err := url.Parse(rec.Header().Get("Location"))
+				require.NoError(t, err)
+				assert.Equal(t, "/h/h_clyde", location.Path)
+				assert.Contains(t, location.Query().Get("said"), "were saved",
+					"every save is announced, so every save can be undone")
 
 				require.Equal(t, 1, saver.calls)
 				require.NotNil(t, saver.saved)

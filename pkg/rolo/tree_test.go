@@ -253,3 +253,101 @@ func TestBuildTreeAcceptsMultipleRoots(t *testing.T) {
 	assert.Equal(t, rolo.HouseholdID("h_aden"), roots[0].ID, "roots sort by eldest adult's birth date")
 	assert.Equal(t, rolo.HouseholdID("h_novak"), roots[1].ID)
 }
+
+// sampleWith returns sampleHouseholds with edit applied to the Household id,
+// for rows that need one variation on the shared fixture.
+func sampleWith(id rolo.HouseholdID, edit func(*rolo.Household)) func() []rolo.Household {
+	return func() []rolo.Household {
+		hs := sampleHouseholds()
+		for i := range hs {
+			if hs[i].ID == id {
+				edit(&hs[i])
+			}
+		}
+		return hs
+	}
+}
+
+// householdIDs lists the IDs of hs in order, nil when there are none, so a
+// row that expects nothing can leave its field unset.
+func householdIDs(hs []rolo.Household) []rolo.HouseholdID {
+	var out []rolo.HouseholdID
+	for _, h := range hs {
+		out = append(out, h.ID)
+	}
+	return out
+}
+
+func TestDeleteBlock(t *testing.T) {
+	tests := []struct {
+		name         string
+		households   func() []rolo.Household
+		id           rolo.HouseholdID
+		wantErr      error
+		wantBlocked  bool
+		wantMemorial bool
+		wantChildren []rolo.HouseholdID
+		wantSharers  []rolo.HouseholdID
+	}{
+		{
+			name:       "a leaf Household can be deleted",
+			households: sampleHouseholds,
+			id:         "h_dave",
+		},
+		{
+			name:         "a Household with Households beneath it cannot",
+			households:   sampleHouseholds,
+			id:           "h_clyde",
+			wantBlocked:  true,
+			wantChildren: []rolo.HouseholdID{"h_dave"},
+		},
+		{
+			name: "a Household whose Address another shares cannot",
+			households: sampleWith("h_harold", func(h *rolo.Household) {
+				h.Address.SharedWith = "h_susan"
+			}),
+			id:          "h_susan",
+			wantBlocked: true,
+			wantSharers: []rolo.HouseholdID{"h_harold"},
+		},
+		{
+			name: "a Memorial Household never can, even as a leaf",
+			households: sampleWith("h_dave", func(h *rolo.Household) {
+				for j := range h.Adults {
+					h.Adults[j].Death = rolo.Date{Year: 2020}
+				}
+			}),
+			id:           "h_dave",
+			wantBlocked:  true,
+			wantMemorial: true,
+		},
+		{
+			name:       "unknown ID errors with ErrUnknownHousehold",
+			households: sampleHouseholds,
+			id:         "h_unknown",
+			wantErr:    rolo.ErrUnknownHousehold,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tree, err := rolo.BuildTree(tt.households())
+			require.NoError(t, err)
+
+			got, err := tree.DeleteBlock(tt.id)
+
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+				return
+			}
+
+			require.NoError(t, err)
+
+			assert.Equal(t, tt.wantBlocked, got.Blocked())
+			assert.Equal(t, tt.wantMemorial, got.Memorial)
+
+			assert.Equal(t, tt.wantChildren, householdIDs(got.Children))
+			assert.Equal(t, tt.wantSharers, householdIDs(got.Sharers))
+		})
+	}
+}

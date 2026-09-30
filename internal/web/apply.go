@@ -30,9 +30,8 @@ const (
 // say plainly what happened; Household names where the Editor should look next,
 // which is what the announcement links to.
 //
-// The undo control §4.4 promises beside this sentence is item 6's. Until it
-// lands the Editor's recovery is the nightly snapshot, so Message must name the
-// change precisely enough to reverse by hand.
+// The Undo beside this sentence reverses the whole save (undo.go); Message
+// still names the change precisely, because Undo lasts only one step.
 type change struct {
 	Kind      changeKind
 	Person    string

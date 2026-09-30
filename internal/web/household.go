@@ -14,7 +14,7 @@ func (s *Server) handleDirectory(w http.ResponseWriter, r *http.Request) {
 
 	s.mu.RLock()
 	view := s.directoryView(id, q.Get("open"), q.Get("close"), q.Get("pane") == paneClosed)
-	view.Announcement = s.announcementFor(q.Get(saidKey), q.Get(movedKey))
+	view.Announcement = s.announcementFor(q, id, view.Tree.Open)
 	s.mu.RUnlock()
 
 	// A selection that is not in the document is the Editor following a stale
@@ -39,10 +39,16 @@ func (s *Server) directoryView(
 	rawOpen, closing string,
 	isPaneClosed bool,
 ) directoryView {
+	// Purge, not the stored count: an expired, unanchored entry is still
+	// restorable until the next Trash write, but the count must agree with
+	// what /trash actually lists. This is a read; it writes nothing.
+	purged, _ := s.trash.Purge(s.now())
+
 	view := directoryView{
 		Tree:          s.treeView(id, rawOpen, closing),
 		PaneClosed:    isPaneClosed,
 		PaneToggleURL: paneToggleURL(id, isPaneClosed),
+		TrashCount:    len(purged.Entries),
 	}
 
 	if id == "" {
@@ -63,6 +69,11 @@ func (s *Server) directoryView(
 		view.Household.Form.Open = s.joinIDsOrdered(s.openSet(id, rawOpen))
 		if isPaneClosed {
 			view.Household.Form.Pane = paneClosed
+		}
+
+		if view.Household.Delete.Blocked == "" {
+			view.Household.Delete.URL = pageURL(id, "delete",
+				view.Household.Form.Open, view.Household.Form.Pane, nil)
 		}
 	}
 

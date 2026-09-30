@@ -217,6 +217,50 @@ func (t *Tree) Roots() []Household { return t.lookup(t.roots) }
 // Children returns a Household's children, in sibling order.
 func (t *Tree) Children(id HouseholdID) []Household { return t.lookup(t.children[id]) }
 
+// DeleteBlock says why a Household may not be deleted; the zero value means it
+// may. Only a Household nothing depends on can go to the Trash (CONTEXT.md,
+// Trash): a Memorial Household anchors its Branch permanently (§3), a Household
+// with Households beneath it anchors their Paths, and one whose Address is
+// shared would leave the sharer pointing at nothing.
+type DeleteBlock struct {
+	Memorial bool
+	Children []Household
+	Sharers  []Household
+}
+
+// Blocked reports whether anything prevents the deletion.
+func (b DeleteBlock) Blocked() bool {
+	return b.Memorial || len(b.Children) > 0 || len(b.Sharers) > 0
+}
+
+// DeleteBlock reports what, if anything, prevents deleting id. Sharers are in
+// Walk order, so a sentence naming them reads in the same order as the tree.
+func (t *Tree) DeleteBlock(id HouseholdID) (DeleteBlock, error) {
+	h, ok := t.byID[id]
+	if !ok {
+		return DeleteBlock{}, fmt.Errorf("%w: %s", ErrUnknownHousehold, id)
+	}
+
+	block := DeleteBlock{
+		Memorial: h.IsMemorial(),
+		Children: t.Children(id),
+		Sharers:  []Household{},
+	}
+
+	err := t.Walk(func(other Household, _ int) error {
+		if other.Address.SharedWith == id {
+			block.Sharers = append(block.Sharers, other)
+		}
+
+		return nil
+	})
+	if err != nil {
+		return DeleteBlock{}, err
+	}
+
+	return block, nil
+}
+
 func (t *Tree) lookup(ids []HouseholdID) []Household {
 	out := make([]Household, 0, len(ids))
 	for _, id := range ids {

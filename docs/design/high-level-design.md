@@ -128,7 +128,7 @@ be the worst bug in the system. Deployment is therefore always "pull the image a
 no manual step to forget.
 
 The snapshot taken before a migration is written to `snapshots/` beside the document, named for the
-version it holds and the time it was taken — `snapshots/pre-migrate-v1-20260922.json`. Work item 6's
+version it holds and the time it was taken — `snapshots/pre-migrate-v1-20260922.json`. Item 14's
 nightly snapshots share that directory.
 
 **The runner itself is deferred until a second schema version exists.** Schema 1 is the only version
@@ -259,11 +259,14 @@ whether or not this code still compiles. It is also diffable, which makes snapsh
 
 Three layers, targeting the two accidents that actually happen:
 
-1. **Undo** for the current editing session — covers fat-fingering, noticed immediately.
+1. **Undo** for the current editing session — covers fat-fingering, noticed immediately. One step,
+   held in memory for as long as the service runs; see CONTEXT.md, Undo.
 2. **Trash** — deleted Households are recoverable for 30 days rather than vanishing. Covers the
-   deletion noticed a fortnight later.
-3. **Nightly snapshots** on the host, retained for a year. The Operator's backstop, covering disk
-   failure and the Operator's own maintenance mistakes.
+   deletion noticed a fortnight later. Kept in `trash.json` beside the document (ADR-0012); only a
+   Household nothing depends on can be deleted, and restoring brings back whatever it needs.
+3. **Nightly snapshots** on the host, retained for a year, taken by a job **outside** the service
+   (item 14). A plain copy is consistent because `store.Save` renames atomically, and a backup
+   should not depend on the software whose mistakes it guards against.
 
 Full version history is deliberately excluded: it sounds responsible, absorbs a large share of the
 project, and its "what changed" UI is hard to make legible to this Editor.
@@ -339,9 +342,8 @@ editor. Search relocates the Editor within their mental model rather than bypass
   scolded. Input is forgiving; storage is consistent.
 - **Structural changes are announced.** Adding Diane as Dave's spouse moves Dave out of his
   parents' block into his own. The UI says so plainly, names where he went, and links there.
-  The undo beside that sentence is item 6's: item 5 ships the announcement with a slot for the
-  control, and the Safety net fills it. Until then the Editor's recovery is the nightly snapshot,
-  which is why the announcement must name the change precisely enough to reverse by hand.
+  Every save is announced — a plain edit with a plain sentence — and carries an Undo beside it
+  while it is still the most recent change.
 - **Per-field hidden.** Any field can be marked hidden — not just whole people. Per-person exclusion
   is too blunt to get used; the realistic request is "my address stays out, my name is fine."
 - **The editing UI never masks.** Hidden is a checkbox beside a populated input, not a replaced
@@ -543,7 +545,7 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 3 | ✅ **Validation & normalisation** — dates, phones, emails; normalise-on-save | 1 |
 | 4 | ✅ **Tree + search navigation** — two-pane shell, Path breadcrumb, search-with-context. Navigation state lives in the URL (ADR-0008) | 1, 11 |
 | 5 | ✅ **Detail editing** — the pane is the form (§4.4), per-field hidden, add/remove a person, declared Promotion, structural-change announcements. Saves via Post/Redirect/Get (ADR-0008); masking moved to export (ADR-0010); Promotion is one-way (ADR-0009) | 3, 4 |
-| 6 | **Safety net** — session undo, 30-day trash, nightly snapshots. Inherits two slots from item 5: the `.announce-actions` div in `_announce.html` where the undo control belongs, and Household deletion, which item 5 left out because deleting with no recovery path contradicts §3 | 1 |
+| 6 | ✅ **Safety net** — one-step Undo from beside every save's announcement, held in memory; Household deletion behind a confirmation page (ADR-0009) for Households nothing depends on; 30-day Trash in a sidecar `trash.json` (ADR-0012) with restore chains and anchor-aware retention. Nightly snapshots moved to item 14 | 1 |
 | 7 | ✅ **Typst template & render engine** — flat Household blocks, Memorial blocks, fixed layout, shared-address back-references, PDF + SVG output. The render model is strings only, so item 8's filter replaces its constructor rather than threading a tier through the markup generator | 1 |
 | 8 | ✅ **Tier filter** — field gating, age computation, date truncation, `[private]` vs. absence. `render.Build(tree, tier, asOf)` is the only constructor of the render model; the footer names the tier, and Full carries `DO NOT DISTRIBUTE`. Suppression beats withholding; Shared Addresses resolve through withheld and Memorial targets | 7 |
 | 9 | ✅ **Export UI** — `/export` offers the tiers by description with none pre-selected, previews every page as inline SVG, and downloads `family_directory_<tier>_<date>.pdf`. Full is encrypted with `WHEREFOLK_FULL_PASSPHRASE` via the pdfcpu library (ADR-0011) and refused outright when the passphrase is unset. The export date is the host's calendar date. Pre-flight warnings split out to item 15 | 8 |
@@ -551,7 +553,7 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 11 | ✅ **Web shell** — Go templates, htmx, embedded assets, loopback binding, `WHEREFOLK_DATA`/`WHEREFOLK_PORT`, Operator `/status` page as the tracer bullet. Foundational: every UI item (4, 5, 9, 10) is built on it, so it ships first | — |
 | 12 | **Container image** — Debian slim, pinned Typst, compose file with Tailscale sidecar, volumes | 11 |
 | 13 | **Tailnet setup** — OAuth client, `tag:wherefolk`, ACL, Serve with HTTPS, Funnel assertion, agenix-managed `.env` | 12 |
-| 14 | **Health & snapshots** — `/healthz`, Docker `HEALTHCHECK`, verified snapshot job, two Healthchecks.io dead-man's switches | 6, 12 |
+| 14 | **Health & snapshots** — `/healthz`, Docker `HEALTHCHECK`, verified snapshot job; **nightly snapshots** as an external job (host timer or compose sidecar, decided there), copying the atomically-written document off-volume with 365-day retention; two Healthchecks.io dead-man's switches | 6, 12 |
 | 15 | **Export pre-flight warnings** (§5.7) — on the export page, list each living person whose missing birth date removes something from *that* tier's export (a recorded phone in Call; a phone or email in Digital; nobody in Mail or Full), with their Path and a link to their Household. A warning, never a block. Computed by the same code in `internal/render` that applies the rule, so the warning and the PDF cannot disagree. Split from item 9 as a usability improvement rather than a prerequisite | 9 |
 
 ### Fate of the existing code

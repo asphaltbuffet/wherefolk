@@ -304,8 +304,8 @@ func TestAddressPrecedence(t *testing.T) {
 				},
 			}}
 
-			srv, err := web.New(doc, config.Config{}, testLogger(), web.Meta{},
-				func(*store.Document) error { return nil },
+			srv, err := web.New(store.State{Document: doc}, config.Config{}, testLogger(), web.Meta{},
+				func(_, _ store.State) error { return nil },
 				func() (rolo.HouseholdID, error) { return "h_test01", nil },
 				func() (rolo.PersonID, error) { return "p_test01", nil },
 				&fakeExporter{}, testClock,
