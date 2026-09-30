@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 
+	"github.com/asphaltbuffet/wherefolk/internal/live"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
@@ -23,9 +24,7 @@ type treeView struct {
 func (s *Server) handleTree(w http.ResponseWriter, r *http.Request) {
 	selected := rolo.HouseholdID(r.URL.Query().Get("selected"))
 
-	s.mu.RLock()
-	view := s.treeView(selected, r.URL.Query().Get("open"), r.URL.Query().Get("close"))
-	s.mu.RUnlock()
+	view := s.treeView(s.live.Snapshot(), selected, r.URL.Query().Get("open"), r.URL.Query().Get("close"))
 
 	err := s.renderFragment(r.Context(), w, "directory", "tree", view)
 	if err != nil {
@@ -44,13 +43,11 @@ func (s *Server) handleTree(w http.ResponseWriter, r *http.Request) {
 // applied, so no close parameter can hide the Household the detail pane is
 // showing — that would break §4.3's promise that navigation stays inside the
 // Editor's mental model.
-//
-// Callers hold at least a read lock.
-func (s *Server) treeView(selected rolo.HouseholdID, rawOpen, closing string) treeView {
+func (s *Server) treeView(snap live.Snapshot, selected rolo.HouseholdID, rawOpen, closing string) treeView {
 	open := make(map[rolo.HouseholdID]bool)
 
 	for _, id := range parseIDs(rawOpen) {
-		if _, ok := s.tree.Get(id); ok {
+		if _, ok := snap.Tree.Get(id); ok {
 			open[id] = true
 		}
 	}
@@ -59,13 +56,13 @@ func (s *Server) treeView(selected rolo.HouseholdID, rawOpen, closing string) tr
 		delete(open, id)
 	}
 
-	for _, id := range s.selectionChain(selected) {
+	for _, id := range s.selectionChain(snap, selected) {
 		open[id] = true
 	}
 
 	return treeView{
-		Nodes:    s.treeNodes(selected, open),
+		Nodes:    s.treeNodes(snap, selected, open),
 		Selected: selected,
-		Open:     s.joinIDsOrdered(open),
+		Open:     s.joinIDsOrdered(snap, open),
 	}
 }

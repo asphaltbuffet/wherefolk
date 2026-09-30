@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"slices"
 
+	"github.com/asphaltbuffet/wherefolk/internal/live"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -36,14 +37,11 @@ type restoreOutcome struct {
 }
 
 // trashView lists the Trash newest first, since the deletion the Editor is
-// looking for is most often the one they just made. Callers hold at least a
-// read lock.
-func (s *Server) trashView(notice string) trashView {
-	// Purge, not the stored Trash: an expired, unanchored entry is still
-	// restorable until the next Trash write, but showing it here — with a
-	// kept-until date already past — would be dishonest. This is a read; it
-	// writes nothing.
-	trash, _ := s.trash.Purge(s.now())
+// looking for is most often the one they just made.
+func (s *Server) trashView(snap live.Snapshot, notice string) trashView {
+	// The effective Trash, not the stored one: showing an expired entry —
+	// with a kept-until date already past — would be dishonest.
+	trash := snap.Trash
 
 	entries := slices.Clone(trash.Entries)
 	slices.SortStableFunc(entries, func(a, b store.TrashEntry) int {
@@ -66,9 +64,7 @@ func (s *Server) trashView(notice string) trashView {
 }
 
 func (s *Server) renderTrash(w http.ResponseWriter, r *http.Request, status int, notice string) {
-	s.mu.RLock()
-	view := s.trashView(notice)
-	s.mu.RUnlock()
+	view := s.trashView(s.live.Snapshot(), notice)
 
 	err := s.render(r.Context(), w, status, "trash", view)
 	if err != nil {
@@ -111,27 +107,30 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// restoreHousehold moves id, and whatever it needs, back into the Directory
-// under the write lock.
+// restoreHousehold moves id, and whatever it needs, back into the Directory.
 func (s *Server) restoreHousehold(id rolo.HouseholdID) restoreOutcome {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	var (
+		out      restoreOutcome
+		restored []rolo.Household
+	)
 
-	var name string
-	if e, ok := s.trash.Entry(id); ok {
-		name = e.Household.Name()
-	}
+	saved, err := s.live.Update(func(snap live.Snapshot) (store.State, error) {
+		if e, ok := snap.State().Trash.Entry(id); ok {
+			out.name = e.Household.Name()
+		}
 
-	doc, trash, restored, err := store.Restore(s.doc, s.trash, id)
+		doc, trash, back, err := store.Restore(snap.Document, snap.State().Trash, id)
+		if err != nil {
+			return store.State{}, err
+		}
+
+		restored = back
+
+		return store.State{Document: doc, Trash: trash}, nil
+	})
 	if err != nil {
-		return restoreOutcome{name: name, err: err}
-	}
-
-	trash, _ = trash.Purge(s.now())
-
-	token, err := s.persist(store.State{Document: doc, Trash: trash, Settings: s.settings})
-	if err != nil {
-		return restoreOutcome{name: name, err: err}
+		out.err = err
+		return out
 	}
 
 	message := restored[0].Name() + " was restored"
@@ -139,5 +138,7 @@ func (s *Server) restoreHousehold(id rolo.HouseholdID) restoreOutcome {
 		message += ", along with " + joinNames(restored[1:])
 	}
 
-	return restoreOutcome{name: name, message: message + ".", undo: token}
+	out.message, out.undo = message+".", saved.Undo
+
+	return out
 }

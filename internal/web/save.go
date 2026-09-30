@@ -1,10 +1,12 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 
+	"github.com/asphaltbuffet/wherefolk/internal/live"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -21,6 +23,11 @@ const (
 	// undoKey carries the token of the save this page may undo (undo.go).
 	undoKey = "undo"
 )
+
+// errRefused ends an Update that decided not to save. What it decided — not
+// found, the Editor's field errors, a blocked deletion — travels out in the
+// caller's own outcome.
+var errRefused = errors.New("change refused")
 
 // handleSave applies one Household's form.
 //
@@ -42,11 +49,6 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// The write lock covers the mutation and nothing else. Rendering a page and
-	// writing it to a possibly-slow client must not happen under it: one Editor
-	// on a bad connection would otherwise block every reader for the length of
-	// the response. handleDirectory releases its read lock before rendering for
-	// the same reason.
 	outcome := s.commit(r, id)
 
 	switch {
@@ -68,9 +70,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 // renderNotFound answers a request for a Household that is not in the tree:
 // for the Editor a sentence and a navigable tree, never a bare code.
 func (s *Server) renderNotFound(w http.ResponseWriter, r *http.Request) {
-	s.mu.RLock()
-	view := s.directoryView("", "", "", false)
-	s.mu.RUnlock()
+	view := s.directoryView(s.live.Snapshot(), "", "", "", false)
 
 	view.NotFound = true
 
@@ -98,62 +98,77 @@ type saveOutcome struct {
 	undo string
 }
 
-// commit parses, applies, normalises, saves, and swaps in the new document.
-// It holds the write lock for exactly that and renders nothing.
+// commit parses, applies and normalises inside one live.Copy.Update, and
+// renders nothing: the Copy serialises writers for exactly that long.
 func (s *Server) commit(r *http.Request, id rolo.HouseholdID) saveOutcome {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	var out saveOutcome
 
-	current, ok := s.tree.Get(id)
-	if !ok {
-		// Consistent with the GET path: a stale bookmark is a sentence and a
-		// navigable tree, not a code.
-		return saveOutcome{notFound: true}
+	saved, err := s.live.Update(func(snap live.Snapshot) (store.State, error) {
+		current, ok := snap.Tree.Get(id)
+		if !ok {
+			// Consistent with the GET path: a stale bookmark is a sentence and
+			// a navigable tree, not a code.
+			out.notFound = true
+			return store.State{}, errRefused
+		}
+
+		sub, fieldErrs := parseSubmission(r.Form, current)
+		out.sub = sub
+
+		if len(fieldErrs) > 0 {
+			out.fieldErrs = fieldErrs
+			return store.State{}, errRefused
+		}
+
+		// Every mutation lands on a clone: a Snapshot is never mutated, so a
+		// failed save leaves the served Directory matching the disk — which
+		// is the state the Operator's hand-repair path assumes.
+		next := cloneDocument(snap.Document)
+
+		changes, err := s.applySubmission(next, id, sub)
+		if err != nil {
+			// A submission that would produce a document the store cannot
+			// load is the Editor's to fix, so it comes back as a field error
+			// rather than a 500: the message names what is wrong with what
+			// they asked for.
+			s.log.InfoContext(r.Context(), "submission refused", "household", id, "error", err)
+			out.fieldErrs = []fieldError{{Message: err.Error()}}
+
+			return store.State{}, errRefused
+		}
+
+		// §4.4: normalise on save, then display the normalised value.
+		// Iterating by index is required — Normalize takes a pointer receiver
+		// and a range copy would be discarded silently.
+		for i := range next.Households {
+			next.Households[i].Normalize()
+		}
+
+		out.changes = changes
+
+		return store.State{Document: next}, nil
+	})
+
+	switch {
+	case errors.Is(err, errRefused):
+		return out
+	case err != nil:
+		out.err = err
+		return out
 	}
 
-	sub, fieldErrs := parseSubmission(r.Form, current)
-	if len(fieldErrs) > 0 {
-		return saveOutcome{sub: sub, fieldErrs: fieldErrs}
-	}
+	h, _ := saved.Snapshot.Tree.Get(id) // the tree was just built from next, which holds id.
+	out.name = h.Name()
+	out.undo = saved.Undo
 
-	// Every mutation lands on a clone. The clone is swapped in only once the
-	// save returns, so a full disk leaves the in-memory Directory matching the
-	// document on disk — which is the state the Operator's hand-repair path
-	// assumes.
-	next := cloneDocument(s.doc)
-
-	changes, err := s.applySubmission(next, id, sub)
-	if err != nil {
-		// A submission that would produce a document the store cannot load is
-		// the Editor's to fix, so it comes back as a field error rather than a
-		// 500: the message names what is wrong with what they asked for.
-		s.log.InfoContext(r.Context(), "submission refused", "household", id, "error", err)
-
-		return saveOutcome{sub: sub, fieldErrs: []fieldError{{Message: err.Error()}}}
-	}
-
-	// §4.4: normalise on save, then display the normalised value. Iterating by
-	// index is required — Normalize takes a pointer receiver and a range copy
-	// would be discarded silently.
-	for i := range next.Households {
-		next.Households[i].Normalize()
-	}
-
-	token, err := s.persist(store.State{Document: next, Trash: s.trash, Settings: s.settings})
-	if err != nil {
-		return saveOutcome{sub: sub, err: err}
-	}
-
-	saved, _ := s.tree.Get(id) // persist just built the tree from next, which holds id.
-
-	return saveOutcome{sub: sub, changes: changes, name: saved.Name(), undo: token}
+	return out
 }
 
 // refuse re-renders the form with the Editor's own values and an explanation
 // against each field that could not be read.
 //
-// It takes the read lock itself: commit has already released the write lock by
-// the time handleSave decides on a response, and directoryView reads the tree.
+// It takes its own Snapshot: commit's Update has finished by the time
+// handleSave decides on a response, and directoryView reads the tree.
 //
 // It answers 422 rather than redirecting, because a redirect would discard the
 // submission and with it everything the Editor typed.
@@ -164,9 +179,7 @@ func (s *Server) refuse(
 	sub submission,
 	fieldErrs []fieldError,
 ) {
-	s.mu.RLock()
-	view := s.directoryView(id, sub.Open, "", sub.Pane == paneClosed)
-	s.mu.RUnlock()
+	view := s.directoryView(s.live.Snapshot(), id, sub.Open, "", sub.Pane == paneClosed)
 
 	if view.Household != nil {
 		form := formViewFromSubmission(id, sub, fieldErrs)
@@ -223,9 +236,7 @@ func redirectAfterSave(id rolo.HouseholdID, o saveOutcome) string {
 // Undo is offered only while it would still work: once a newer save or a
 // restart has retired the token, a reload shows the sentence alone rather than
 // a button that can only refuse.
-//
-// Callers hold at least a read lock.
-func (s *Server) announcementFor(q url.Values, at rolo.HouseholdID, open string) announcement {
+func (s *Server) announcementFor(snap live.Snapshot, q url.Values, at rolo.HouseholdID, open string) announcement {
 	said := q.Get(saidKey)
 	if said == "" {
 		return announcement{}
@@ -233,7 +244,7 @@ func (s *Server) announcementFor(q url.Values, at rolo.HouseholdID, open string)
 
 	a := announcement{Message: said}
 
-	if token := q.Get(undoKey); token != "" && s.undo != nil && token == s.undo.token {
+	if token := q.Get(undoKey); snap.CanUndo(token) {
 		a.Undo = &undoForm{Token: token, At: at, Open: open, Pane: q.Get("pane")}
 	}
 
@@ -242,7 +253,7 @@ func (s *Server) announcementFor(q url.Values, at rolo.HouseholdID, open string)
 		return a
 	}
 
-	household, ok := s.tree.Get(rolo.HouseholdID(moved))
+	household, ok := snap.Tree.Get(rolo.HouseholdID(moved))
 	if !ok {
 		return a
 	}

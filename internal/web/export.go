@@ -42,17 +42,13 @@ func (s *Server) fullAvailable() bool { return s.cfg.FullPassphrase.Reveal() != 
 // directoryFor builds the filtered render model for tier under the served
 // Directory Title, and returns the date it was built for.
 //
-// It holds the read lock only for render.Build, which reads the tree; the
-// result is strings, so the compile that follows runs without the lock. A
-// Typst compile under the lock would stall every other request, and every
-// save, for its duration.
+// render.Build reads a Snapshot, which holds no lock; the result is strings,
+// so nothing is held during the Typst compile that follows.
 func (s *Server) directoryFor(tier render.Tier) (render.Directory, time.Time) {
 	date := exportDate(s.now())
+	snap := s.live.Snapshot()
 
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-
-	return render.Build(s.tree, tier, date, s.settings.Title), date
+	return render.Build(snap.Tree, tier, date, snap.Settings.Title), date
 }
 
 // exportURL is the download link for tier.
@@ -196,10 +192,9 @@ func (s *Server) handleExport(w http.ResponseWriter, r *http.Request) {
 		chosen = false
 	}
 
-	s.mu.RLock()
-	title := exportTitle{Value: s.settings.Title}
-	ann := s.announcementFor(q, "", "")
-	s.mu.RUnlock()
+	snap := s.live.Snapshot()
+	title := exportTitle{Value: snap.Settings.Title}
+	ann := s.announcementFor(snap, q, "", "")
 
 	// A title change is announced here, so its Undo returns here too.
 	if ann.Undo != nil {

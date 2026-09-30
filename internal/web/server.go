@@ -10,43 +10,25 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
-	"sync"
 
 	"github.com/asphaltbuffet/wherefolk/internal/config"
+	"github.com/asphaltbuffet/wherefolk/internal/live"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
-	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
 // Host is the only interface the server ever binds. It is deliberately not
 // configurable; only the port is. See ADR-0007.
 const Host = "127.0.0.1"
 
-// Server holds the loaded Directory and renders it. The document is authoritative
-// in memory: the server is the single writer, which is what gives Undo a
-// coherent place to live (undo.go).
+// Server renders the Directory that its live.Copy serves, and makes the
+// Editor's changes through it. The Copy is the single writer, which is what
+// gives Undo a coherent place to live (internal/live).
 type Server struct {
-	mu  sync.RWMutex
-	doc *store.Document
-	// tree is DERIVED from doc, not independent state. Any future write path
-	// must rebuild it inside the same write lock that mutates doc, or the two
-	// silently disagree and navigation renders a tree that no longer exists.
-	tree *rolo.Tree
-	// trash holds deleted Households (ADR-0012). Like doc it is replaced, never
-	// mutated, and only after a save succeeds.
-	trash *store.Trash
-	// settings are the Editor's Directory-wide choices (ADR-0013). Replaced,
-	// never mutated, and only after a save succeeds. Never nil after New.
-	settings *store.Settings
-	// undo is the one step Undo can return to, or nil. See undo.go.
-	undo *undoPoint
+	live *live.Copy
 	meta Meta
 	cfg  config.Config
 	log  *slog.Logger
 
-	// save persists the document. The write path calls it while holding the
-	// write lock, and swaps the saved copy into doc only once it returns nil,
-	// so a failed write leaves the served Directory matching the disk exactly.
-	save Saver
 	// newHouseholdID and newPersonID mint identities for records the Editor
 	// adds. Injected so tests get deterministic IDs; see deps.go.
 	newHouseholdID NewHouseholdIDFunc
@@ -71,8 +53,8 @@ type Meta struct {
 	TemplatePath string
 }
 
-// New builds a Server over an already-loaded document. It takes a document
-// rather than a path so the web layer has no filesystem dependency; main owns
+// New builds a Server over an already-loaded state. It takes a loaded state
+// rather than paths so the web layer has no filesystem dependency; main owns
 // loading and treats failure as fatal.
 //
 // The logger is injected rather than taken from slog's package default so that
@@ -82,7 +64,7 @@ type Meta struct {
 // save, newHouseholdID, newPersonID, exporter and now are the write path's and
 // the export path's dependencies. They are plain parameters rather than a
 // struct so that a caller cannot leave one unset by forgetting a field; every
-// one is checked here.
+// one is checked here. save becomes the live.Copy's Writer.
 func New(
 	state store.State,
 	cfg config.Config,
@@ -94,21 +76,6 @@ func New(
 	exporter Exporter,
 	now Clock,
 ) (*Server, error) {
-	doc := state.Document
-	if doc == nil {
-		return nil, errors.New("web: document is nil")
-	}
-
-	trash := state.Trash
-	if trash == nil {
-		trash = store.NewTrash()
-	}
-
-	settings := state.Settings
-	if settings == nil {
-		settings = store.NewSettings()
-	}
-
 	if logger == nil {
 		return nil, errors.New("web: logger is nil")
 	}
@@ -133,30 +100,21 @@ func New(
 		return nil, errors.New("web: clock is nil")
 	}
 
-	tree, err := doc.Tree()
+	c, err := live.New(state, live.WriterFunc(save), live.Clock(now))
 	if err != nil {
-		return nil, fmt.Errorf("web: build tree: %w", err)
+		return nil, fmt.Errorf("web: %w", err)
 	}
 
 	return &Server{
-		doc:            doc,
-		tree:           tree,
-		trash:          trash,
-		settings:       settings,
+		live:           c,
 		meta:           meta,
 		cfg:            cfg,
 		log:            logger,
-		save:           save,
 		newHouseholdID: newHouseholdID,
 		newPersonID:    newPersonID,
 		exporter:       exporter,
 		now:            now,
 	}, nil
-}
-
-// state is what the server currently serves. Callers hold at least a read lock.
-func (s *Server) state() store.State {
-	return store.State{Document: s.doc, Trash: s.trash, Settings: s.settings}
 }
 
 // Handler returns the server's routes.

@@ -1,12 +1,14 @@
 package web
 
 import (
+	"errors"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 	"time"
 
+	"github.com/asphaltbuffet/wherefolk/internal/live"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -87,19 +89,19 @@ func joinNames(hs []rolo.Household) string {
 }
 
 // deleteView builds the confirmation page, reporting false if id is not in the
-// tree. Callers hold at least a read lock.
-func (s *Server) deleteView(id rolo.HouseholdID, open, pane string) (deleteView, bool) {
-	h, ok := s.tree.Get(id)
+// tree.
+func (s *Server) deleteView(snap live.Snapshot, id rolo.HouseholdID, open, pane string) (deleteView, bool) {
+	h, ok := snap.Tree.Get(id)
 	if !ok {
 		return deleteView{}, false
 	}
 
-	path, err := s.tree.PathString(id)
+	path, err := snap.Tree.PathString(id)
 	if err != nil {
 		return deleteView{}, false
 	}
 
-	block, err := s.tree.DeleteBlock(id)
+	block, err := snap.Tree.DeleteBlock(id)
 	if err != nil {
 		return deleteView{}, false
 	}
@@ -108,7 +110,7 @@ func (s *Server) deleteView(id rolo.HouseholdID, open, pane string) (deleteView,
 		ID:        id,
 		Title:     h.Name(),
 		Path:      path,
-		KeptUntil: keptUntil(s.now()),
+		KeptUntil: keptUntil(snap.Now),
 		Blocked:   deleteBlockedSentence(block),
 		Open:      open,
 		Pane:      pane,
@@ -131,9 +133,7 @@ func (s *Server) handleDeleteConfirm(w http.ResponseWriter, r *http.Request) {
 	id := rolo.HouseholdID(r.PathValue("id"))
 	q := r.URL.Query()
 
-	s.mu.RLock()
-	view, ok := s.deleteView(id, q.Get("open"), q.Get("pane"))
-	s.mu.RUnlock()
+	view, ok := s.deleteView(s.live.Snapshot(), id, q.Get("open"), q.Get("pane"))
 
 	if !ok {
 		s.renderNotFound(w, r)
@@ -172,9 +172,7 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	case outcome.blocked:
 		// Reachable only from a stale page: the pane offers no link when
 		// deletion is blocked. The confirmation page carries the reason.
-		s.mu.RLock()
-		view, ok := s.deleteView(id, open, pane)
-		s.mu.RUnlock()
+		view, ok := s.deleteView(s.live.Snapshot(), id, open, pane)
 
 		if !ok {
 			s.renderNotFound(w, r)
@@ -197,45 +195,44 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// deleteHousehold moves id to the Trash under the write lock and renders
-// nothing.
+// deleteHousehold moves id to the Trash and renders nothing. store.Delete
+// refuses a Household something depends on; the confirmation page has
+// already said why.
 func (s *Server) deleteHousehold(id rolo.HouseholdID) deleteOutcome {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	var out deleteOutcome
 
-	h, ok := s.tree.Get(id)
-	if !ok {
-		return deleteOutcome{notFound: true}
+	saved, err := s.live.Update(func(snap live.Snapshot) (store.State, error) {
+		h, ok := snap.Tree.Get(id)
+		if !ok {
+			out.notFound = true
+			return store.State{}, errRefused
+		}
+
+		path, err := snap.Tree.PathString(id)
+		if err != nil {
+			return store.State{}, err
+		}
+
+		doc, trash, err := store.Delete(snap.Document, snap.State().Trash,
+			store.TrashEntry{DeletedAt: snap.Now, Path: path, Household: h})
+		if err != nil {
+			return store.State{}, err
+		}
+
+		out.name, out.parent, out.at = h.Name(), h.Parent, snap.Now
+
+		return store.State{Document: doc, Trash: trash}, nil
+	})
+
+	switch {
+	case errors.Is(err, errRefused):
+	case errors.Is(err, store.ErrBlocked):
+		out.blocked = true
+	case err != nil:
+		out.err = err
+	default:
+		out.undo = saved.Undo
 	}
 
-	block, err := s.tree.DeleteBlock(id)
-	if err != nil {
-		return deleteOutcome{err: err}
-	}
-
-	if block.Blocked() {
-		return deleteOutcome{blocked: true}
-	}
-
-	path, err := s.tree.PathString(id)
-	if err != nil {
-		return deleteOutcome{err: err}
-	}
-
-	now := s.now()
-
-	doc, trash, err := store.Delete(s.doc, s.trash, store.TrashEntry{DeletedAt: now, Path: path, Household: h})
-	if err != nil {
-		return deleteOutcome{err: err}
-	}
-
-	// Purging on every Trash write keeps expiry free of a timer (CONTEXT.md, Trash).
-	trash, _ = trash.Purge(now)
-
-	token, err := s.persist(store.State{Document: doc, Trash: trash, Settings: s.settings})
-	if err != nil {
-		return deleteOutcome{err: err}
-	}
-
-	return deleteOutcome{name: h.Name(), parent: h.Parent, undo: token, at: now}
+	return out
 }

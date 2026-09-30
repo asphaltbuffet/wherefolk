@@ -3,6 +3,7 @@ package web
 import (
 	"net/http"
 
+	"github.com/asphaltbuffet/wherefolk/internal/live"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
@@ -12,10 +13,9 @@ func (s *Server) handleDirectory(w http.ResponseWriter, r *http.Request) {
 	id := rolo.HouseholdID(r.PathValue("id"))
 	q := r.URL.Query()
 
-	s.mu.RLock()
-	view := s.directoryView(id, q.Get("open"), q.Get("close"), q.Get("pane") == paneClosed)
-	view.Announcement = s.announcementFor(q, id, view.Tree.Open)
-	s.mu.RUnlock()
+	snap := s.live.Snapshot()
+	view := s.directoryView(snap, id, q.Get("open"), q.Get("close"), q.Get("pane") == paneClosed)
+	view.Announcement = s.announcementFor(snap, q, id, view.Tree.Open)
 
 	// A selection that is not in the document is the Editor following a stale
 	// bookmark or a link from before a restructure. It is a 404 for anything
@@ -33,29 +33,27 @@ func (s *Server) handleDirectory(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// directoryView assembles the whole page. Callers hold at least a read lock.
+// directoryView assembles the whole page.
 func (s *Server) directoryView(
+	snap live.Snapshot,
 	id rolo.HouseholdID,
 	rawOpen, closing string,
 	isPaneClosed bool,
 ) directoryView {
-	// Purge, not the stored count: an expired, unanchored entry is still
-	// restorable until the next Trash write, but the count must agree with
-	// what /trash actually lists. This is a read; it writes nothing.
-	purged, _ := s.trash.Purge(s.now())
-
+	// snap.Trash is purged as of the Snapshot, so the count agrees with what
+	// /trash lists (internal/live).
 	view := directoryView{
-		Tree:          s.treeView(id, rawOpen, closing),
+		Tree:          s.treeView(snap, id, rawOpen, closing),
 		PaneClosed:    isPaneClosed,
 		PaneToggleURL: paneToggleURL(id, isPaneClosed),
-		TrashCount:    len(purged.Entries),
+		TrashCount:    len(snap.Trash.Entries),
 	}
 
 	if id == "" {
 		return view
 	}
 
-	household, ok := s.householdView(id)
+	household, ok := s.householdView(snap, id)
 	if !ok {
 		view.NotFound = true
 		return view
@@ -66,7 +64,7 @@ func (s *Server) directoryView(
 	// The form posts the tree's state back, so a save or a refusal returns the
 	// Editor to the same expansion (ADR-0008).
 	if view.Household.Form != nil {
-		view.Household.Form.Open = s.joinIDsOrdered(s.openSet(id, rawOpen))
+		view.Household.Form.Open = s.joinIDsOrdered(snap, s.openSet(snap, id, rawOpen))
 		if isPaneClosed {
 			view.Household.Form.Pane = paneClosed
 		}
