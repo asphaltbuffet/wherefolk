@@ -39,8 +39,8 @@ func exportDate(now time.Time) time.Time {
 // fullAvailable reports whether the Full tier can be offered at all.
 func (s *Server) fullAvailable() bool { return s.cfg.FullPassphrase.Reveal() != "" }
 
-// directoryFor builds the filtered render model for tier, and returns the date
-// it was built for.
+// directoryFor builds the filtered render model for tier under the served
+// Directory Title, and returns the date it was built for.
 //
 // It holds the read lock only for render.Build, which reads the tree; the
 // result is strings, so the compile that follows runs without the lock. A
@@ -52,7 +52,7 @@ func (s *Server) directoryFor(tier render.Tier) (render.Directory, time.Time) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return render.Build(s.tree, tier, date), date
+	return render.Build(s.tree, tier, date, s.settings.Title), date
 }
 
 // exportURL is the download link for tier.
