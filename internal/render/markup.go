@@ -60,7 +60,9 @@ func writeHousehold(b *strings.Builder, h Household) {
 
 	b.WriteString("  ")
 	b.WriteString(call)
-	b.WriteString("\n    name: ")
+	b.WriteString("\n    id: ")
+	b.WriteString(quote(h.ID))
+	b.WriteString(",\n    name: ")
 	b.WriteString(quote(h.Name))
 	b.WriteString(",\n    anniversary: ")
 	b.WriteString(quote(h.Anniversary))
@@ -86,6 +88,8 @@ func writeBirthdays(b *strings.Builder, rows []Birthday) {
 	for _, r := range rows {
 		b.WriteString("\n    (name: ")
 		b.WriteString(quote(r.Name))
+		b.WriteString(", household: ")
+		b.WriteString(quote(r.HouseholdID))
 		b.WriteString(", month: ")
 		b.WriteString(strconv.Itoa(r.Month))
 		b.WriteString(", day: ")
