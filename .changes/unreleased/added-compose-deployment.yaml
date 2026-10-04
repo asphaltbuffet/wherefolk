@@ -1,5 +1,0 @@
-kind: Added
-body: deploy/ holds a compose file with a Tailscale sidecar, a Serve config that keeps Funnel off, and an Operator runbook for the tailnet setup
-time: 2026-10-03T00:00:01.000000000-00:00
-custom:
-  Issue: ""
