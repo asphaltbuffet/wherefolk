@@ -22,8 +22,6 @@ func readRepoFile(t *testing.T, rel string) string {
 }
 
 // readDeployFile reads a file in deploy/, the test's working directory.
-//
-//nolint:unused // used by Tasks 2 and 3
 func readDeployFile(t *testing.T, name string) string {
 	t.Helper()
 
