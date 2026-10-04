@@ -7,3 +7,5 @@ dist/
 .envrc
 
 .superpowers/
+
+deploy/.env

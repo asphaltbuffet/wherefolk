@@ -57,7 +57,8 @@ RUN set -eux; \
     apt-get install -y --no-install-recommends ca-certificates; \
     rm -rf /var/lib/apt/lists/*; \
     groupadd --system --gid 65532 nonroot; \
-    useradd --system --uid 65532 --gid 65532 --no-create-home nonroot
+    useradd --system --uid 65532 --gid 65532 --no-create-home nonroot; \
+    install -d -o nonroot -g nonroot /var/lib/wherefolk
 
 COPY --from=typst /usr/local/bin/typst /usr/local/bin/typst
 
@@ -76,6 +77,11 @@ ENV WHEREFOLK_TEMPLATE=/usr/local/share/wherefolk/template
 
 # The document lives on a mounted volume; see ADR-0006. config.DefaultDataDir
 # already points here, so WHEREFOLK_DATA only needs setting to override it.
+#
+# The directory is created owned by nonroot in the RUN above because Docker
+# populates a new, empty named volume from the image's content at the mount
+# point, ownership included. Skip that and the volume is root-owned, so the
+# service starts, then fails its first save.
 VOLUME ["/var/lib/wherefolk"]
 
 # ADR-0007: the port is configurable via WHEREFOLK_PORT, the interface is not.
