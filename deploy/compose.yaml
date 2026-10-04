@@ -1,0 +1,60 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/compose-spec/compose-spec/main/schema/compose-spec.json
+#
+# wherefolk behind a Tailscale sidecar (ADR-0006). Run with:
+#
+#   docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env up -d
+#
+# docs/operations/deployment.md is the walkthrough, including everything that
+# has to happen in the Tailscale admin console first.
+#
+# Nothing here publishes a port, and nothing may: the app binds loopback only
+# (ADR-0001, ADR-0007), and the sidecar shares that loopback. tailscale serve is
+# the only way in, and deploy/tailscale-serve.json keeps Funnel off.
+name: wherefolk
+
+services:
+  tailscale:
+    # Pinned to a release, like Typst, so a registry update cannot change the
+    # service underneath the Editor. Dependabot proposes bumps.
+    image: tailscale/tailscale:v1.102.5
+    restart: unless-stopped
+    environment:
+      # An OAuth client secret with its node settings appended, from the .env.
+      # Required: an empty key would boot an unauthenticated node and sit there.
+      TS_AUTHKEY: "${TS_AUTHKEY:?set TS_AUTHKEY, see deploy/.env.example}"
+      TS_HOSTNAME: wherefolk
+      # OAuth clients can only mint tagged nodes; the ACL grants the tag access.
+      TS_EXTRA_ARGS: --advertise-tags=tag:wherefolk
+      # Without persisted state every restart authenticates as a new node.
+      TS_STATE_DIR: /var/lib/tailscale
+      TS_SERVE_CONFIG: /config/serve.json
+      # No tun device and no NET_ADMIN: the sidecar needs neither to serve.
+      TS_USERSPACE: "true"
+    volumes:
+      - tailscale-state:/var/lib/tailscale
+      - ./tailscale-serve.json:/config/serve.json:ro
+
+  wherefolk:
+    image: "ghcr.io/asphaltbuffet/wherefolk:${WHEREFOLK_VERSION:-latest}"
+    # Shares the sidecar's network namespace, so 127.0.0.1:8080 here is
+    # 127.0.0.1:8080 there — which is where the Serve config proxies.
+    network_mode: service:tailscale
+    restart: unless-stopped
+    environment:
+      # Fixed rather than interpolated: deploy/tailscale-serve.json cannot read
+      # an environment variable, so the two must be edited together, and
+      # TestCompose pins both to config.DefaultPort.
+      WHEREFOLK_PORT: "8080"
+      # The sidecar never sees this (§2.3). Empty leaves the Full tier
+      # unavailable rather than stopping the service.
+      WHEREFOLK_FULL_PASSPHRASE: "${WHEREFOLK_FULL_PASSPHRASE:-}"
+    volumes:
+      - wherefolk-data:/var/lib/wherefolk
+
+volumes:
+  # Named explicitly so the runbook's seed command and any off-volume snapshot
+  # (item 14) can refer to them without knowing the compose project name.
+  tailscale-state:
+    name: wherefolk-tailscale-state
+  wherefolk-data:
+    name: wherefolk-data
