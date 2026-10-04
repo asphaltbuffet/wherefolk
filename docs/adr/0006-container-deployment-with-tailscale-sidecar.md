@@ -15,5 +15,10 @@ publish the Directory to the open internet**, so the deployment asserts Funnel i
 than merely not enabling it. The node authenticates via an OAuth client bound to `tag:wherefolk`
 rather than an auth key, which would expire at 90 days and fail one morning next quarter, and an ACL
 restricts that tag to the Operator's and Editor's devices because tailnet membership is otherwise
-coarse. Nix remains the development environment but not the deployment mechanism, and GoReleaser is
-dropped as redundant for a single target with one user.
+coarse. Nix remains the development environment but not the deployment mechanism.
+
+**Amended 2026-10-03.** GoReleaser was dropped here and then adopted for the image build: it
+cross-compiles the linux binaries and builds and pushes the multi-arch image the Dockerfile
+packages, which a hand-written buildx workflow would only reimplement. `deploy/` holds the compose
+file and Serve config that run the result, and `docs/operations/deployment.md` is the Operator's
+walkthrough.

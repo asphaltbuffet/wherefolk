@@ -114,8 +114,10 @@ only script served is htmx itself. This keeps the supply-chain surface near zero
 an application whose defining constraint is privacy.
 
 **Nix** remains the development environment (pinned Go toolchain, `typst`), not the deployment
-mechanism. GoReleaser is dropped: its value is cross-platform release archives for many users, and
-this has one target and one user who downloads nothing.
+mechanism. **GoReleaser stays, as the image's build only**: it cross-compiles the linux binaries and
+builds and publishes the multi-arch image, which the Dockerfile packages rather than building Go
+itself. Its release archives are incidental — there is one target and one user who downloads
+nothing.
 
 **Volumes:** the JSON store and Tailscale's node state are both named volumes. Tailscale state
 *must* persist — without it every restart authenticates as a new node, the tailnet fills with
@@ -551,8 +553,8 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 9 | ✅ **Export UI** — `/export` offers the tiers by description with none pre-selected, previews every page as inline SVG, and downloads `family_directory_<tier>_<date>.pdf`. Full is encrypted with `WHEREFOLK_FULL_PASSPHRASE` via the pdfcpu library (ADR-0011) and refused outright when the passphrase is unset. The export date is the host's calendar date. Pre-flight warnings split out to item 15 | 8 |
 | 10 | **Proof Sheets** — per-Household pagination, withheld-field disclosure, Branch selection; needs its own entry point in `template/directory.typ`, because `directory()` always emits the Title page and Table of Contents, which a Proof Sheet must not carry (CONTEXT.md, Proof Sheet) | 8 |
 | 11 | ✅ **Web shell** — Go templates, htmx, embedded assets, loopback binding, `WHEREFOLK_DATA`/`WHEREFOLK_PORT`, Operator `/status` page as the tracer bullet. Foundational: every UI item (4, 5, 9, 10) is built on it, so it ships first | — |
-| 12 | **Container image** — Debian slim, pinned Typst, compose file with Tailscale sidecar, volumes | 11 |
-| 13 | **Tailnet setup** — OAuth client, `tag:wherefolk`, ACL, Serve with HTTPS, Funnel assertion, agenix-managed `.env` | 12 |
+| 12 | ✅ **Container image** — Debian slim, pinned Typst, GoReleaser-built multi-arch image, and `deploy/compose.yaml` with the Tailscale sidecar and named volumes. Built together with item 13, because a sidecar with no Serve config and a Serve config with no sidecar are each untestable; the data directory is created owned by `nonroot` so a fresh volume is writable | 11 |
+| 13 | ✅ **Tailnet setup** — `deploy/tailscale-serve.json` (HTTPS, loopback proxy, `AllowFunnel` explicitly false, pinned by `deploy/` tests), the `tag:wherefolk` OAuth node, and `docs/operations/deployment.md` for the ACL, the OAuth client and the agenix-managed `.env`, which happen outside the repository | 12 |
 | 14 | **Health & snapshots** — `/healthz`, Docker `HEALTHCHECK`, verified snapshot job; **nightly snapshots** as an external job (host timer or compose sidecar, decided there), copying the atomically-written document, `trash.json` and `settings.json` off-volume with 365-day retention; two Healthchecks.io dead-man's switches | 6, 12 |
 | 15 | **Export pre-flight warnings** (§5.7) — on the export page, list each living person whose missing birth date removes something from *that* tier's export (a recorded phone in Call; a phone or email in Digital; nobody in Mail or Full), with their Path and a link to their Household. A warning, never a block. Computed by the same code in `internal/render` that applies the rule, so the warning and the PDF cannot disagree. Split from item 9 as a usability improvement rather than a prerequisite | 9 |
 | 16 | ✅ **Directory structure** — Title page (page 1, unnumbered) carrying the Editor-set Directory Title, a Table of Contents listing roots and their children plus the Households and Birthdays sections. The title lives in `settings.json` beside the document (ADR-0013) and is set on the export page, with Undo | 9 |

@@ -100,7 +100,7 @@ docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env up -d
 |---|---|---|
 | Sidecar joined the tailnet | `docker compose -f deploy/compose.yaml exec tailscale tailscale status` | `wherefolk` listed, tagged `tag:wherefolk` |
 | Serve is tailnet-only | `docker compose -f deploy/compose.yaml exec tailscale tailscale serve status` | the URL, marked `(tailnet only)`, never `(Funnel on)` |
-| App is up | `docker compose -f deploy/compose.yaml logs wherefolk` | a "listening" line on `127.0.0.1:8080`, no `startup failed` |
+| App is up | `docker compose -f deploy/compose.yaml logs wherefolk` | a `serving` line with `addr=127.0.0.1:8080`, no `startup failed` |
 | Editor's path works | open `https://wherefolk.<tailnet>.ts.net/status` from the Editor's device | the status page, with a padlock and no warning |
 | Everyone else is refused | open the same URL from a device the ACL does not name | connection times out |
 
@@ -115,14 +115,15 @@ docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env pull
 docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env up -d
 ```
 
-Deployment is always "pull and restart": the binary migrates its own data at startup (§2.1).
+Deployment is always "pull and restart": the binary migrates its own data at startup ([high-level design §2.1](../design/high-level-design.md)).
 
 ## 6. Rolling back
 
 Set `WHEREFOLK_VERSION` to the earlier tag in the secrets file and run `up -d`. If the newer
 version had migrated the document to a newer schema, the older binary **refuses to start** rather
 than truncating fields it does not understand — restore the document from a snapshot instead
-(item 14 will take them nightly).
+(item 14 of the [high-level design](../design/high-level-design.md) (`docs/design/high-level-design.md`)
+will take them nightly).
 
 ## 7. Debugging
 
