@@ -204,6 +204,23 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   The package is deliberately not named `version` or `buildinfo`: both collide with stdlib
   (`go/version`, `debug/buildinfo`). The ldflag paths in `mise.toml` and `.goreleaser.yml` are
   strings, so renaming this package silently stops injection unless they are updated too.
+- **`deploy/`** — the Operator's deployment artefacts and the tests that pin them; no runtime code
+  - `compose.yaml` runs the `tailscale` sidecar and the app, which joins the sidecar's network
+    namespace (`network_mode: service:tailscale`). Nothing publishes a port. Both volumes have
+    explicit names (`wherefolk-data`, `wherefolk-tailscale-state`) so the runbook can use them.
+  - `tailscale-serve.json` terminates HTTPS and proxies `/` to loopback. It cannot read an
+    environment variable, so its proxy port and compose's `WHEREFOLK_PORT` are two copies of
+    `config.DefaultPort`; `TestServeConfig` and `TestCompose` tie them together.
+  - **Funnel is asserted off, not merely absent**: every published host needs an explicit
+    `"AllowFunnel": false`, and `loadServeConfig` rejects unknown keys so a misspelling cannot pass
+    for the assertion. Funnel would publish the Directory to the open internet.
+  - The tests parse the files rather than run Docker, so `go test ./...` covers the deployment
+    with no daemon. `docker-compose -f deploy/compose.yaml --env-file deploy/.env.example config -q` (via
+    `nix-shell -p docker-compose`) checks the compose schema.
+  - The Tailscale image is pinned to a `vX.Y.Z` release in `compose.yaml`, a fourth pin beside
+    Typst's three; Dependabot's `docker-compose` entry proposes bumps.
+  - `docs/operations/deployment.md` is the Operator runbook for what the repository cannot do: the
+    admin console, the ACL, the OAuth client, agenix, seeding the first document.
 
 ## Data Format
 

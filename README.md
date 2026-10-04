@@ -25,12 +25,13 @@ environment.
 ### Container
 
 Wherefolk is deployed as a container behind a Tailscale sidecar
-([ADR-0006](docs/adr/0006-container-deployment-with-tailscale-sidecar.md)):
+([ADR-0006](docs/adr/0006-container-deployment-with-tailscale-sidecar.md)).
+[`deploy/compose.yaml`](deploy/compose.yaml) runs both, and
+[docs/operations/deployment.md](docs/operations/deployment.md) walks the Operator from the Tailscale
+admin console to the first start:
 
 ```bash
-docker run --rm \
-  -v /srv/wherefolk:/var/lib/wherefolk \
-  ghcr.io/asphaltbuffet/wherefolk:latest
+docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env up -d
 ```
 
 There is deliberately no published port. The service binds loopback only
@@ -38,7 +39,7 @@ There is deliberately no published port. The service binds loopback only
 [ADR-0007](docs/adr/0007-configurable-port-fixed-interface.md)), so `-p` would
 forward to an interface nothing listens on. The Tailscale sidecar shares the
 container's network namespace and reaches the service over that same loopback,
-which makes `tailscale serve` the only way in.
+which, given the runbook's 443-only ACL, makes `tailscale serve` the only way in.
 
 ### Locally
 

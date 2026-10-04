@@ -1,0 +1,5 @@
+kind: Fixed
+body: The container image creates its data directory owned by the service user, so a new named volume is writable
+time: 2026-10-03T00:00:02.000000000-00:00
+custom:
+  Issue: ""
