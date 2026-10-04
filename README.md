@@ -39,7 +39,7 @@ There is deliberately no published port. The service binds loopback only
 [ADR-0007](docs/adr/0007-configurable-port-fixed-interface.md)), so `-p` would
 forward to an interface nothing listens on. The Tailscale sidecar shares the
 container's network namespace and reaches the service over that same loopback,
-which makes `tailscale serve` the only way in.
+which, given the runbook's 443-only ACL, makes `tailscale serve` the only way in.
 
 ### Locally
 

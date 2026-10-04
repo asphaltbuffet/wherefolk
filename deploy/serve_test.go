@@ -53,6 +53,7 @@ func TestServeConfig(t *testing.T) {
 			check: func(t *testing.T, cfg serveConfig) {
 				t.Helper()
 
+				require.Len(t, cfg.TCP, 1)
 				assert.True(t, cfg.TCP["443"].HTTPS)
 			},
 		},

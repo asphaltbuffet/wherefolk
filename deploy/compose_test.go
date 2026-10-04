@@ -54,6 +54,14 @@ func TestCompose(t *testing.T) {
 			},
 		},
 		{
+			name: "the sidecar has its own network namespace, never the host's",
+			check: func(t *testing.T, c composeFile) {
+				t.Helper()
+
+				assert.Empty(t, c.Services["tailscale"].NetworkMode)
+			},
+		},
+		{
 			name: "no service publishes a port",
 			check: func(t *testing.T, c composeFile) {
 				t.Helper()

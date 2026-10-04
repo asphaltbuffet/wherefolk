@@ -8,8 +8,9 @@
 # has to happen in the Tailscale admin console first.
 #
 # Nothing here publishes a port, and nothing may: the app binds loopback only
-# (ADR-0001, ADR-0007), and the sidecar shares that loopback. tailscale serve is
-# the only way in, and deploy/tailscale-serve.json keeps Funnel off.
+# (ADR-0001, ADR-0007), and the sidecar shares that loopback. Given the runbook's
+# 443-only ACL, tailscale serve is the only way in, and
+# deploy/tailscale-serve.json keeps Funnel off.
 name: wherefolk
 
 services:
@@ -39,6 +40,11 @@ services:
     # Shares the sidecar's network namespace, so 127.0.0.1:8080 here is
     # 127.0.0.1:8080 there — which is where the Serve config proxies.
     network_mode: service:tailscale
+    # A sidecar restarted alone gets a new namespace; restart the app with it.
+    depends_on:
+      tailscale:
+        condition: service_started
+        restart: true
     restart: unless-stopped
     environment:
       # Fixed rather than interpolated: deploy/tailscale-serve.json cannot read

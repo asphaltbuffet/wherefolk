@@ -215,8 +215,8 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     `"AllowFunnel": false`, and `loadServeConfig` rejects unknown keys so a misspelling cannot pass
     for the assertion. Funnel would publish the Directory to the open internet.
   - The tests parse the files rather than run Docker, so `go test ./...` covers the deployment
-    with no daemon. `docker-compose config -q` (via `nix-shell -p docker-compose`) checks the
-    compose schema.
+    with no daemon. `docker-compose -f deploy/compose.yaml --env-file deploy/.env.example config -q` (via
+    `nix-shell -p docker-compose`) checks the compose schema.
   - The Tailscale image is pinned to a `vX.Y.Z` release in `compose.yaml`, a fourth pin beside
     Typst's three; Dependabot's `docker-compose` entry proposes bumps.
   - `docs/operations/deployment.md` is the Operator runbook for what the repository cannot do: the

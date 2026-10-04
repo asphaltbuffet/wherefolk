@@ -34,14 +34,15 @@ names, with a real certificate, and from nowhere else.
        {
          "src": "editor@example.com",
          "accept": ["tag:wherefolk:443"],
-         "deny": ["tag:wherefolk:22"]
+         "deny": ["tag:wherefolk:22", "tag:wherefolk:8080"]
        }
      ]
    }
    ```
 
    The `tests` block makes the console refuse a policy that stops granting the Editor access, or
-   that grants more than 443. Tailnet membership is otherwise coarse: without this grant every
+   that grants more than 443. The grant must stay 443-only: the app also listens on 8080 over the
+   shared loopback, and Serve's TLS is bypassed if that port is ever granted. Tailnet membership is otherwise coarse: without this grant every
    device you add to the tailnet later could reach the Directory.
 3. **Funnel stays unavailable to the node.** Funnel needs a `funnel` entry in `nodeAttrs`. The
    default policy grants it to `autogroup:member`, and a tagged node is not a member — but check
@@ -72,11 +73,10 @@ file instead, `deploy/.env` is already gitignored.
 
 ## 3. Seed the document (once)
 
-The service refuses to start without `directory.json`, and the data volume starts empty. Create
-the volume and place the document in it, owned by the service user (uid 65532) and mode 0600:
+The service refuses to start without `directory.json`, and the data volume starts empty. Place
+the document in a new volume, owned by the service user (uid 65532) and mode 0600:
 
 ```bash
-docker volume create wherefolk-data
 docker run --rm --user root --entrypoint install \
   -v wherefolk-data:/var/lib/wherefolk \
   -v "$PWD/directory.json:/seed/directory.json:ro" \
@@ -87,7 +87,12 @@ docker run --rm --user root --entrypoint install \
 Starting from nothing, use [`testdata/directory.json`](../../testdata/directory.json) as the seed
 and replace its contents through the editor.
 
+Compose may later log a warning that the volume was not created by Compose; that is expected and
+harmless.
+
 ## 4. First start
+
+Compose needs the env file on every subcommand, not just `up`, because it interpolates the whole file.
 
 ```bash
 docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env pull
@@ -98,9 +103,9 @@ docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env up -d
 
 | Check | Command | Expect |
 |---|---|---|
-| Sidecar joined the tailnet | `docker compose -f deploy/compose.yaml exec tailscale tailscale status` | `wherefolk` listed, tagged `tag:wherefolk` |
-| Serve is tailnet-only | `docker compose -f deploy/compose.yaml exec tailscale tailscale serve status` | the URL, marked `(tailnet only)`, never `(Funnel on)` |
-| App is up | `docker compose -f deploy/compose.yaml logs wherefolk` | a `serving` line with `addr=127.0.0.1:8080`, no `startup failed` |
+| Sidecar joined the tailnet | `docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env exec tailscale tailscale status` | `wherefolk` listed, tagged `tag:wherefolk` |
+| Serve is tailnet-only | `docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env exec tailscale tailscale serve status` | the URL, marked `(tailnet only)`, never `(Funnel on)` |
+| App is up | `docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env logs wherefolk` | a `serving` line with `addr=127.0.0.1:8080`, no `startup failed` |
 | Editor's path works | open `https://wherefolk.<tailnet>.ts.net/status` from the Editor's device | the status page, with a padlock and no warning |
 | Everyone else is refused | open the same URL from a device the ACL does not name | connection times out |
 
@@ -130,13 +135,20 @@ will take them nightly).
 The app always binds loopback, and no setting changes that. To look inside:
 
 ```bash
-docker compose -f deploy/compose.yaml logs -f wherefolk
-docker compose -f deploy/compose.yaml exec wherefolk sh
+docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env logs -f wherefolk
+docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env exec wherefolk sh
 ```
 
 To reach the app from the host without going through the tailnet, publish a port **temporarily**
 on the sidecar (the app shares its network namespace) in a throwaway override file, never in
 `compose.yaml`, and remove it afterwards.
+
+If the URL returns 502 after the sidecar restarted on its own, the app is still in the old network
+namespace; restart it:
+
+```bash
+docker compose -f deploy/compose.yaml --env-file /run/agenix/wherefolk-env restart wherefolk
+```
 
 ## Changing the port
 
