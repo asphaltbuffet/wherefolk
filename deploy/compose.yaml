@@ -17,7 +17,7 @@ services:
   tailscale:
     # Pinned to a release, like Typst, so a registry update cannot change the
     # service underneath the Editor. Dependabot proposes bumps.
-    image: tailscale/tailscale:v1.102.5
+    image: tailscale/tailscale:v1.104.2
     restart: unless-stopped
     environment:
       # An OAuth client secret with its node settings appended, from the .env.
