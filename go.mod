@@ -6,7 +6,7 @@ require (
 	github.com/matoous/go-nanoid/v2 v2.1.0
 	github.com/pdfcpu/pdfcpu v0.15.0
 	github.com/stretchr/testify v1.12.1
-	go.yaml.in/yaml/v3 v3.0.5
+	go.yaml.in/yaml/v3 v3.0.6
 )
 
 require (
