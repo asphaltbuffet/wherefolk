@@ -18,12 +18,10 @@ import (
 //
 // Collapsing is expressed as "everything currently open, minus this one" so the
 // link is a plain URL with no state of its own.
-func toggleURL(selected rolo.HouseholdID, openList string, id rolo.HouseholdID, isOpen bool) string {
+//
+// It returns both URLs for the same toggle; see [toggleLinks].
+func toggleURL(selected rolo.HouseholdID, openList string, id rolo.HouseholdID, isOpen bool) toggleLinks {
 	q := url.Values{}
-
-	if selected != "" {
-		q.Set("selected", string(selected))
-	}
 
 	switch {
 	case isOpen:
@@ -35,7 +33,34 @@ func toggleURL(selected rolo.HouseholdID, openList string, id rolo.HouseholdID, 
 		q.Set("open", openList+","+string(id))
 	}
 
-	return "/tree?" + q.Encode()
+	page := pagePath(selected) + "?" + q.Encode()
+
+	if selected != "" {
+		q.Set("selected", string(selected))
+	}
+
+	return toggleLinks{Fragment: "/tree?" + q.Encode(), Page: page}
+}
+
+// toggleLinks are the two URLs of one toggle. Fragment is /tree, which htmx
+// swaps into the tree pane. Page is the whole page showing the same tree, and
+// is the only one the browser may ever navigate to: it is the link's href and
+// the URL htmx pushes, because /tree carries no layout or stylesheet and a Back
+// or a reload onto it renders an unstyled page.
+type toggleLinks struct {
+	Fragment string
+	Page     string
+}
+
+// pagePath is the directory page for a selection: the Household's own page, or
+// the root when nothing is selected. The ID is path-escaped, so it can neither
+// break out of its segment nor turn the result into a scheme-relative URL.
+func pagePath(selected rolo.HouseholdID) string {
+	if selected == "" {
+		return "/"
+	}
+
+	return "/h/" + url.PathEscape(string(selected))
 }
 
 // paneClosed is the only value of ?pane= that means anything. Anything else,
@@ -51,10 +76,7 @@ const paneClosed = "closed"
 // is the default: a link that merely dropped ?pane= would be indistinguishable
 // from a fresh visit.
 func paneToggleURL(selected rolo.HouseholdID, isClosed bool) string {
-	path := "/"
-	if selected != "" {
-		path = "/h/" + url.PathEscape(string(selected))
-	}
+	path := pagePath(selected)
 
 	if isClosed {
 		return path
@@ -105,6 +127,11 @@ type treeNode struct {
 	// Empty when the node is Pinned or childless, in which case the template
 	// renders no control at all.
 	ToggleURL string
+
+	// TogglePageURL is the whole page showing the tree ToggleURL would swap
+	// in. It is the toggle's href and the URL htmx pushes, so history, reload
+	// and a click before htmx loads never land on the bare fragment.
+	TogglePageURL string
 }
 
 // treeNodes builds the visible tree. selected is the Household the detail pane
@@ -148,7 +175,8 @@ func (s *Server) treeNodes(snap live.Snapshot, selected rolo.HouseholdID, open m
 			}
 
 			if node.HasChildren && !node.Pinned {
-				node.ToggleURL = toggleURL(selected, openList, h.ID, node.Open)
+				links := toggleURL(selected, openList, h.ID, node.Open)
+				node.ToggleURL, node.TogglePageURL = links.Fragment, links.Page
 			}
 
 			if node.Open {

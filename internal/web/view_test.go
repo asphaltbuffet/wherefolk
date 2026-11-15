@@ -256,7 +256,7 @@ func TestTreeMarksMemorialHouseholds(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := get(t, sampleDocument(), tt.target)
+			rec := getHTMX(t, sampleDocument(), tt.target)
 
 			require.Equal(t, http.StatusOK, rec.Code)
 			tt.checkFunc(t, rec.Body.String())

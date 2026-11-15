@@ -21,8 +21,29 @@ type treeView struct {
 // handleTree renders the tree pane on its own, for htmx to swap in after an
 // expand or collapse. The full page renders the same fragment inline on first
 // load, so the two can never disagree about how a node looks.
+//
+// Anything other than an htmx swap — a click before htmx has loaded, a history
+// entry or bookmark from before toggles pushed the page URL, or an htmx history
+// restore, which swaps its response in as the whole body — is redirected to the
+// page showing the same tree. Served here, the fragment would render unstyled.
 func (s *Server) handleTree(w http.ResponseWriter, r *http.Request) {
 	selected := rolo.HouseholdID(r.URL.Query().Get("selected"))
+
+	if !wantsFragment(r) {
+		q := r.URL.Query()
+		q.Del("selected")
+
+		target := pagePath(selected)
+		if enc := q.Encode(); enc != "" {
+			target += "?" + enc
+		}
+
+		// target is pagePath's "/" or "/h/<path-escaped id>", then a query: it
+		// can never start "//" or carry a scheme, so it cannot leave this host.
+		http.Redirect(w, r, target, http.StatusSeeOther) //nolint:gosec // G710: same-origin path; see above
+
+		return
+	}
 
 	view := s.treeView(s.live.Snapshot(), selected, r.URL.Query().Get("open"), r.URL.Query().Get("close"))
 

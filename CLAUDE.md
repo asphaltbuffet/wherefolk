@@ -45,7 +45,9 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     `render` emits a whole page and takes an HTTP status; `renderFragment` emits one named template.
   - Navigation state lives in the URL, never in a cookie or client state (ADR-0008). `/h/{id}` is
     the selection; `?open=`/`?close=` carry the expanded Branches, `?pane=closed` collapses the
-    tree pane.
+    tree pane. A fragment URL (`/tree`) must never reach the address bar: a toggle's `href` and
+    `hx-push-url` are the *page* URL, and `/tree` 303s any non-htmx request to it, because a
+    bare fragment renders unstyled on Back or reload.
   - View models in `view.go` hold rendered **strings**, not `rolo` values. A withheld field becomes
     `[private]` and a Memorial Household's contact details are blanked *there*, so a value the
     Editor withheld cannot reach a template and leak through a later markup change.
