@@ -291,6 +291,9 @@ type householdView struct {
 	// Delete leads to deletion, or says why this Household cannot be deleted.
 	Delete deleteLink
 
+	// Proof offers this Household's Proof Sheet, or says why there is none.
+	Proof proofSection
+
 	// Form is the editable rendering of this Household. §4.4 makes the detail
 	// pane the form, so this is always populated on a GET; the refusal path
 	// replaces it with the Editor's own submission.

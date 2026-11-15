@@ -39,6 +39,9 @@ type NewPersonIDFunc func() (rolo.PersonID, error)
 type Exporter interface {
 	PDF(ctx context.Context, d render.Directory) ([]byte, error)
 	SVG(ctx context.Context, d render.Directory) ([][]byte, error)
+
+	// ProofPDF compiles one Household's fillable Proof Sheet (ADR-0015).
+	ProofPDF(ctx context.Context, s render.ProofSheet) ([]byte, error)
 }
 
 // Clock reports the current time. Injected because an export's content depends

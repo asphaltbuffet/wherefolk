@@ -3,7 +3,7 @@
 // This file is deliberately NOT embedded in the binary (ADR-0004): adjusting
 // spacing or type is an edit here plus a restart, not a rebuild and redeploy.
 // The Go side emits data and calls these functions (directory, households,
-// household, memorial, birthdays); it sets no margins, fonts or spacing of its
+// household, memorial, birthdays, proof); it sets no margins, fonts or spacing of its
 // own, so every layout decision — and every word of section copy — is in this
 // file.
 //
@@ -272,4 +272,191 @@
       )
     }).flatten(),
   )
+}
+
+// ---------------------------------------------------------------------------
+// Proof Sheet (CONTEXT.md, Proof Sheet; ADR-0005, ADR-0015).
+//
+// One Household's own entry as a fillable form. Typst lays the page out; the
+// Go side then places a PDF form field over every marker below, filled with
+// the stored value. A field's value never passes through this file, so the
+// printed page cannot disagree with the field. The underline under each field
+// is page content drawn here, because viewers disagree about whether form
+// widgets print. A field or check whose id is "" is not on the sheet.
+
+#let field-height = 13pt
+// field-room is the space above each line for a handwritten correction.
+#let field-room = 9pt
+#let check-size = 8pt
+
+// mark records where a field goes, for `typst query <proof-field>`. It is
+// invisible and takes no space. Positions are points from the page's top-left.
+#let mark(id, kind, w, h) = context {
+  let p = here().position()
+  [#metadata((
+    id: id, kind: kind, page: p.page,
+    x: p.x.pt(), y: p.y.pt(), w: w.pt(), h: h.pt(), ph: page.height.pt(),
+  ))<proof-field>]
+}
+
+// text-field is an underlined line filling its container's width, captioned
+// tight beneath the line so the space above stays free for handwriting. A
+// multiline field is a ruled box instead, since one underline would not say
+// "write several lines here". The withheld marker gets its own line so it is
+// never broken mid-phrase in a narrow column.
+#let text-field(f, caption, kind: "text", height: field-height) = if f.id != "" {
+  let rule = if kind == "multiline" { 0.5pt + luma(120) } else { (bottom: 0.5pt + luma(60)) }
+  // breakable: false keeps a caption on the same page as its line.
+  block(above: field-room, below: 0pt, width: 100%, breakable: false, stack(dir: ttb, spacing: 2pt,
+    layout(size => box(
+      width: size.width, height: height, stroke: rule,
+      mark(f.id, kind, size.width, height),
+    )),
+    text(size: 7pt, fill: luma(90), caption),
+    ..if f.withheld { (text(size: 7pt, weight: "bold", "withheld from all exports"),) },
+  ))
+}
+
+#let check-field(id, caption) = if id != "" {
+  box(baseline: 1.2pt, {
+    box(width: check-size, height: check-size, stroke: 0.6pt + luma(40),
+      mark(id, "check", check-size, check-size))
+    h(0.3em)
+    text(size: 8pt, caption)
+  })
+}
+
+// keep-row is one person's withhold boxes on a single line: the boxes are the
+// same question about three fields, so they share one lead-in.
+#let keep-row(p) = {
+  let boxes = (
+    (p.keep_birth, "birth date"), (p.keep_phone, "phone"), (p.keep_email, "email"),
+  ).filter(b => b.at(0) != "")
+  if boxes.len() > 0 or p.remove != "" {
+    block(above: 5pt, below: 0pt, {
+      if boxes.len() > 0 {
+        text(size: 8pt, "Keep out of the shared Directory:")
+        for b in boxes { h(0.7em); check-field(b.at(0), b.at(1)) }
+      }
+      if p.remove != "" {
+        h(1fr)
+        check-field(p.remove, "Remove / no longer here")
+      }
+    })
+  }
+}
+
+#let section-title(s) = block(above: 12pt, below: 0pt, text(size: 10.5pt, weight: "bold", s))
+
+// proof-person is one person's block. It never splits across a page, so each
+// of its fields lands on the page its marker reports.
+#let proof-person(p) = block(breakable: false, width: 100%, above: 8pt, below: 0pt, {
+  grid(columns: (1fr, 1fr, 1fr, 1fr), column-gutter: 0.8em,
+    text-field(p.given, "Given name"), text-field(p.surname, "Surname"),
+    text-field(p.aka, "Nickname"), text-field(p.birth_name, "Birth surname"))
+  if p.deceased {
+    grid(columns: (1fr, 1fr), column-gutter: 0.8em,
+      text-field(p.birth, "Born"), text-field(p.death, "Died"))
+  } else if p.relationship.id != "" {
+    // A blank "Anyone missing?" block also asks how they are related.
+    grid(columns: (1fr, 1fr, 1.6fr, 1.6fr), column-gutter: 0.8em,
+      text-field(p.birth, "Birth date"), text-field(p.phone, "Phone"),
+      text-field(p.email, "Email"), text-field(p.relationship, "Relationship to your household"))
+    keep-row(p)
+  } else {
+    grid(columns: (1fr, 1fr, 2fr), column-gutter: 0.8em,
+      text-field(p.birth, "Birth date"), text-field(p.phone, "Phone"), text-field(p.email, "Email"))
+    keep-row(p)
+  }
+})
+
+#let proof(
+  title: "",
+  generated: "",
+  reply: "",
+  name: "",
+  shared: "",
+  address: (),
+  address_withheld: false,
+  keep_address: "",
+  moved: "",
+  anniversary: (id: "", withheld: false),
+  adults: (),
+  dependents: (),
+  missing: (),
+  all_correct: "",
+  notes: "",
+) = {
+  set document(title: title + " — Proof Sheet for " + name)
+  set page(
+    paper: "us-letter",
+    margin: (x: 1.8cm, y: 1.6cm),
+    footer: context [
+      #set text(size: 8pt, fill: luma(100))
+      Proof Sheet · Generated #generated
+      #h(1fr)
+      #counter(page).display("1 of 1", both: true)
+    ],
+  )
+  set text(font: ("Libertinus Serif", "DejaVu Serif"), size: 10pt)
+  set par(justify: false)
+
+  text(size: 9pt, fill: luma(80), title)
+  linebreak()
+  text(size: 15pt, weight: "bold", name)
+
+  if reply != "" {
+    block(width: 100%, inset: 6pt, above: 6pt, stroke: 0.6pt + luma(120), radius: 2pt, {
+      text(weight: "semibold", "Where to send corrections")
+      linebreak()
+      reply.split("\n").join(linebreak())
+    })
+  }
+
+  block(above: 6pt, text(size: 8.5pt, style: "italic",
+    "Correct anything below on screen, or print this page, cross out what is wrong and write the correction above it."))
+
+  section-title("Address")
+  if shared != "" {
+    block(above: 4pt, below: 0pt, text(size: 8.5pt, style: "italic",
+      "This address is shared with " + shared + ". Changes here change theirs too."))
+  }
+  // Two lines per row: an address line is short, and the space is better
+  // spent on people.
+  grid(columns: (1fr, 1fr), column-gutter: 0.8em,
+    ..address.map(line => text-field(line, "")))
+  block(above: 5pt, below: 0pt, {
+    if address_withheld {
+      text(size: 7pt, weight: "bold", "Address withheld from all exports")
+      h(0.8em)
+    }
+    check-field(keep_address, "Keep out of the shared Directory")
+    if moved != "" {
+      h(1.2em)
+      check-field(moved, "We no longer live at this address")
+    }
+  })
+  if anniversary.id != "" {
+    grid(columns: (1fr, 3fr), text-field(anniversary, "Anniversary"))
+  }
+
+  section-title("Adults")
+  for p in adults { proof-person(p) }
+
+  if dependents.len() > 0 {
+    section-title("Children living at home")
+    for p in dependents { proof-person(p) }
+  }
+
+  section-title("Anyone missing?")
+  block(above: 3pt, below: 0pt, text(size: 8.5pt,
+    "A new baby, a new spouse — anyone else who should be listed with you."))
+  for p in missing { proof-person(p) }
+
+  // The closing section moves as one, so its heading is never stranded.
+  block(breakable: false, above: 12pt, below: 0pt, {
+    section-title("Anything else?")
+    block(above: 5pt, below: 0pt, check-field(all_correct, "Everything is correct"))
+    text-field((id: notes, withheld: false), "Anything else we should know", kind: "multiline", height: 48pt)
+  })
 }

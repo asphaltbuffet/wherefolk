@@ -83,6 +83,15 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     fragment via `form="export-title"`, because the radios never reload the form. A title over 80
     characters or containing a control character is refused with 422, re-rendering the Editor's typing.
     An unchanged title is not a save.
+  - **Proof Sheet** (`proof.go`, `reply.go`): `GET /h/{id}/proof` downloads one Household's fillable
+    sheet. It is **unencrypted**, because it holds only its recipient's own data (ADR-0005). It is
+    `no-store`, rendered fresh, and named `proof_sheet_<slug>_<YYYY-MM-DD>.pdf`; the slug folds
+    accents and falls back to the ID. A Household with no living member, or an unknown ID, gets 404
+    with a sentence. The section sits in a `<details id="proof">` outside the household form, like Delete.
+  - **Reply Instructions**: `POST /h/{id}/proof/reply` saves through `live.Copy.Update` alone
+    (ADR-0013) and redirects back to the Household, so Undo returns there with no `back=`. The limits
+    are 6 lines and 400 characters, and the title's character rule applies with `\n` allowed. A
+    refusal is 422 and re-renders the Editor's typing with the section open. Unchanged text is not a save.
   - The renderer arrives as an injected `Exporter` and the time as a `Clock`, so this package's tests
     need no typst and no real clock. `exportDate` turns the host's local calendar date into midnight
     UTC, because `rolo.Person.IsMinor` computes an eighteenth birthday at midnight UTC.
@@ -139,7 +148,9 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
   - `Purge` keeps an expired entry while any unexpired entry needs it (parent or Shared
     Address, transitively); `Restore` brings that chain back together.
   - `Settings` lives in `settings.json` beside the document, at its own schema (ADR-0013). A missing
-    file is an untitled Directory. It holds the Directory Title; the printed default is `render.DefaultTitle`.
+    file is an untitled Directory. It holds the Directory Title, whose printed default is
+    `render.DefaultTitle`, and the Reply Instructions (`reply_instructions`, omitted when empty, so the
+    schema is still 1; an older binary drops the key on its next save after a rollback).
   - `Open(paths, now)` loads all three in dependency order — the document, the Trash reconciled
     against it, then the settings. `Paths.Write` is `Persist` as a `live.Writer`.
 - **`internal/live/`** — the Directory being served, and the only place it changes
@@ -210,6 +221,26 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     "cafécrèmebrûlée" decrypts fine — but rejects the space in "café crème"), though its encryption
     handles both cases — verified with mupdf — so tests that decrypt use a space-free passphrase; and
     the owner password is 130 random bits because a PDF owner password also opens the file.
+  - **Proof Sheet** (`proof.go`, `proof_markup.go`, `form.go`). `BuildProof(tree, id, asOf, title,
+    reply)` is the Proof Sheet's counterpart to `Build`, and the only place its rules live:
+    - Dates are Whole, and withheld values are shown with a marker.
+    - A Shared Address resolves through withheld links (ADR-0014).
+    - Deceased people get names and dates only.
+    - A field or check with an empty ID is not on the sheet.
+
+    `ProofMarkup` passes Typst only field IDs and withheld flags, never values: a value lives only in
+    its form field.
+  - `proof()` in `template/directory.typ` marks each field with `metadata(...)<proof-field>`, giving
+    its id, kind and box in points from the top-left. `Renderer.ProofPDF` compiles and queries in one
+    scratch directory (`Typst.CompilePDFAndQuery`), and `placeFields` refuses any mismatch between
+    the markers and `FormValues`. `AddFields` then adds AcroForm fields with pdfcpu's `api.Create`
+    (ADR-0015). Underlines are Typst page content, so they print in every viewer.
+  - Field values are drawn in the embedded `fonts/DejaVuSans.ttf`, because pdfcpu's core fonts
+    cannot draw `Dvořák`. pdfcpu v0.16 resolves user fonts **per Configuration**, and a stateless
+    configuration has none. So `formSetup` creates a private configuration root under the system temp
+    directory, once per process, and each `AddFields` loads it with `LoadConfigurationReadOnly`.
+  - The devShell's typst may be newer than the image's pinned version: 0.15 deprecates `typst query`
+    and warns on stderr. Only stdout is parsed.
 - **`internal/buildmeta/`** — build metadata (`Version`, `GitCommit`, `BuildDate`) injected via ldflags.
   The package is deliberately not named `version` or `buildinfo`: both collide with stdlib
   (`go/version`, `debug/buildinfo`). The ldflag paths in `mise.toml` and `.goreleaser.yml` are
@@ -258,7 +289,7 @@ See `CONTEXT.md` for the domain vocabulary and `docs/adr/` for the decisions beh
 - Tests that invoke `typst` call `requireTypst(t)`, which **skips** when the binary is absent.
   Typst is a host dependency (ADR-0004) provided by the devShell in `flake.nix`, so inside
   `nix develop` (or any shell with `typst` on `PATH`) `go test ./...` runs everything, and outside
-  it exactly eight render tests skip rather than fail. A skipped render test is not a passing one —
+  it exactly thirteen render tests skip rather than fail. A skipped render test is not a passing one —
   check the output for `SKIP` before believing the pipeline works.
 
 ## Notes

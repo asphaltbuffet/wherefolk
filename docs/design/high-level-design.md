@@ -500,7 +500,11 @@ exposure, identity model, and review queue that §2 removed (ADR-0005).
 
 Proof differs from the other four tiers structurally, not just in field visibility:
 
-- **One Household per page**, so each can be sent separately.
+- **Each Household starts on a fresh page**, so each can be sent separately; a large Household runs
+  onto a second page that is still theirs alone.
+- **A fillable form, pre-filled** with the stored values, so the recipient corrects it on screen or
+  prints it. The underline under each field is printed, so a paper copy shows where to write, and
+  the Editor's Reply Instructions head the sheet (CONTEXT.md). Blank blocks ask about anyone missing.
 - **Only Households with a living member.** Memorial Households are excluded automatically — there
   is nobody to send one to.
 - **Withheld fields are shown**, with their actual values, marked plainly as not appearing in the
@@ -509,7 +513,11 @@ Proof differs from the other four tiers structurally, not just in field visibili
   address from a current one. The marking must be unmistakable, or a recipient will think their
   suppression failed.
 - **Own Household only.** A sheet never shows withheld fields belonging to another Household, even
-  a parent's or sibling's.
+  a parent's or sibling's — except a Shared Address, which shows the address the sharer actually
+  lives at (ADR-0014).
+
+The single-Household sheet ships first, downloaded from the Household's own page; generating sheets
+for a Branch or the whole family from the export page is issue #45.
 
 A full run produces roughly one page per living Household, which for a large family is sixty-plus
 pages. The export UI should therefore support generating sheets for a single Branch, and warn on
@@ -551,7 +559,7 @@ identifiers, not a build order — item 11 is a prerequisite of item 4 and is bu
 | 7 | ✅ **Typst template & render engine** — flat Household blocks, Memorial blocks, fixed layout, shared-address back-references, PDF + SVG output. The render model is strings only, so item 8's filter replaces its constructor rather than threading a tier through the markup generator | 1 |
 | 8 | ✅ **Tier filter** — field gating, age computation, date truncation, `[private]` vs. absence. `render.Build(tree, tier, asOf)` is the only constructor of the render model; the footer names the tier, and Full carries `DO NOT DISTRIBUTE`. Suppression beats withholding; Shared Addresses resolve through withheld and Memorial targets | 7 |
 | 9 | ✅ **Export UI** — `/export` offers the tiers by description with none pre-selected, previews every page as inline SVG, and downloads `family_directory_<tier>_<date>.pdf`. Full is encrypted with `WHEREFOLK_FULL_PASSPHRASE` via the pdfcpu library (ADR-0011) and refused outright when the passphrase is unset. The export date is the host's calendar date. Pre-flight warnings split out to item 15 | 8 |
-| 10 | **Proof Sheets** — per-Household pagination, withheld-field disclosure, Branch selection; needs its own entry point in `template/directory.typ`, because `directory()` always emits the Title page and Table of Contents, which a Proof Sheet must not carry (CONTEXT.md, Proof Sheet) | 8 |
+| 10 | **Proof Sheets** — single-Household fillable sheet done (ADR-0014, ADR-0015); Branch selection deferred to #45. Per-Household pagination, withheld-field disclosure, Branch selection; needs its own entry point in `template/directory.typ`, because `directory()` always emits the Title page and Table of Contents, which a Proof Sheet must not carry (CONTEXT.md, Proof Sheet) | 8 |
 | 11 | ✅ **Web shell** — Go templates, htmx, embedded assets, loopback binding, `WHEREFOLK_DATA`/`WHEREFOLK_PORT`, Operator `/status` page as the tracer bullet. Foundational: every UI item (4, 5, 9, 10) is built on it, so it ships first | — |
 | 12 | ✅ **Container image** — Debian slim, pinned Typst, GoReleaser-built multi-arch image, and `deploy/compose.yaml` with the Tailscale sidecar and named volumes. Built together with item 13, because a sidecar with no Serve config and a Serve config with no sidecar are each untestable; the data directory is created owned by `nonroot` so a fresh volume is writable | 11 |
 | 13 | ✅ **Tailnet setup** — `deploy/tailscale-serve.json` (HTTPS, loopback proxy, `AllowFunnel` explicitly false, pinned by `deploy/` tests), the `tag:wherefolk` OAuth node, and `docs/operations/deployment.md` for the ACL, the OAuth client and the agenix-managed `.env`, which happen outside the repository | 12 |

@@ -89,6 +89,34 @@
           <p class="field-note delete-blocked">{{.Blocked}}</p>
         {{end}}
       {{end}}
+
+      {{/* Outside the household form, like Delete: the download is a link,
+           and Reply Instructions have their own form (ADR-0013). */}}
+      {{with .Proof}}
+        <details class="card proof" id="proof"{{if .Open}} open{{end}}>
+          <summary><h2 class="section-title">Proof Sheet</h2></summary>
+          {{if .URL}}
+            <p class="field-note">A form with everything held about this household, to send them so they can check it.</p>
+            <p><a class="pill" href="{{.URL}}" download>Download Proof Sheet</a></p>
+          {{else}}
+            <p class="field-note">{{.Unavailable}}</p>
+          {{end}}
+          {{with .Reply}}
+          <form method="post" action="{{.Action}}" class="reply-form">
+            <input type="hidden" name="open" value="{{.Open}}">
+            <input type="hidden" name="pane" value="{{.Pane}}">
+            <label for="reply">Reply Instructions</label>
+            <p id="reply-hint" class="field-note">Printed at the top of every Proof Sheet, so recipients know where to send corrections.</p>
+            <textarea id="reply" name="reply" rows="4" maxlength="400"
+                      aria-describedby="reply-hint{{with .Error}} reply-error{{end}}"
+                      {{- with .Error}} aria-invalid="true"{{end}}>{{.Value}}</textarea>
+            {{with .Error}}<p id="reply-error" class="field-error" role="alert">{{.}}</p>{{end}}
+            {{if not .Saved}}<p class="field-note">No Reply Instructions yet — recipients will not know where to send corrections.</p>{{end}}
+            <button type="submit" class="pill">Save Reply Instructions</button>
+          </form>
+          {{end}}
+        </details>
+      {{end}}
     {{end}}
   {{else}}
     <div class="card empty-state">
