@@ -31,7 +31,13 @@ type fakeExporter struct {
 	pages [][]byte
 	err   error
 
-	got []render.Directory
+	got    []render.Directory
+	proofs []render.ProofSheet
+}
+
+func (f *fakeExporter) ProofPDF(_ context.Context, s render.ProofSheet) ([]byte, error) {
+	f.proofs = append(f.proofs, s)
+	return f.pdf, f.err
 }
 
 func (f *fakeExporter) PDF(_ context.Context, d render.Directory) ([]byte, error) {

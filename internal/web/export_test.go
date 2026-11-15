@@ -14,6 +14,11 @@ import (
 // ExportDateForTest exposes exportDate to the external test package.
 func ExportDateForTest(now time.Time) time.Time { return exportDate(now) }
 
+// ProofFilenameForTest exposes proofFilename to the external test package.
+func ProofFilenameForTest(name string, id rolo.HouseholdID, date time.Time) string {
+	return proofFilename(name, id, date)
+}
+
 // RenderFragmentForTest exposes renderFragment to the external test package.
 // It exists only in test builds.
 func (s *Server) RenderFragmentForTest(

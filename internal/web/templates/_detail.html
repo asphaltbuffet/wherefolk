@@ -89,6 +89,20 @@
           <p class="field-note delete-blocked">{{.Blocked}}</p>
         {{end}}
       {{end}}
+
+      {{/* Outside the household form, like Delete: the download is a link,
+           and Reply Instructions have their own form (ADR-0013). */}}
+      {{with .Proof}}
+        <details class="card proof" id="proof"{{if .Open}} open{{end}}>
+          <summary><h2 class="section-title">Proof Sheet</h2></summary>
+          {{if .URL}}
+            <p class="field-note">A form with everything held about this household, to send them so they can check it.</p>
+            <p><a class="pill" href="{{.URL}}" download>Download Proof Sheet</a></p>
+          {{else}}
+            <p class="field-note">{{.Unavailable}}</p>
+          {{end}}
+        </details>
+      {{end}}
     {{end}}
   {{else}}
     <div class="card empty-state">

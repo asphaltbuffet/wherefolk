@@ -75,5 +75,9 @@ func (s *Server) directoryView(
 		}
 	}
 
+	if h, ok := snap.Tree.Get(id); ok {
+		view.Household.Proof = proofSectionFor(h)
+	}
+
 	return view
 }

@@ -7,6 +7,7 @@ require (
 	github.com/pdfcpu/pdfcpu v0.16.4
 	github.com/stretchr/testify v1.12.1
 	go.yaml.in/yaml/v3 v3.0.6
+	golang.org/x/text v0.44.0
 )
 
 require (
@@ -16,5 +17,4 @@ require (
 	github.com/xdg-go/stringprep v1.0.4 // indirect
 	golang.org/x/crypto v0.59.0 // indirect
 	golang.org/x/image v0.48.0 // indirect
-	golang.org/x/text v0.44.0 // indirect
 )
