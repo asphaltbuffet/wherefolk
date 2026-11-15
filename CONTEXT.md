@@ -72,6 +72,14 @@ the same in every tier, never withheld. When the Editor has not named it, the Di
 `Family Directory`. Changing it is an edit like any other and can be undone.
 _Avoid_: Name (that belongs to a Person or a Household), heading
 
+**Reply Instructions**:
+A few lines the Editor writes once, telling a Proof Sheet's recipient where and how to send their
+corrections — `Please send corrections by 1 March to Dawn Yoder: dawn@example.com`. The same on
+every Proof Sheet, printed at its head; never part of a Directory. Free text rather than a
+reference to a Person, because the Editor may want replies somewhere the Directory does not record.
+Changing them is an edit like any other and can be undone.
+_Avoid_: Return address (it need not be postal), contact info (that is a Person's phone and email)
+
 **Table of Contents**:
 The page near the front of a Directory that lists where to find each first-generation Branch.
 It names every root Household and every child of a root Household by its Household Name, with the
@@ -81,9 +89,15 @@ Birthday Calendar and any other sections are listed too.
 _Avoid_: Index (that would imply every Household or every person), outline
 
 **Proof Sheet**:
-A single Household's own entry, rendered on its own page and sent to that Household so they can
-confirm or correct what the Directory holds about them. Shows their own withheld fields, marked as
-withheld; never shows another Household's. Produced only for Households with a living member.
+A single Household's own entry, starting on a fresh page and sent to that Household so they can
+confirm or correct what the Directory holds about them. It is a form filled in with what the
+Directory holds, which the recipient corrects on screen or on paper, with room to add anyone who
+is missing; a large Household's sheet may run onto a second page that is still theirs alone.
+Shows their own withheld fields, marked as
+withheld; never shows another Household's, with one exception: a Shared Address prints the Address
+it actually resolves to, withheld or not, because the people sharing an address live there. It is
+marked as shared, naming the Household it is shared with, so the recipient can say it no longer is.
+Produced only for Households with a living member.
 It carries no Title page and no Table of Contents, whose entries would name other Households —
 only the Directory Title as a line at its head, so the recipient knows what they are checking.
 _Avoid_: Review sheet, verification page
