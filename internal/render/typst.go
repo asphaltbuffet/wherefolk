@@ -134,6 +134,45 @@ func (t Typst) CompileSVG(ctx context.Context, markup, templateDir string) ([][]
 	return pages, err
 }
 
+// CompilePDFAndQuery renders markup as a PDF and returns, beside it, what
+// `typst query` reports for selector's value field, as JSON.
+//
+// Both run in the same staged scratch directory on the same source, so the
+// positions describe the very PDF returned. A Proof Sheet needs both: the
+// page, and where its form fields go (ADR-0015). Only stdout is parsed, since
+// typst 0.15 warns on stderr that query is deprecated.
+func (t Typst) CompilePDFAndQuery(ctx context.Context, markup, templateDir, selector string) ([]byte, []byte, error) {
+	var pdf, query []byte
+
+	err := t.compile(ctx, markup, templateDir, "pdf", pdfName, func(dir string) error {
+		b, err := os.ReadFile(filepath.Join(dir, pdfName))
+		if err != nil {
+			return fmt.Errorf("typst: read output: %w", err)
+		}
+
+		pdf = b
+
+		var stdout, stderr bytes.Buffer
+
+		//nolint:gosec // Bin is resolved via exec.LookPath; selector is a constant.
+		cmd := exec.CommandContext(ctx, t.Bin, "query", "--root", dir, filepath.Join(dir, sourceName),
+			selector, "--field", "value", "--format", "json")
+		cmd.Stdout = &stdout
+		cmd.Stderr = &stderr
+
+		err = cmd.Run()
+		if err != nil {
+			return fmt.Errorf("typst query: %w: %s", err, strings.TrimSpace(stderr.String()))
+		}
+
+		query = stdout.Bytes()
+
+		return nil
+	})
+
+	return pdf, query, err
+}
+
 // compile runs typst in a scratch directory and hands that directory to collect.
 //
 // The markup is written alongside a copy of the template, because the generated
