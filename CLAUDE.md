@@ -298,3 +298,7 @@ The five canonical triage roles use their default label strings. See `docs/agent
 ### Domain docs
 
 Single-context: one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+### Pull requests
+
+PR bodies follow `.github/pull_request_template.md`, which `gh pr create --body-file` bypasses. See `docs/agents/pull-requests.md`.
