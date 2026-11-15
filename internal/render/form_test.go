@@ -47,6 +47,8 @@ func formFields(t *testing.T, pdf []byte) map[string]string {
 }
 
 func TestAddFields(t *testing.T) {
+	t.Parallel()
+
 	base := basePDF(t)
 
 	tests := []struct {

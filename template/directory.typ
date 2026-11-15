@@ -306,7 +306,8 @@
 // never broken mid-phrase in a narrow column.
 #let text-field(f, caption, kind: "text", height: field-height) = if f.id != "" {
   let rule = if kind == "multiline" { 0.5pt + luma(120) } else { (bottom: 0.5pt + luma(60)) }
-  block(above: field-room, below: 0pt, width: 100%, stack(dir: ttb, spacing: 2pt,
+  // breakable: false keeps a caption on the same page as its line.
+  block(above: field-room, below: 0pt, width: 100%, breakable: false, stack(dir: ttb, spacing: 2pt,
     layout(size => box(
       width: size.width, height: height, stroke: rule,
       mark(f.id, kind, size.width, height),
@@ -452,7 +453,10 @@
     "A new baby, a new spouse — anyone else who should be listed with you."))
   for p in missing { proof-person(p) }
 
-  section-title("Anything else?")
-  block(above: 5pt, below: 0pt, check-field(all_correct, "Everything is correct"))
-  text-field((id: notes, withheld: false), "Anything else we should know", kind: "multiline", height: 48pt)
+  // The closing section moves as one, so its heading is never stranded.
+  block(breakable: false, above: 12pt, below: 0pt, {
+    section-title("Anything else?")
+    block(above: 5pt, below: 0pt, check-field(all_correct, "Everything is correct"))
+    text-field((id: notes, withheld: false), "Anything else we should know", kind: "multiline", height: 48pt)
+  })
 }

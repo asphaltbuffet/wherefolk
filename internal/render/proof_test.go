@@ -101,6 +101,8 @@ func TestBuildProof(t *testing.T) {
 		{
 			name: "heading, title default and reply", hs: []rolo.Household{yoders()}, id: "h_yod",
 			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
 				require.Equal(t, render.DefaultTitle, s.Title)
 				require.Equal(t, "Daryl & Dawn (Mitchell) Yoder", s.Name)
 				require.Equal(t, "Send to Dawn", s.Reply)
@@ -110,6 +112,8 @@ func TestBuildProof(t *testing.T) {
 		{
 			name: "title as set", hs: []rolo.Household{yoders()}, id: "h_yod", title: "The Yoders",
 			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
 				require.Equal(t, "The Yoders", s.Title)
 			},
 		},
@@ -117,6 +121,8 @@ func TestBuildProof(t *testing.T) {
 			name: "withheld phone shows its value, marked, with the box ticked",
 			hs:   []rolo.Household{yoders()}, id: "h_yod",
 			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
 				p := person(t, s.Adults, "p_dar")
 				require.Equal(t,
 					render.ProofField{ID: "p_dar-phone", Value: "(555) 201-4433", Withheld: true}, p.Phone)
@@ -129,6 +135,8 @@ func TestBuildProof(t *testing.T) {
 			name: "withheld but empty birth date ticks the box without a marker",
 			hs:   []rolo.Household{yoders()}, id: "h_yod",
 			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
 				p := person(t, s.Adults, "p_daw")
 				require.False(t, p.Birth.Withheld)
 				require.True(t, p.KeepBirth.Checked)
@@ -138,6 +146,8 @@ func TestBuildProof(t *testing.T) {
 		{
 			name: "deceased dependent has names and dates only", hs: []rolo.Household{yoders()}, id: "h_yod",
 			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
 				p := person(t, s.Dependents, "p_tom")
 				require.True(t, p.Deceased)
 				require.Equal(t, render.ProofField{ID: "p_tom-death", Value: "Jun 3, 2001"}, p.Death)
@@ -151,6 +161,8 @@ func TestBuildProof(t *testing.T) {
 		{
 			name: "address padded to four lines, anniversary Whole", hs: []rolo.Household{yoders()}, id: "h_yod",
 			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
 				require.Equal(t, []render.ProofField{
 					{ID: "address-1", Value: "12 Elm St"}, {ID: "address-2", Value: "Springfield, IL 62704"},
 					{ID: "address-3"}, {ID: "address-4"},
@@ -163,12 +175,18 @@ func TestBuildProof(t *testing.T) {
 		},
 		{
 			name: "five address lines get five fields", hs: []rolo.Household{five}, id: "h_yod",
-			checkFunc: func(t *testing.T, s render.ProofSheet) { require.Len(t, s.Address, 5) },
+			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
+				require.Len(t, s.Address, 5)
+			},
 		},
 		{
 			name: "shared address shows withheld lines (ADR-0014)",
 			hs:   []rolo.Household{parent, sharer}, id: "h_kid",
 			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
 				require.Equal(t, "1 Oak Rd", s.Address[0].Value)
 				require.True(t, s.AddressWithheld)
 				require.True(t, s.KeepAddress.Checked)
@@ -180,6 +198,8 @@ func TestBuildProof(t *testing.T) {
 		{
 			name: "shared address cycle ends without lines", hs: []rolo.Household{loopA, loopB}, id: "h_la",
 			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
 				require.Len(t, s.Address, 4)
 				require.Empty(t, s.Address[0].Value)
 				require.Equal(t, "Bob Loop", s.SharedWith)
@@ -188,6 +208,8 @@ func TestBuildProof(t *testing.T) {
 		{
 			name: "two blank people, no remove box", hs: []rolo.Household{yoders()}, id: "h_yod",
 			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
 				require.Len(t, s.Missing, 2)
 				m := s.Missing[1]
 				require.Equal(t, render.ProofField{ID: "missing2-given"}, m.Given)
@@ -199,6 +221,8 @@ func TestBuildProof(t *testing.T) {
 		{
 			name: "field ids are unique", hs: []rolo.Household{yoders()}, id: "h_yod",
 			checkFunc: func(t *testing.T, s render.ProofSheet) {
+				t.Helper()
+
 				texts, checks := s.FormValues()
 				for id := range checks {
 					require.NotContains(t, texts, id)

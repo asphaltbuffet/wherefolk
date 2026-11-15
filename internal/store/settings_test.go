@@ -122,7 +122,11 @@ func TestSettingsReply(t *testing.T) {
 		wantInRaw string
 		absent    bool
 	}{
-		{name: "saved and reloaded", reply: "Mail Dawn\n12 Elm St", wantInRaw: `"reply_instructions": "Mail Dawn\n12 Elm St"`},
+		{
+			name:      "saved and reloaded",
+			reply:     "Mail Dawn\n12 Elm St",
+			wantInRaw: `"reply_instructions": "Mail Dawn\n12 Elm St"`,
+		},
 		{name: "empty is omitted", reply: "", absent: true},
 	}
 

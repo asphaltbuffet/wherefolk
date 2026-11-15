@@ -36,6 +36,8 @@ func TestProofMarkup(t *testing.T) {
 		{
 			name: "imports proof and names the household",
 			checkFunc: func(t *testing.T, m string) {
+				t.Helper()
+
 				require.Contains(t, m, `#import "directory.typ": proof`)
 				require.Contains(t, m, `name: "Daryl & Dawn (Mitchell) Yoder"`)
 				require.Contains(t, m, `title: "The Yoder Directory"`)
@@ -44,6 +46,8 @@ func TestProofMarkup(t *testing.T) {
 		{
 			name: "values never reach Typst",
 			checkFunc: func(t *testing.T, m string) {
+				t.Helper()
+
 				require.NotContains(t, m, "(555) 201-4433")
 				require.NotContains(t, m, "12 Elm St")
 				require.Contains(t, m, `(id: "p_dar-phone", withheld: true)`)
@@ -53,6 +57,8 @@ func TestProofMarkup(t *testing.T) {
 			name:  "reply escapes and keeps line breaks",
 			reply: "Mail \"Dawn\" at C:\\box\n#1 Elm St",
 			checkFunc: func(t *testing.T, m string) {
+				t.Helper()
+
 				require.Contains(t, m, `reply: "Mail \"Dawn\" at C:\\box\n#1 Elm St"`)
 			},
 		},
@@ -129,58 +135,75 @@ func TestProofTemplatePlacesEveryField(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			marks := proofMarks(t, typst.Bin, tt.sheet)
-			texts, checks := tt.sheet.FormValues()
+			lastPage := checkPlacement(t, proofMarks(t, typst.Bin, tt.sheet), tt.sheet)
 
-			placed := map[string]string{}
-			personPages := map[string]map[int]bool{}
-			maxPage := 0
-
-			for _, m := range marks {
-				require.NotContains(t, placed, m.ID, "placed twice")
-				placed[m.ID] = m.Kind
-				maxPage = max(maxPage, m.Page)
-
-				// A person's fields share their ID prefix; their block never
-				// splits, so they must all be on one page.
-				if who, _, ok := strings.Cut(m.ID, "-"); ok && (strings.HasPrefix(who, "p_") ||
-					strings.HasPrefix(who, "missing")) {
-					if personPages[who] == nil {
-						personPages[who] = map[int]bool{}
-					}
-
-					personPages[who][m.Page] = true
-				}
-
-				require.Positive(t, m.W, m.ID)
-				require.Positive(t, m.H, m.ID)
-				require.GreaterOrEqual(t, m.X, 0.0, m.ID)
-				require.LessOrEqual(t, m.X+m.W, 612.0, m.ID)
-				require.GreaterOrEqual(t, m.Y, 0.0, m.ID)
-				require.LessOrEqual(t, m.Y+m.H, m.PH, m.ID)
-			}
-
-			require.Len(t, placed, len(texts)+len(checks))
-
-			for id := range texts {
-				require.Contains(t, []string{"text", "multiline"}, placed[id], id)
-			}
-
-			for id := range checks {
-				require.Equal(t, "check", placed[id], id)
-			}
-
-			require.Equal(t, "multiline", placed["notes"])
-
-			for who, pages := range personPages {
-				require.Len(t, pages, 1, "%s split across pages", who)
-			}
-
-			require.GreaterOrEqual(t, maxPage, tt.minLastPage)
+			require.GreaterOrEqual(t, lastPage, tt.minLastPage)
 
 			if tt.wantMorePage {
-				require.Greater(t, maxPage, ordinaryPages)
+				require.Greater(t, lastPage, ordinaryPages)
 			}
 		})
 	}
+}
+
+// checkPlacement asserts the template placed every field of sheet exactly
+// once, with its kind, inside the page, and never split a person's block
+// across pages. It returns the last page any field is on.
+func checkPlacement(t *testing.T, marks []proofMark, sheet render.ProofSheet) int {
+	t.Helper()
+
+	texts, checks := sheet.FormValues()
+	placed := map[string]string{}
+	personPages := map[string]map[int]bool{}
+	lastPage := 0
+
+	for _, m := range marks {
+		require.NotContains(t, placed, m.ID, "placed twice")
+		placed[m.ID] = m.Kind
+		lastPage = max(lastPage, m.Page)
+
+		require.Positive(t, m.W, m.ID)
+		require.Positive(t, m.H, m.ID)
+		require.GreaterOrEqual(t, m.X, 0.0, m.ID)
+		require.LessOrEqual(t, m.X+m.W, 612.0, m.ID)
+		require.GreaterOrEqual(t, m.Y, 0.0, m.ID)
+		require.LessOrEqual(t, m.Y+m.H, m.PH, m.ID)
+
+		if who := personOf(m.ID); who != "" {
+			if personPages[who] == nil {
+				personPages[who] = map[int]bool{}
+			}
+
+			personPages[who][m.Page] = true
+		}
+	}
+
+	require.Len(t, placed, len(texts)+len(checks))
+
+	for id := range texts {
+		require.Contains(t, []string{"text", "multiline"}, placed[id], id)
+	}
+
+	for id := range checks {
+		require.Equal(t, "check", placed[id], id)
+	}
+
+	require.Equal(t, "multiline", placed["notes"])
+
+	for who, pages := range personPages {
+		require.Len(t, pages, 1, "%s split across pages", who)
+	}
+
+	return lastPage
+}
+
+// personOf is the person a field belongs to, by its ID prefix: "p_dar" for
+// "p_dar-phone", "missing1" for "missing1-given", or "" for a Household field.
+func personOf(id string) string {
+	who, _, ok := strings.Cut(id, "-")
+	if ok && (strings.HasPrefix(who, "p_") || strings.HasPrefix(who, "missing")) {
+		return who
+	}
+
+	return ""
 }

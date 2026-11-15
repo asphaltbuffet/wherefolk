@@ -25,9 +25,14 @@ func TestReplySave(t *testing.T) {
 		checkFunc  func(t *testing.T, res *http.Response, body string)
 	}{
 		{
-			name: "saved, announced, back on the household", target: "/h/h_live/proof/reply",
-			raw: "  Mail Dawn\r\n12 Elm St  ", wantStatus: http.StatusSeeOther, wantSaved: saved("Mail Dawn\n12 Elm St"),
+			name:       "saved, announced, back on the household",
+			target:     "/h/h_live/proof/reply",
+			raw:        "  Mail Dawn\r\n12 Elm St  ",
+			wantStatus: http.StatusSeeOther,
+			wantSaved:  saved("Mail Dawn\n12 Elm St"),
 			checkFunc: func(t *testing.T, res *http.Response, _ string) {
+				t.Helper()
+
 				loc, err := url.Parse(res.Header.Get("Location"))
 				require.NoError(t, err)
 				require.Equal(t, "/h/h_live", loc.Path)
@@ -39,6 +44,8 @@ func TestReplySave(t *testing.T) {
 			name: "cleared", existing: "Old", target: "/h/h_live/proof/reply", raw: "",
 			wantStatus: http.StatusSeeOther, wantSaved: saved(""),
 			checkFunc: func(t *testing.T, res *http.Response, _ string) {
+				t.Helper()
+
 				require.Contains(t, res.Header.Get("Location"), url.QueryEscape("The Reply Instructions were cleared."))
 			},
 		},
@@ -46,6 +53,8 @@ func TestReplySave(t *testing.T) {
 			name: "unchanged is not a save", existing: "Same", target: "/h/h_live/proof/reply", raw: "Same",
 			wantStatus: http.StatusSeeOther,
 			checkFunc: func(t *testing.T, res *http.Response, _ string) {
+				t.Helper()
+
 				require.NotContains(t, res.Header.Get("Location"), "undo=")
 			},
 		},
@@ -53,6 +62,8 @@ func TestReplySave(t *testing.T) {
 			name: "too long keeps the typing", target: "/h/h_live/proof/reply", raw: strings.Repeat("x", 401),
 			wantStatus: http.StatusUnprocessableEntity,
 			checkFunc: func(t *testing.T, _ *http.Response, body string) {
+				t.Helper()
+
 				require.Contains(t, body, "at most 400 characters")
 				require.Contains(t, body, strings.Repeat("x", 401))
 				require.Contains(t, body, `id="proof" open`)
@@ -62,13 +73,17 @@ func TestReplySave(t *testing.T) {
 			name: "seven lines", target: "/h/h_live/proof/reply", raw: "1\n2\n3\n4\n5\n6\n7",
 			wantStatus: http.StatusUnprocessableEntity,
 			checkFunc: func(t *testing.T, _ *http.Response, body string) {
+				t.Helper()
+
 				require.Contains(t, body, "at most 6 lines")
 			},
 		},
 		{
-			name: "bidi override refused", target: "/h/h_live/proof/reply", raw: "Mail ‮Dawn",
+			name: "bidi override refused", target: "/h/h_live/proof/reply", raw: "Mail \u202eDawn",
 			wantStatus: http.StatusUnprocessableEntity,
 			checkFunc: func(t *testing.T, _ *http.Response, body string) {
+				t.Helper()
+
 				require.Contains(t, body, "ordinary text and line breaks")
 			},
 		},
@@ -109,6 +124,8 @@ func TestReplyUndoAndDisplay(t *testing.T) {
 		{
 			name: "undo restores the previous text, on the same household", existing: "Old",
 			checkFunc: func(t *testing.T, srv *web.Server, _ *fakeExporter) {
+				t.Helper()
+
 				rec := postTo(t, srv, "/h/h_live/proof/reply", url.Values{"reply": {"New"}})
 				loc, err := url.Parse(rec.Header().Get("Location"))
 				require.NoError(t, err)
@@ -123,6 +140,8 @@ func TestReplyUndoAndDisplay(t *testing.T) {
 		{
 			name: "empty warns", existing: "",
 			checkFunc: func(t *testing.T, srv *web.Server, _ *fakeExporter) {
+				t.Helper()
+
 				require.Contains(t, fetch(t, srv, "/h/h_live").Body.String(),
 					"No Reply Instructions yet — recipients will not know where to send corrections.")
 			},
@@ -130,6 +149,8 @@ func TestReplyUndoAndDisplay(t *testing.T) {
 		{
 			name: "saved text reaches the sheet", existing: "Mail Dawn",
 			checkFunc: func(t *testing.T, srv *web.Server, ex *fakeExporter) {
+				t.Helper()
+
 				require.Equal(t, http.StatusOK, fetch(t, srv, "/h/h_live/proof").Code)
 				require.Len(t, ex.proofs, 1)
 				require.Equal(t, "Mail Dawn", ex.proofs[0].Reply)

@@ -55,6 +55,8 @@ func TestProofDownload(t *testing.T) {
 		{
 			name: "living household downloads", target: "/h/h_live/proof", wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, res *http.Response, _ string, ex *fakeExporter) {
+				t.Helper()
+
 				require.Equal(t, "application/pdf", res.Header.Get("Content-Type"))
 				require.Equal(t,
 					`attachment; filename="proof_sheet_daryl_dawn_mitchell_yoder_2026-11-15.pdf"`,
@@ -67,6 +69,8 @@ func TestProofDownload(t *testing.T) {
 		{
 			name: "memorial has no sheet", target: "/h/h_gone/proof", wantStatus: http.StatusNotFound,
 			checkFunc: func(t *testing.T, _ *http.Response, body string, ex *fakeExporter) {
+				t.Helper()
+
 				require.Contains(t, body, "nobody in this household is living")
 				require.Empty(t, ex.proofs)
 			},
@@ -74,6 +78,8 @@ func TestProofDownload(t *testing.T) {
 		{
 			name: "unknown household", target: "/h/h_nope/proof", wantStatus: http.StatusNotFound,
 			checkFunc: func(t *testing.T, _ *http.Response, body string, _ *fakeExporter) {
+				t.Helper()
+
 				require.Contains(t, body, "not in the Directory")
 			},
 		},
@@ -81,6 +87,8 @@ func TestProofDownload(t *testing.T) {
 			name: "render failure is a sentence", target: "/h/h_live/proof", exErr: errors.New("boom"),
 			wantStatus: http.StatusInternalServerError,
 			checkFunc: func(t *testing.T, _ *http.Response, body string, _ *fakeExporter) {
+				t.Helper()
+
 				require.Contains(t, body, "Something went wrong making the Proof Sheet")
 				require.NotContains(t, body, "boom")
 			},
