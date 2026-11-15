@@ -212,7 +212,8 @@ button, input, textarea, select { font: inherit; color: inherit; }
   box-shadow: 0 4px 0 -2px var(--card), 0 5px 0 -2px color-mix(in srgb, var(--rule) 60%, transparent);
   overflow-wrap: anywhere;
 }
-.card > legend + *, .card-title + * { clear: both; }
+/* `~` not `+`: a hidden input may sit between the legend and the first group. */
+.card > legend ~ *, .card-title ~ * { clear: both; }
 .card legend em { font-size: 1.05rem; color: var(--muted); }
 .card h1 { color: var(--ink); margin-top: 0; }
 .empty-state { padding-left: 1.75rem; background-image: none; }
@@ -220,9 +221,11 @@ button, input, textarea, select { font: inherit; color: inherit; }
 
 .group {
   position: relative;
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0 1.25rem;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.25rem;
   margin-bottom: .4rem;
 }
+/* Fields pair up; anything else in a group (a hint, a form, a list) takes the row. */
+.group > :not(.f) { grid-column: 1 / -1; }
 .group-name {
   position: absolute; left: -7rem; top: .15rem; width: 5.8rem; text-align: right;
   font: italic 500 .95rem var(--serif); color: var(--margin);
@@ -254,10 +257,12 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .keep-private input { width: 1.1rem; height: 1.1rem; margin: 0; accent-color: var(--margin); }
 .keep-private:has(input:checked) {
   background: color-mix(in srgb, var(--margin) 12%, var(--card));
-  color: var(--margin); font-weight: 700;
+  /* margin mixed toward ink: plain --margin on its own tint is 4.2:1, short of AA */
+  color: color-mix(in srgb, var(--margin) 75%, var(--ink)); font-weight: 700;
 }
 
 .hint { font-size: .8rem; color: var(--muted); margin: .2rem 0 0; }
+.group > .hint { margin: -.5rem 0 .9rem; }
 .field-note { font-size: .85rem; color: var(--muted); margin: 0 0 .3rem; }
 .field-error { color: var(--del); font-size: .9rem; font-weight: 700; margin: .3rem 0 0; }
 
@@ -288,6 +293,7 @@ details.more summary { cursor: pointer; color: var(--muted); width: max-content;
 /* ---- Single-column pages: export, delete, recently deleted -------------- */
 .page { max-width: 58rem; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
 .page-narrow { max-width: 42rem; }
+.page > h1 + .card { margin-top: 1.5rem; }
 .back-link { margin: 0 0 .5rem; }
 .back-link a { background: color-mix(in srgb, var(--card) 55%, transparent); color: var(--on-desk); }
 .back-link a:hover { background: var(--card); }
