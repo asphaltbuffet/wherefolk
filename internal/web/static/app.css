@@ -103,6 +103,9 @@ button, input, textarea, select { font: inherit; color: inherit; }
    of the grid, and auto-placement would otherwise drop the desk into the
    tree's zero-width column. */
 .pane-detail { grid-column: 3; padding: 1.5rem 2rem 0; min-width: 0; }
+/* Keyboard scrolling stops short of the sticky Save bar, so it never covers
+   the field that just took focus. */
+.pane-detail { scroll-padding-bottom: 6rem; }
 
 .pane-toggle {
   display: flex; align-items: flex-start; justify-content: center;
@@ -122,7 +125,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
 
 .results { list-style: none; margin: .75rem 0 0; padding: 0; }
 .results li { margin: .35rem 0; }
-.results a { font-weight: 700; }
+.results a { font-weight: 700; overflow-wrap: anywhere; }
 .result-path { display: block; color: var(--on-desk-muted); font-size: .85rem; }
 .results-empty, .results-note { color: var(--on-desk-muted); font-size: .95rem; }
 
@@ -159,7 +162,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
 /* ---- The desk: top line, announcement, heading -------------------------- */
 .detail-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; color: var(--on-desk); }
 .detail-top .export-link { margin: 0 0 0 auto; white-space: nowrap; }
-.breadcrumb { color: var(--on-desk-muted); }
+.breadcrumb { color: var(--on-desk-muted); min-width: 0; overflow-wrap: anywhere; }
 .breadcrumb a { color: var(--on-desk); }
 
 .announce {
@@ -242,7 +245,7 @@ button, input, textarea, select { font: inherit; color: inherit; }
 .f input:not([type="checkbox"]):hover, .f textarea:hover { border-color: var(--rule); }
 .f input:not([type="checkbox"]):focus, .f textarea:focus {
   outline: 0; border-color: var(--field-focus);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--focus) 45%, transparent);
+  box-shadow: 0 0 0 3px var(--focus);
 }
 .f textarea { resize: vertical; min-height: 4.75rem; }
 [aria-invalid="true"] { border-color: var(--del) !important; }

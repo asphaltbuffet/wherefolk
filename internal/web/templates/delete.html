@@ -3,12 +3,13 @@
 {{define "body"}}
 <section class="page page-narrow confirm" aria-labelledby="confirm-heading">
   <p class="back-link"><a class="pill" href="{{.Back}}">Back to {{.Title}}</a></p>
-  <h1 id="confirm-heading">Delete {{.Title}}?</h1>
+  {{/* A blocked page states the refusal; it never asks a question it then declines. */}}
+  <h1 id="confirm-heading">{{if .Blocked}}{{.Title}} can't be deleted yet{{else}}Delete {{.Title}}?{{end}}</h1>
   <p class="breadcrumb">{{.Path}}</p>
 
   {{if .Blocked}}
     <div class="card">
-      <h2 class="card-title">{{.Title}} can't be deleted yet</h2>
+      <h2 class="card-title">What has to happen first</h2>
       <div class="group">
         <span class="group-name" aria-hidden="true">Why</span>
         <p class="notice-box" role="alert">{{.Blocked}}</p>

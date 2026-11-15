@@ -77,3 +77,32 @@ func TestNoOffTailnetAssets(t *testing.T) {
 		})
 	}
 }
+
+// TestStylesheetKeepsFocusFindable pins the rules a keyboard user depends on:
+// a field's focus ring is solid --focus, the sticky Save bar never covers the
+// field that just took focus, and a long unbroken name wraps instead of
+// pushing the page sideways.
+func TestStylesheetKeepsFocusFindable(t *testing.T) {
+	rec := get(t, sampleDocument(), "/static/app.css")
+	require.Equal(t, http.StatusOK, rec.Code)
+	css := rec.Body.String()
+
+	tests := []struct {
+		name string
+		rule string
+	}{
+		{name: "a focused field has a solid ring", rule: "box-shadow: 0 0 0 3px var(--focus);"},
+		{name: "scrolling leaves room for the save bar", rule: ".pane-detail { scroll-padding-bottom: 6rem; }"},
+		{name: "search results wrap", rule: ".results a { font-weight: 700; overflow-wrap: anywhere; }"},
+		{
+			name: "the path wraps",
+			rule: ".breadcrumb { color: var(--on-desk-muted); min-width: 0; overflow-wrap: anywhere; }",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Contains(t, css, tt.rule)
+		})
+	}
+}
