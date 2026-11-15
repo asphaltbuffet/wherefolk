@@ -105,6 +105,9 @@ func (s *Server) ApplySubmissionForTest(
 // package.
 type HouseholdFormViewForTest = householdFormView
 
+// FindingViewForTest is findingView, exported for the external test package.
+type FindingViewForTest = findingView
+
 // FormViewFromHouseholdForTest exposes formViewFromHousehold to the external
 // test package.
 func FormViewFromHouseholdForTest(

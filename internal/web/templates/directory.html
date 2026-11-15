@@ -8,10 +8,10 @@
      title="{{if .PaneClosed}}Show the household list{{else}}Hide the household list{{end}}"
     >{{if .PaneClosed}}»{{else}}«{{end}}<span class="visually-hidden">{{if .PaneClosed}}Show{{else}}Hide{{end}} the household list</span></a>
   <aside class="pane pane-tree"{{if .PaneClosed}} hidden{{end}}>
-    {{template "tree" .Tree}}
+    <p class="brand">Wherefolk</p>
     <form class="search" role="search" action="/search" method="get">
-      <label class="visually-hidden" for="q">Search for a person</label>
-      <input type="search" id="q" name="q" placeholder="Search…" autocomplete="off"
+      <label for="q">Find someone by name</label>
+      <input type="search" id="q" name="q" placeholder="e.g. a first name" autocomplete="off"
              value="{{.Results.Query}}"
              hx-get="/search"
              hx-trigger="input changed delay:200ms, search"
@@ -19,6 +19,7 @@
              hx-swap="outerHTML">
     </form>
     {{template "results" .Results}}
+    {{template "tree" .Tree}}
     {{if .TrashCount}}
       <p class="trash-link"><a href="/trash">Recently deleted ({{.TrashCount}})</a></p>
     {{end}}

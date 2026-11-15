@@ -2,10 +2,12 @@
 {{- if .}}
   <input type="hidden" name="tier" value="{{.TierKey}}" form="export-title">
   {{- if .Error}}
-  <p class="export-error" role="alert">{{.Error}}</p>
+  <p class="export-error notice-box" role="alert">{{.Error}}</p>
   {{- else}}
-  <p><a class="export-download" href="{{.DownloadURL}}">Download the Directory (PDF)</a></p>
-  <h2>Preview — {{len .Pages}} {{if eq (len .Pages) 1}}page{{else}}pages{{end}}</h2>
+  <div class="result-bar">
+    <a class="pill pill-primary export-download" href="{{.DownloadURL}}">Download the Directory (PDF)</a>
+    <h2>Preview — {{len .Pages}} {{if eq (len .Pages) 1}}page{{else}}pages{{end}}</h2>
+  </div>
   <ol class="preview">
     {{- range .Pages}}
     <li><img src="{{.Src}}" alt="{{.Alt}}"></li>

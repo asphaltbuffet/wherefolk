@@ -1,7 +1,10 @@
 package web
 
 import (
+	"fmt"
+	"strconv"
 	"strings"
+	"time"
 
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -42,6 +45,18 @@ type personFormView struct {
 	IsAdult  bool
 	IsNew    bool
 
+	// Promote and Remove are the structural checkboxes. They are false on a
+	// GET and carried from the submission on a refusal, so a pending change
+	// the Editor ticked is still ticked when the form comes back.
+	Promote bool
+	Remove  bool
+
+	// Lifespan is the "1963–1981" a memorial stamp shows; empty when living.
+	Lifespan string
+
+	// Findings are the observations about this person, shown on their card.
+	Findings []findingView
+
 	Errors map[string]string
 }
 
@@ -63,6 +78,11 @@ type householdFormView struct {
 	ID     rolo.HouseholdID
 	Title  string
 	Crumbs []crumb
+
+	// Summary is the one line under the heading: who lives here and since
+	// when. Empty when there is nothing to say, and on the refusal path,
+	// which must not consult the document.
+	Summary string
 
 	Adults     []personFormView
 	Dependents []personFormView
@@ -91,7 +111,9 @@ type householdFormView struct {
 
 	// Errors holds Household-level input that could not be stored, keyed by
 	// field. The empty key carries a whole-submission refusal.
-	Errors   map[string]string
+	Errors map[string]string
+	// Findings are the observations not filed on a person's card: those about
+	// the Household itself, and any whose person has no card here.
 	Findings []findingView
 }
 
@@ -111,7 +133,7 @@ func formViewFromHousehold(
 		Dependents:    personFormViews(h.Dependents, false),
 		NewDependent:  personFormView{Key: newDependentSlotKey, IsNew: true},
 		Errors:        map[string]string{},
-		Findings:      findingViews(findings),
+		Summary:       householdSummary(h),
 	}
 
 	// The blank adult slot only exists while there is room for one. Offering a
@@ -121,6 +143,26 @@ func formViewFromHousehold(
 	// Household with one adult must still be able to gain a Dependent, or a
 	// widowed parent could not record a grandchild in their care without first
 	// inventing a spouse.
+	onCards := make(map[rolo.PersonID]bool, len(h.Adults)+len(h.Dependents))
+	for _, p := range h.Adults {
+		onCards[p.ID] = true
+	}
+
+	for _, p := range h.Dependents {
+		onCards[p.ID] = true
+	}
+
+	household, byPerson := splitFindings(findings, onCards)
+	view.Findings = household
+
+	for i := range view.Adults {
+		view.Adults[i].Findings = byPerson[rolo.PersonID(view.Adults[i].Key)]
+	}
+
+	for i := range view.Dependents {
+		view.Dependents[i].Findings = byPerson[rolo.PersonID(view.Dependents[i].Key)]
+	}
+
 	if len(h.Adults) < maxAdults {
 		view.NewSlot = &personFormView{Key: newAdultSlotKey, IsNew: true, IsAdult: true}
 	}
@@ -169,6 +211,8 @@ func formViewFromSubmission(
 			HiddenBirth: p.Hidden.Birth,
 			IsNew:       p.New,
 			IsAdult:     p.WasAdult,
+			Promote:     p.Promote,
+			Remove:      p.Remove,
 			Errors:      byPerson[p.ID],
 		}
 
@@ -255,6 +299,7 @@ func personFormViews(people []rolo.Person, adults bool) []personFormView {
 			HiddenEmail: p.Hidden.Email,
 			HiddenBirth: p.Hidden.Birth,
 			Deceased:    p.IsDeceased(),
+			Lifespan:    lifespan(p),
 			IsAdult:     adults,
 			Errors:      map[string]string{},
 		})
@@ -277,4 +322,107 @@ func findingViews(findings []rolo.Finding) []findingView {
 	}
 
 	return views
+}
+
+// splitFindings files each Finding with the person it is about, so the form
+// shows it on that person's card. A Finding about the Household, or about a
+// person with no card here, stays with the Household: a Finding is never
+// dropped for want of somewhere to show it.
+func splitFindings(
+	findings []rolo.Finding,
+	onCards map[rolo.PersonID]bool,
+) ([]findingView, map[rolo.PersonID][]findingView) {
+	var household []findingView
+
+	byPerson := map[rolo.PersonID][]findingView{}
+
+	for _, f := range findingViews(findings) {
+		if f.Person == "" || !onCards[f.Person] {
+			household = append(household, f)
+			continue
+		}
+
+		byPerson[f.Person] = append(byPerson[f.Person], f)
+	}
+
+	return household, byPerson
+}
+
+// countWords spells small counts the way a person would say them. A
+// Household with more than ten of anything is rare enough that digits read
+// fine.
+var countWords = []string{"no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten"}
+
+func countPhrase(n int, singular, plural string) string {
+	word := strconv.Itoa(n)
+	if n < len(countWords) {
+		word = countWords[n]
+	}
+
+	if n == 1 {
+		return word + " " + singular
+	}
+
+	return word + " " + plural
+}
+
+// householdSummary is the line under a Household's heading, e.g. "Two adults,
+// one dependent · Married June 14, 1962". Each part starts with a capital
+// because the middle dot separates them like sentences.
+func householdSummary(h rolo.Household) string {
+	var counts []string
+	if n := len(h.Adults); n > 0 {
+		counts = append(counts, countPhrase(n, "adult", "adults"))
+	}
+
+	if n := len(h.Dependents); n > 0 {
+		counts = append(counts, countPhrase(n, "dependent", "dependents"))
+	}
+
+	var parts []string
+	if len(counts) > 0 {
+		parts = append(parts, capitalize(strings.Join(counts, ", ")))
+	}
+
+	if d := longDate(h.Anniversary); d != "" {
+		parts = append(parts, "Married "+d)
+	}
+
+	return strings.Join(parts, " · ")
+}
+
+func capitalize(s string) string {
+	if s == "" {
+		return s
+	}
+
+	return strings.ToUpper(s[:1]) + s[1:]
+}
+
+// longDate writes a date as a letter would: "June 14, 1962", "June 1962" or
+// "1962". rolo.Date.String stays ISO because the form and the store read it.
+func longDate(d rolo.Date) string {
+	switch {
+	case !d.HasYear():
+		return ""
+	case d.Month == 0:
+		return strconv.Itoa(d.Year)
+	case d.Day == 0:
+		return fmt.Sprintf("%s %d", time.Month(d.Month), d.Year)
+	default:
+		return fmt.Sprintf("%s %d, %d", time.Month(d.Month), d.Day, d.Year)
+	}
+}
+
+// lifespan is the span a memorial stamp shows. Only years: the stamp is a
+// reminder, and the full dates are in the fields beneath it.
+func lifespan(p rolo.Person) string {
+	switch {
+	case !p.Death.HasYear():
+		return ""
+	case !p.Birth.HasYear():
+		return "died " + strconv.Itoa(p.Death.Year)
+	default:
+		return fmt.Sprintf("%d–%d", p.Birth.Year, p.Death.Year)
+	}
 }

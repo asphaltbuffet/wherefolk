@@ -1,232 +1,347 @@
-/* Desktop only: §1 lists phone and tablet layouts as a non-goal, so this
-   licenses a layout that does not degrade. */
-:root {
-  --gap: 1rem;
-  --muted: #666;
-  --rule: #ddd;
+/* Fonts are self-hosted (spec: no request leaves the tailnet). Both families
+   are variable; latin-ext covers surnames such as Łukasiewicz. Unicode ranges
+   are fontsource's. */
+@font-face {
+  font-family: "Atkinson Hyperlegible Next"; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url(/static/fonts/atkinson-hyperlegible-next-latin-ext-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
 }
+@font-face {
+  font-family: "Atkinson Hyperlegible Next"; font-style: normal; font-weight: 200 800; font-display: swap;
+  src: url(/static/fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Next"; font-style: italic; font-weight: 200 800; font-display: swap;
+  src: url(/static/fonts/atkinson-hyperlegible-next-latin-ext-wght-italic.woff2) format("woff2-variations");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible Next"; font-style: italic; font-weight: 200 800; font-display: swap;
+  src: url(/static/fonts/atkinson-hyperlegible-next-latin-wght-italic.woff2) format("woff2-variations");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: "Besley"; font-style: normal; font-weight: 400 900; font-display: swap;
+  src: url(/static/fonts/besley-latin-ext-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "Besley"; font-style: normal; font-weight: 400 900; font-display: swap;
+  src: url(/static/fonts/besley-latin-wght-normal.woff2) format("woff2-variations");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: "Besley"; font-style: italic; font-weight: 400 900; font-display: swap;
+  src: url(/static/fonts/besley-latin-ext-wght-italic.woff2) format("woff2-variations");
+  unicode-range: U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304,U+0308,U+0329,U+1D00-1DBF,U+1E00-1E9F,U+1EF2-1EFF,U+2020,U+20A0-20AB,U+20AD-20C0,U+2113,U+2C60-2C7F,U+A720-A7FF;
+}
+@font-face {
+  font-family: "Besley"; font-style: italic; font-weight: 400 900; font-display: swap;
+  src: url(/static/fonts/besley-latin-wght-italic.woff2) format("woff2-variations");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
+/* Wherefolk: index cards on sage linen. Every colour is a token here; the
+   rules below use only var(--…) and color-mix() of tokens, so the palette is
+   this one block. Desktop only (§1 non-goal for phone and tablet). */
+:root {
+  --serif: "Besley", Georgia, serif;
+  --sans: "Atkinson Hyperlegible Next", system-ui, sans-serif;
+
+  /* the desk (page) and text that sits directly on it */
+  --blotter: #DCE3D3; --blotter-2: #CDD6C2;
+  --on-desk: #2C3A30; --on-desk-strong: #1E2B23; --on-desk-muted: #4F5E53;
+  --texture:
+    repeating-linear-gradient(0deg, rgba(255,255,255,.18) 0 1px, transparent 1px 4px),
+    repeating-linear-gradient(90deg, rgba(0,0,0,.025) 0 1px, transparent 1px 4px);
+
+  /* household tabs */
+  --tab: #F7F8F2; --tab-memorial: #E8EBE1; --tab-memorial-edge: #9AA392;
+
+  /* cards */
+  --card: #FFFFFC; --card-edge: #D3DACB; --card-shadow: rgba(40,60,40,.14);
+  --rule: #9DB8D9; --margin: #C2453C; --ink: #1E2B26; --muted: #56645B;
+
+  /* fields and states */
+  --focus: #E6A817; --note: #FFF6D6; --stamp: #FFF0C2; --stamp-ink: #7A5A12;
+  --field-edge: #CDD5CA; --field-focus: #7E9CC4;
+  --save: #2F4A3A; --save-ink: #F6F4EA; --save-shadow: #1C2E24;
+  --del: #A3352C; --del-shadow: #6E2019;
+
+  --margin-x: 6.4rem; /* where the red margin line sits on a card */
+}
+
+*, *::before, *::after { box-sizing: border-box; }
 
 body {
-  font: 16px/1.5 system-ui, sans-serif;
   margin: 0;
+  font: 18px/1.5 var(--sans);
+  color: var(--ink);
+  background-color: var(--blotter);
+  background-image: var(--texture);
 }
 
-main { height: 100vh; }
-
-.panes {
-  display: grid;
-  grid-template-columns: 1.5rem 30rem 1fr;
-  height: 100%;
-}
-
-/* §4.1: the tree pane is collapsible. The toggle keeps its column so the
-   control never moves; only the tree's own column collapses. */
-.panes-collapsed { grid-template-columns: 1.5rem 0 1fr; }
-
-.pane-toggle {
-  display: flex;
-  align-items: flex-start;
-  justify-content: center;
-  padding-top: var(--gap);
-  text-decoration: none;
-  color: var(--muted);
-  border-right: 1px solid var(--rule);
-}
-.pane-toggle:hover { background: #f4f4f4; color: #000; }
-
-.pane { overflow: auto; padding: var(--gap); }
-.pane-tree { border-right: 1px solid var(--rule); }
-/* Pinned to the last column: a collapsed tree is `hidden`, which takes it out
-   of the grid entirely, and auto-placement would otherwise drop the detail
-   pane into the tree's zero-width column. */
-.pane-detail { grid-column: 3; }
-
-.tree-level { list-style: none; margin: 0; padding-left: 1rem; }
-.tree-level:first-child { padding-left: 0; }
-.tree-toggle { display: inline-block; width: 1.2rem; text-decoration: none; color: var(--muted); }
-.tree-label { text-decoration: none; color: inherit; }
-.tree-label:hover { text-decoration: underline; }
-.tree-memorial { color: var(--muted); font-style: italic; }
-[aria-current="true"] > .tree-label { font-weight: 700; }
-
-.search { margin-top: var(--gap); }
-.search input { width: 100%; box-sizing: border-box; padding: .4rem; }
-
-.results { list-style: none; margin: var(--gap) 0 0; padding: 0; }
-.result-path { display: block; color: var(--muted); font-size: .85em; }
-
-.breadcrumb { color: var(--muted); }
-.breadcrumb a { color: inherit; }
-
-/* The detail pane's top line: where you are on the left, the way out to an
-   export on the right. The heading follows beneath. */
-.detail-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: var(--gap);
-  margin-bottom: var(--gap);
-}
-.detail-top .export-link { margin: 0 0 0 auto; white-space: nowrap; }
-
-.badge {
-  font-size: .6em; text-transform: uppercase; letter-spacing: .08em;
-  vertical-align: middle; color: var(--muted); border: 1px solid var(--rule);
-  padding: .1em .4em; border-radius: .2em;
-}
-
-.household-facts { display: grid; grid-template-columns: 8rem 1fr; gap: .5rem var(--gap); align-items: start; }
-.household-form .household-facts > label { margin-top: .3rem; }
-.household-facts dt { color: var(--muted); }
-.household-facts dd { margin: 0; }
-.address-line { display: block; }
-
-.people { list-style: none; margin: var(--gap) 0 0; padding: 0; }
-.person { margin-bottom: .6rem; }
-.person-name { font-weight: 600; }
-.person-dates, .person-contact { display: block; color: var(--muted); font-size: .9em; }
-.person-deceased .person-name { color: var(--muted); }
+main { min-height: 100vh; }
+h1, h2, h3, legend { font-family: var(--serif); }
+h1 { font-size: 2.4rem; line-height: 1.15; font-weight: 700; color: var(--on-desk-strong); margin: 1.25rem 0 .25rem; overflow-wrap: anywhere; }
+a { color: inherit; }
+button, input, textarea, select { font: inherit; color: inherit; }
+:focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
 
 .visually-hidden {
   position: absolute; width: 1px; height: 1px; overflow: hidden;
   clip: rect(0 0 0 0); white-space: nowrap;
 }
 
-/* The detail pane is a form (§4.4): every field is always editable, so the
-   inputs must read as calmly as the text they replaced. */
-.household-form fieldset {
-  border: 1px solid var(--rule, #ddd);
-  margin: 0 0 1rem;
-  padding: 0.75rem 1rem;
+/* ---- Two panes: the drawer (household tabs) and the desk ---------------- */
+.panes { display: grid; grid-template-columns: 1.75rem 20rem 1fr; height: 100vh; }
+.panes-collapsed { grid-template-columns: 1.75rem 0 1fr; }
+.pane { overflow: auto; }
+.pane-tree { padding: 1.5rem 1rem 1.5rem .75rem; color: var(--on-desk); }
+/* Pinned to the last column: a collapsed tree is `hidden`, which takes it out
+   of the grid, and auto-placement would otherwise drop the desk into the
+   tree's zero-width column. */
+.pane-detail { grid-column: 3; padding: 1.5rem 2rem 0; min-width: 0; }
+/* Keyboard scrolling stops short of the sticky Save bar, so it never covers
+   the field that just took focus. */
+.pane-detail { scroll-padding-bottom: 6rem; }
+
+.pane-toggle {
+  display: flex; align-items: flex-start; justify-content: center;
+  padding-top: 1.6rem; text-decoration: none; font-weight: 700;
+  color: var(--on-desk-muted);
+  background: color-mix(in srgb, var(--blotter-2) 70%, transparent);
+}
+.pane-toggle:hover { color: var(--on-desk-strong); background: var(--blotter-2); }
+
+.brand { font: 700 1.6rem/1 var(--serif); margin: 0 0 1.25rem; color: var(--on-desk-strong); }
+
+.search label { display: block; font-size: .95rem; margin-bottom: .35rem; }
+.search input {
+  width: 100%; padding: .6rem .95rem; border: 1px solid var(--field-edge);
+  border-radius: 999px; background: var(--card);
 }
 
-.household-form label {
-  display: block;
-  font-size: 0.85rem;
-  margin-top: 0.5rem;
+.results { list-style: none; margin: .75rem 0 0; padding: 0; }
+.results li { margin: .35rem 0; }
+.results a { font-weight: 700; overflow-wrap: anywhere; }
+.result-path { display: block; color: var(--on-desk-muted); font-size: .85rem; }
+.results-empty, .results-note { color: var(--on-desk-muted); font-size: .95rem; }
+
+/* The household tree as index-card tabs filed in a box. */
+#tree { margin-top: 1.25rem; }
+.tree-level { list-style: none; margin: 0; padding: 0; }
+.tree-level .tree-level {
+  margin-left: .6rem; padding-left: 1rem;
+  border-left: 2px dotted color-mix(in srgb, var(--on-desk) 30%, transparent);
+}
+.tree-level li { margin: .35rem 0; }
+.tree-level li > .tree-toggle, .tree-level li > .tree-label { vertical-align: middle; }
+.tree-toggle {
+  display: inline-block; width: 1.4rem; text-align: center;
+  text-decoration: none; color: var(--on-desk-muted);
+}
+.tree-label {
+  display: inline-block; max-width: calc(100% - 1.6rem);
+  padding: .45rem .75rem; border-radius: 10px;
+  background: var(--tab); color: var(--ink); font-weight: 700; text-decoration: none;
+  border-top: 4px solid var(--rule);
+  box-shadow: 0 2px 0 var(--blotter-2);
+  overflow-wrap: anywhere;
+}
+.tree-label:hover { background: var(--card); }
+.tree-memorial { background: var(--tab-memorial); border-top-color: var(--tab-memorial-edge); font-style: italic; font-weight: 400; }
+[aria-current="true"] > .tree-label {
+  background: var(--card); border-top-color: var(--margin);
+  transform: translateX(.4rem); box-shadow: 0 4px 10px var(--card-shadow);
 }
 
-.household-form input[type="text"],
-.household-form input:not([type]),
-.household-form textarea {
-  width: 100%;
-  box-sizing: border-box;
-}
+.trash-link { margin-top: 1.5rem; font-size: .95rem; }
 
-/* A hide toggle sits on its field's own line, at the far right, so the
-   decision is made where the value is (§4.4). It changes the export only:
-   the editor still shows the value (ADR-0010). */
-.field-row { display: flex; align-items: flex-start; gap: .5rem; }
-.field-row > input, .field-row > textarea { flex: 1; min-width: 0; }
-
-.household-form .field-row .hide-toggle {
-  display: inline-flex;
-  align-items: center;
-  margin: 0;
-  padding-top: .2rem;
-  white-space: nowrap;
-  font-size: 0.8rem;
-  opacity: 0.8;
-}
-
-.household-form .structural { font-size: 0.8rem; opacity: 0.8; }
-
-.household-form .hide-toggle input,
-.household-form .structural input {
-  width: auto;
-  margin-right: 0.35rem;
-}
-
-/* Input that could not be stored. Distinct from a finding, which observes a
-   value that was (§4.5). */
-.field-error {
-  color: #a11;
-  font-size: 0.85rem;
-  margin: 0.25rem 0 0;
-}
-
-.field-note {
-  font-size: 0.85rem;
-  opacity: 0.75;
-  margin: 0.25rem 0;
-}
-
-.findings {
-  list-style: none;
-  padding: 0;
-}
-
-.finding {
-  font-size: 0.85rem;
-  padding: 0.35rem 0.5rem;
-  border-left: 3px solid #ccc;
-  margin: 0.25rem 0;
-}
-
-.finding-warning { border-left-color: #c80; }
+/* ---- The desk: top line, announcement, heading -------------------------- */
+.detail-top { display: flex; justify-content: space-between; align-items: center; gap: 1rem; color: var(--on-desk); }
+.detail-top .export-link { margin: 0 0 0 auto; white-space: nowrap; }
+.breadcrumb { color: var(--on-desk-muted); min-width: 0; overflow-wrap: anywhere; }
+.breadcrumb a { color: var(--on-desk); }
 
 .announce {
-  border: 1px solid #ccc;
-  background: rgba(0, 0, 0, 0.03);
-  padding: 0.75rem 1rem;
-  margin-bottom: 1rem;
+  display: flex; align-items: center; gap: 1rem; flex-wrap: wrap;
+  margin: 1.25rem 0; padding: .8rem 1rem;
+  background: var(--note); border-left: 6px solid var(--focus); border-radius: 10px;
+  animation: slip .5s cubic-bezier(.2, .9, .3, 1.2) both;
 }
-
-.announce p { margin: 0 0 .5rem; }
+.announce p { margin: 0; flex: 1 1 auto; }
 .announce-actions form { margin: 0; }
+@keyframes slip { from { transform: translateY(-.75rem) rotate(-1deg); opacity: 0; } }
 
-/* Export (§5). One column that reads top to bottom: choose, download, look. */
-.export { max-width: 60rem; margin: 0 auto; padding: var(--gap); }
-.export-link { margin: 0 0 var(--gap); text-align: right; }
-
-.export-tiers fieldset { border: 1px solid var(--rule); padding: var(--gap); }
-.export-tiers legend { font-weight: 600; padding: 0 .25rem; }
-
-.tier {
-  display: grid;
-  grid-template-columns: 1.5rem 14rem 1fr;
-  align-items: baseline;
-  padding: .35rem 0;
-  cursor: pointer;
+.badge {
+  font: 400 .9rem var(--sans); vertical-align: middle; color: var(--on-desk-muted);
+  border: 1px solid var(--on-desk-muted); padding: .1em .6em; border-radius: 999px;
 }
-.tier-description { font-weight: 600; }
-.tier-detail { color: var(--muted); }
+.summary { color: var(--on-desk-muted); margin: 0 0 1.5rem; }
+
+/* ---- Pills: pressable things ------------------------------------------- */
+.pill {
+  display: inline-flex; align-items: center; justify-content: center; gap: .5rem;
+  min-height: 2.75rem; padding: .55rem 1.3rem; border-radius: 999px; border: 2px solid transparent;
+  font: 700 1rem var(--sans); text-decoration: none; cursor: pointer;
+}
+.pill-primary { background: var(--save); color: var(--save-ink); box-shadow: 0 4px 0 var(--save-shadow); }
+.pill-danger { background: var(--del); color: #fff; box-shadow: 0 4px 0 var(--del-shadow); }
+.pill-accent { background: var(--focus); color: var(--ink); }
+.pill-quiet { background: var(--card); color: var(--ink); border-color: var(--field-edge); }
+.pill-quiet:hover { border-color: var(--ink); }
+.pill:active { transform: translateY(3px); box-shadow: none; }
+.pill:disabled { opacity: .55; cursor: not-allowed; }
+
+/* ---- Cards ------------------------------------------------------------- */
+.card {
+  position: relative; min-width: 0;
+  margin: 0 0 1.75rem; padding: 1.1rem 1.75rem 1.4rem 7.5rem;
+  border: 0; border-radius: 12px;
+  background-color: var(--card);
+  background-image: linear-gradient(to right,
+    transparent var(--margin-x),
+    color-mix(in srgb, var(--margin) 55%, transparent) var(--margin-x),
+    color-mix(in srgb, var(--margin) 55%, transparent) calc(var(--margin-x) + 1px),
+    transparent calc(var(--margin-x) + 1px));
+  box-shadow: 0 1px 0 var(--card-edge), 0 10px 24px var(--card-shadow);
+}
+.card > legend, .card-title {
+  float: left; width: 100%; padding: 0 0 .35rem; margin: 0 0 1.1rem;
+  font: 500 1.5rem/2.2rem var(--serif); color: var(--ink);
+  border-bottom: 2px solid var(--rule);
+  box-shadow: 0 4px 0 -2px var(--card), 0 5px 0 -2px color-mix(in srgb, var(--rule) 60%, transparent);
+  overflow-wrap: anywhere;
+}
+/* `~` not `+`: a hidden input may sit between the legend and the first group. */
+.card > legend ~ *, .card-title ~ * { clear: both; }
+.card legend em { font-size: 1.05rem; color: var(--muted); }
+.card h1 { color: var(--ink); margin-top: 0; }
+.empty-state { padding-left: 1.75rem; background-image: none; }
+.empty-state h1 { font-size: 1.8rem; }
+
+.group {
+  position: relative;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 1.25rem;
+  margin-bottom: .4rem;
+}
+/* Fields pair up; anything else in a group (a hint, a form, a list) takes the row. */
+.group > :not(.f) { grid-column: 1 / -1; }
+.group-name {
+  position: absolute; left: -7rem; top: .15rem; width: 5.8rem; text-align: right;
+  font: italic 500 .95rem var(--serif); color: var(--margin);
+}
+
+.f { display: flex; flex-direction: column; min-width: 0; margin-bottom: .9rem; }
+.f > label { font-size: .85rem; color: var(--muted); line-height: 1.2; margin-bottom: .3rem; }
+.f input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]),
+.f textarea {
+  width: 100%; padding: .45rem .7rem; line-height: 1.5;
+  border: 1px solid var(--field-edge); border-radius: 8px; background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+}
+.f input:not([type="checkbox"]):hover, .f textarea:hover { border-color: var(--rule); }
+.f input:not([type="checkbox"]):focus, .f textarea:focus {
+  outline: 0; border-color: var(--field-focus);
+  box-shadow: 0 0 0 3px var(--focus);
+}
+.f textarea { resize: vertical; min-height: 4.75rem; }
+[aria-invalid="true"] { border-color: var(--del) !important; }
+
+/* A hidable field and its Keep private toggle travel together. */
+.field-row { display: flex; flex-direction: column; gap: .2rem; }
+.keep-private {
+  display: inline-flex; align-items: center; gap: .4rem; width: max-content;
+  padding: .15rem .6rem .15rem .35rem; border-radius: 999px;
+  font-size: .85rem; color: var(--muted); cursor: pointer;
+}
+.keep-private input { width: 1.1rem; height: 1.1rem; margin: 0; accent-color: var(--margin); }
+.keep-private:has(input:checked) {
+  background: color-mix(in srgb, var(--margin) 12%, var(--card));
+  /* margin mixed toward ink: plain --margin on its own tint is 4.2:1, short of AA */
+  color: color-mix(in srgb, var(--margin) 75%, var(--ink)); font-weight: 700;
+}
+
+.hint { font-size: .8rem; color: var(--muted); margin: .2rem 0 0; }
+.group > .hint { margin: -.5rem 0 .9rem; }
+.field-note { font-size: .85rem; color: var(--muted); margin: 0 0 .3rem; }
+.field-error { color: var(--del); font-size: .9rem; font-weight: 700; margin: .3rem 0 0; }
+
+.stamp {
+  display: inline-block; margin: 0 0 .75rem; padding: .3rem .75rem; border-radius: 8px;
+  font: italic .95rem var(--serif); color: var(--stamp-ink); background: var(--stamp);
+}
+.finding-warning { border-left: 4px solid var(--focus); }
+
+.person-deceased > legend { color: var(--muted); }
+.person-new { background-color: color-mix(in srgb, var(--card) 70%, transparent); outline: 2px dashed var(--field-edge); outline-offset: -2px; box-shadow: none; }
+
+details.more { margin-top: .4rem; font-size: .95rem; }
+details.more summary { cursor: pointer; color: var(--muted); width: max-content; }
+.structural { display: flex; gap: .5rem; align-items: center; margin: .5rem 0; }
+.structural input { width: 1.1rem; height: 1.1rem; accent-color: var(--del); }
+
+.section-title { font: 500 1.4rem var(--serif); color: var(--on-desk-strong); margin: 2rem 0 1rem; }
+
+.save-bar {
+  position: sticky; bottom: 0; z-index: 2;
+  display: flex; justify-content: flex-end; gap: 1rem; margin: 0 -2rem; padding: 1rem 2rem;
+  background: linear-gradient(to top, var(--blotter-2) 65%, transparent);
+}
+.delete-link, .delete-blocked { margin: .5rem 0 3rem; color: var(--on-desk-muted); }
+.delete-link a { color: var(--del); }
+
+/* ---- Single-column pages: export, delete, recently deleted -------------- */
+.page { max-width: 58rem; margin: 0 auto; padding: 1.5rem 2rem 4rem; }
+.page-narrow { max-width: 42rem; }
+.page > h1 + .card { margin-top: 1.5rem; }
+.back-link { margin: 0 0 .5rem; }
+.back-link a { background: color-mix(in srgb, var(--card) 55%, transparent); color: var(--on-desk); }
+.back-link a:hover { background: var(--card); }
+.lede { color: var(--on-desk-muted); margin: 0 0 1.75rem; max-width: 40rem; }
+.confirm .breadcrumb { margin: 0 0 1.5rem; }
+
+.actions { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-top: 1.25rem; }
+.notice-box { background: var(--note); border-radius: 8px; padding: .6rem .9rem; margin: 0 0 .75rem; }
+.people-list { margin: .15rem 0 1rem; padding-left: 1.25rem; }
+
+.export-title { display: flex; gap: .75rem; align-items: flex-start; flex-wrap: wrap; }
+.export-title .f { flex: 1 1 16rem; margin: 0; }
+.export-title .pill { margin-top: 1.45rem; }
+.export-error { color: var(--del); font-weight: 700; }
+.export-hint { color: var(--on-desk-muted); }
+
+.tiers { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; border: 0; padding: 0; margin: 0; min-width: 0; }
+.tiers legend { float: left; width: 100%; font: 500 1.5rem/2.2rem var(--serif); padding: 0; margin: 0 0 1rem; grid-column: 1 / -1; }
+.tile {
+  position: relative; display: block; min-height: 2.75rem; padding: .9rem 1rem .9rem 3rem;
+  border: 1px solid var(--field-edge); border-radius: 10px; background: #fff; cursor: pointer;
+  transition: border-color .15s, box-shadow .15s;
+}
+.tile:hover { border-color: var(--field-focus); }
+.tile input { position: absolute; left: 1rem; top: 1.15rem; width: 1.15rem; height: 1.15rem; margin: 0; accent-color: var(--save); }
+.tier-description { display: block; font-weight: 700; font-size: 1.05rem; }
+.tier-detail { display: block; font-size: .9rem; color: var(--muted); }
+.tile:has(input:checked) { border-color: var(--save); box-shadow: 0 0 0 2px var(--save); background: color-mix(in srgb, var(--save) 6%, #fff); }
 .tier-disabled { cursor: not-allowed; opacity: .6; }
 
-.export-download {
-  display: inline-block;
-  padding: .5rem 1rem;
-  border: 1px solid #333;
-  border-radius: 4px;
-  text-decoration: none;
-  color: #000;
-  background: #f4f4f4;
+.result-bar { display: flex; align-items: center; gap: 1.25rem; flex-wrap: wrap; margin: 1.75rem 0 1rem; }
+.result-bar h2 { font: 400 1rem var(--sans); color: var(--on-desk-muted); margin: 0; }
+.preview { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr)); gap: 1.25rem; }
+.preview li { background: #fff; border-radius: 4px; box-shadow: 0 1px 0 var(--card-edge), 0 6px 16px var(--card-shadow); }
+.preview li:nth-child(odd) { transform: rotate(-.6deg); }
+.preview li:nth-child(even) { transform: rotate(.5deg); }
+.preview img { display: block; width: 100%; border-radius: 4px; }
+
+.trash-list { list-style: none; padding: 0; margin: 0; }
+.trash-item { display: grid; grid-template-columns: 1fr auto; gap: .25rem 1.5rem; align-items: center; }
+.trash-item h2 { margin: 0; font: 500 1.4rem var(--serif); overflow-wrap: anywhere; }
+.trash-item .breadcrumb, .trash-item .meta { grid-column: 1; margin: 0; color: var(--muted); font-size: .95rem; }
+.trash-item form { grid-column: 2; grid-row: 1 / 4; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .preview li, [aria-current="true"] > .tree-label { transform: none !important; }
 }
-.export-download:hover { background: #e8e8e8; }
-
-.export-error { color: #a00; }
-.export-hint { color: var(--muted); }
-
-/* Page-shaped previews, several to a row. */
-.preview {
-  list-style: none;
-  padding: 0;
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(16rem, 1fr));
-  gap: var(--gap);
-}
-.preview img { width: 100%; border: 1px solid var(--rule); box-shadow: 0 1px 3px rgba(0,0,0,.15); }
-
-/* Deletion. Set apart from Save so it is never clicked by habit. */
-.delete-link { margin-top: 2rem; }
-.delete-blocked { margin-top: 2rem; color: var(--muted); }
-.confirm { max-width: 40rem; margin: 0 auto; padding: var(--gap); }
-.confirm-actions { display: flex; gap: 1rem; align-items: baseline; }
-button.danger { background: #a22; color: #fff; border: 1px solid #811; padding: .4rem 1rem; }
-
-/* Recently deleted. */
-.trash { max-width: 40rem; margin: 0 auto; padding: var(--gap); }
-.trash-list { list-style: none; padding: 0; }
-.trash-list li { border-top: 1px solid var(--rule); padding: .75rem 0; }
-.trash-list h2 { margin: 0; font-size: 1.1rem; }
-.trash-link { margin-top: var(--gap); }

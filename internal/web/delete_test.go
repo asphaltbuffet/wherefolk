@@ -42,11 +42,24 @@ func TestDeletePages(t *testing.T) {
 			},
 		},
 		{
+			name:       "the confirmation names the act and offers a way back",
+			target:     "/h/h_dave/delete",
+			wantStatus: http.StatusOK,
+			want: []string{
+				`class="pill pill-danger">Delete the household</button>`,
+				`>Keep it</a>`,
+			},
+		},
+		{
 			name:       "a Household with Households beneath it explains instead of offering",
 			target:     "/h/h_clyde/delete",
 			wantStatus: http.StatusOK,
-			want:       []string{"first delete the households beneath it: Dave Whitlock"},
-			notWant:    []string{`action="/h/h_clyde/delete"`},
+			want: []string{
+				"first delete the households beneath it: Dave Whitlock",
+				`<h1 id="confirm-heading">Clyde &amp; Doris`,
+				`can't be deleted yet</h1>`,
+			},
+			notWant: []string{`action="/h/h_clyde/delete"`},
 		},
 		{
 			name:       "a Memorial Household is never offered",

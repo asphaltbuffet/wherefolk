@@ -1,27 +1,43 @@
 {{define "title"}}Delete {{.Title}}{{end}}
 
 {{define "body"}}
-<section class="confirm" aria-labelledby="confirm-heading">
-  <h1 id="confirm-heading">Delete {{.Title}}?</h1>
+<section class="page page-narrow confirm" aria-labelledby="confirm-heading">
+  <p class="back-link"><a class="pill" href="{{.Back}}">Back to {{.Title}}</a></p>
+  {{/* A blocked page states the refusal; it never asks a question it then declines. */}}
+  <h1 id="confirm-heading">{{if .Blocked}}{{.Title}} can't be deleted yet{{else}}Delete {{.Title}}?{{end}}</h1>
   <p class="breadcrumb">{{.Path}}</p>
 
   {{if .Blocked}}
-    <p role="alert">{{.Blocked}}</p>
-    <p><a href="{{.Back}}">Back to {{.Title}}</a></p>
+    <div class="card">
+      <h2 class="card-title">What has to happen first</h2>
+      <div class="group">
+        <span class="group-name" aria-hidden="true">Why</span>
+        <p class="notice-box" role="alert">{{.Blocked}}</p>
+      </div>
+    </div>
   {{else}}
-    <p>This takes the household out of the directory, with everyone in it:</p>
-    <ul>
-      {{range .People}}<li>{{.}}</li>{{end}}
-    </ul>
-    <p>It stays in Recently deleted until {{.KeptUntil}}, and can be brought back from there
-       exactly as it is now.</p>
+    <div class="card">
+      <h2 class="card-title">This takes the household out of the directory</h2>
+      <div class="group">
+        <span class="group-name" aria-hidden="true">Who</span>
+        <ul class="people-list">
+          {{range .People}}<li>{{.}}</li>{{end}}
+        </ul>
+      </div>
+      <div class="group">
+        <span class="group-name" aria-hidden="true">After</span>
+        {{/* Plain text: TestDeletePages pins "Recently deleted until …" as one run. */}}
+        <p class="notice-box">It stays in Recently deleted until {{.KeptUntil}}, and can be brought back
+           from there exactly as it is now.</p>
+      </div>
 
-    <form method="post" action="/h/{{.ID}}/delete" class="confirm-actions">
-      <input type="hidden" name="open" value="{{.Open}}">
-      <input type="hidden" name="pane" value="{{.Pane}}">
-      <button type="submit" class="danger">Delete</button>
-      <a href="{{.Back}}">Keep it</a>
-    </form>
+      <form method="post" action="/h/{{.ID}}/delete" class="actions confirm-actions">
+        <input type="hidden" name="open" value="{{.Open}}">
+        <input type="hidden" name="pane" value="{{.Pane}}">
+        <button type="submit" class="pill pill-danger">Delete the household</button>
+        <a class="pill pill-quiet" href="{{.Back}}">Keep it</a>
+      </form>
+    </div>
   {{end}}
 </section>
 {{end}}

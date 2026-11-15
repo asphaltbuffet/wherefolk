@@ -638,3 +638,48 @@ func TestFullHouseholdStillOffersADependentSlot(t *testing.T) {
 		})
 	}
 }
+
+func TestRefusalKeepsStructuralChoicesVisible(t *testing.T) {
+	tests := []struct {
+		name      string
+		form      url.Values
+		checkFunc func(t *testing.T, body string)
+	}{
+		{
+			name: "a ticked remove comes back ticked inside an open disclosure",
+			form: url.Values{
+				"person.p_clyd01.given":    {"Clyde"},
+				"person.p_clyd01.is_adult": {"true"},
+				"person.p_clyd01.birth":    {"June-ish 1998"},
+				"person.p_clyd01.remove":   {"off", "on"},
+			},
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				card := personCard(t, body, "p_clyd01")
+				assert.Contains(t, card, `<details class="more" open>`)
+				assert.Contains(t, card, `name="person.p_clyd01.remove" value="on" checked`)
+			},
+		},
+		{
+			name: "nothing ticked leaves the disclosure closed",
+			form: url.Values{
+				"person.p_clyd01.given":    {"Clyde"},
+				"person.p_clyd01.is_adult": {"true"},
+				"person.p_clyd01.birth":    {"June-ish 1998"},
+			},
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, personCard(t, body, "p_clyd01"), `<details class="more">`)
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv := newTestServer(t, sampleDocument(), nil)
+			rec := post(t, srv, "h_clyde", tt.form)
+			require.Equal(t, http.StatusUnprocessableEntity, rec.Code)
+			tt.checkFunc(t, rec.Body.String())
+		})
+	}
+}

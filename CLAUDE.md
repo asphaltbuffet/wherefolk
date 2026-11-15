@@ -103,6 +103,16 @@ standard library `flag` package. See [docs/design/high-level-design.md](docs/des
     (ADR-0009). Blocked by `rolo.Tree.DeleteBlock` — Memorial, has children, or has sharers — which
     `store.Delete` enforces with `store.ErrBlocked`.
   - The Editor-facing name for the Trash is **Recently deleted** (`/trash`).
+  - **Look and feel** (spec 2026-11-15): index cards on a sage-linen desk. Every colour is a token
+    in `app.css`'s `:root`; rules use `var(--…)`/`color-mix()` only. Fonts (Atkinson Hyperlegible
+    Next, Besley; latin + latin-ext) are self-hosted under `static/fonts/` with their OFL text —
+    no page may load an asset off the tailnet (`TestNoOffTailnetAssets`). `.woff2` is served as
+    `font/woff2` by `fontTypes`, because Go's built-in mime table lacks it and the system table it
+    falls back to differs between hosts.
+  - A person's Findings render on their own card; Findings about the Household, or about someone
+    with no card, render on the household card (`splitFindings`) — never dropped.
+  - The structural checkboxes sit in a `<details>`; it renders `open` when one is ticked, which a
+    refusal now preserves (`personFormView.Promote`/`Remove`).
 - **`pkg/rolo/`** — domain types, no persistence
   - `Person` — a flat record with a stable `PersonID`, partial-precision `Date`s, and per-field `Hidden` flags
   - `Household` — adults, dependents, anniversary, address, and a `Parent` link. Children are **not** stored
