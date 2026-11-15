@@ -25,8 +25,6 @@ import (
 // encoding/json forces the receiver split: UnmarshalJSON must take a pointer to
 // write through, while MarshalJSON stays on the value so it is also used for
 // non-addressable Dates. Every other method is a query on a 3-int value type.
-//
-//nolint:recvcheck // mixed receivers are required by encoding/json; see above
 type Date struct {
 	Year  int
 	Month int

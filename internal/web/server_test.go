@@ -1,7 +1,6 @@
 package web_test
 
 import (
-	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
@@ -20,7 +19,7 @@ import (
 // testLogger discards output. Injecting it keeps each test's logging isolated,
 // which a package-level default logger could not guarantee.
 func testLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }
 
 func TestNew(t *testing.T) {
