@@ -174,10 +174,10 @@ func TestExportPDF(t *testing.T) {
 				assert.Contains(t, string(body), "/Encrypt")
 
 				var out bytes.Buffer
-				require.NoError(t, api.Decrypt(bytes.NewReader(body), &out,
-					model.NewAESConfiguration(passphrase, "", 256)), "the family passphrase opens it")
-				require.Error(t, api.Decrypt(bytes.NewReader(body), &out,
-					model.NewAESConfiguration("wronghorsebattery", "", 256)))
+				require.NoError(t, api.Decrypt(t.Context(), bytes.NewReader(body), &out,
+					decryptConfiguration(passphrase)), "the family passphrase opens it")
+				require.Error(t, api.Decrypt(t.Context(), bytes.NewReader(body), &out,
+					decryptConfiguration("wronghorsebattery")))
 
 				require.Len(t, ex.got, 1)
 				assert.Equal(t, "Full", ex.got[0].Tier)
@@ -493,4 +493,16 @@ func TestExportCarriesTheDirectoryTitle(t *testing.T) {
 			assert.Equal(t, tt.want, ex.got[0].Title)
 		})
 	}
+}
+
+// decryptConfiguration is the stateless counterpart of
+// model.NewAESConfiguration(pw, "", 256), which would create a pdfcpu
+// configuration directory under $HOME.
+func decryptConfiguration(pw string) *model.Configuration {
+	conf := model.NewStatelessConfiguration()
+	conf.UserPW = pw
+	conf.EncryptUsingAES = true
+	conf.EncryptKeyLength = 256
+
+	return conf
 }
