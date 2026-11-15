@@ -155,9 +155,8 @@ func TestRenderedStructure(t *testing.T) {
 				out, err := r.PDF(t.Context(), d)
 				require.NoError(t, err)
 
-				api.DisableConfigDir()
 				info, err := api.PDFInfo(
-					bytes.NewReader(out), "directory.pdf", nil, false, model.NewDefaultConfiguration(),
+					t.Context(), bytes.NewReader(out), "directory.pdf", nil, false, model.NewStatelessConfiguration(),
 				)
 				require.NoError(t, err)
 				assert.Equal(t, "The Langford Family Directory", info.Title)

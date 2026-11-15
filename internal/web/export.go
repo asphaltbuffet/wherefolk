@@ -89,7 +89,7 @@ func (s *Server) handleExportPDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if tier == render.Full {
-		pdf, err = render.Encrypt(pdf, s.cfg.FullPassphrase.Reveal())
+		pdf, err = render.Encrypt(r.Context(), pdf, s.cfg.FullPassphrase.Reveal())
 		if err != nil {
 			s.log.ErrorContext(r.Context(), "encrypt full export", "error", err)
 			http.Error(w, exportFailed, http.StatusInternalServerError)

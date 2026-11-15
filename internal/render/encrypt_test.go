@@ -20,10 +20,24 @@ import (
 const passphrase = "correcthorsebattery"
 
 // decrypt tries to open pdf with pw and reports pdfcpu's verdict.
-func decrypt(pdf []byte, pw string) error {
+func decrypt(t *testing.T, pdf []byte, pw string) error {
+	t.Helper()
+
 	var out bytes.Buffer
 
-	return api.Decrypt(bytes.NewReader(pdf), &out, model.NewAESConfiguration(pw, "", 256))
+	return api.Decrypt(t.Context(), bytes.NewReader(pdf), &out, decryptConfiguration(pw))
+}
+
+// decryptConfiguration is the stateless counterpart of
+// model.NewAESConfiguration(pw, "", 256), which would create a pdfcpu
+// configuration directory under $HOME.
+func decryptConfiguration(pw string) *model.Configuration {
+	conf := model.NewStatelessConfiguration()
+	conf.UserPW = pw
+	conf.EncryptUsingAES = true
+	conf.EncryptKeyLength = 256
+
+	return conf
 }
 
 func TestEncrypt(t *testing.T) {
@@ -53,7 +67,7 @@ func TestEncrypt(t *testing.T) {
 			passphrase: passphrase,
 			checkFunc: func(t *testing.T, out []byte) {
 				t.Helper()
-				assert.NoError(t, decrypt(out, passphrase))
+				assert.NoError(t, decrypt(t, out, passphrase))
 			},
 		},
 		{
@@ -62,8 +76,8 @@ func TestEncrypt(t *testing.T) {
 			passphrase: passphrase,
 			checkFunc: func(t *testing.T, out []byte) {
 				t.Helper()
-				require.Error(t, decrypt(out, "wronghorsebattery"))
-				require.Error(t, decrypt(out, ""), "the file cannot be opened without a password")
+				require.Error(t, decrypt(t, out, "wronghorsebattery"))
+				require.Error(t, decrypt(t, out, ""), "the file cannot be opened without a password")
 			},
 		},
 		{
@@ -98,7 +112,7 @@ func TestEncrypt(t *testing.T) {
 				// AES-256 R6 randomises the file key, salts and IVs on every
 				// call (not just the owner password), so two encryptions of
 				// the same input must not be byte-identical.
-				again, encErr := render.Encrypt(fixture, passphrase)
+				again, encErr := render.Encrypt(t.Context(), fixture, passphrase)
 				require.NoError(t, encErr)
 				assert.False(t, bytes.Equal(out, again),
 					"two encryptions of the same input should not be byte-identical")
@@ -108,7 +122,7 @@ func TestEncrypt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			out, encErr := render.Encrypt(tt.pdf, tt.passphrase)
+			out, encErr := render.Encrypt(t.Context(), tt.pdf, tt.passphrase)
 			if tt.wantErr {
 				require.Error(t, encErr)
 				if tt.passphrase != "" {
