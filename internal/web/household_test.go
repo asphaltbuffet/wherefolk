@@ -7,6 +7,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
 // assertNoMaskedValue checks that "[private]" never appears as a substituted
@@ -19,6 +21,17 @@ func assertNoMaskedValue(t *testing.T, body, msg string) {
 	t.Helper()
 	stripped := strings.ReplaceAll(body, `title="Print [private] instead of this in the Directory"`, "")
 	assert.NotContains(t, stripped, "[private]", msg)
+}
+
+// personCard returns the markup of one person's card: from its opening
+// fieldset to the next closing one. Person cards never nest fieldsets.
+func personCard(t *testing.T, body, key string) string {
+	t.Helper()
+	start := strings.Index(body, `data-person="`+key+`"`)
+	require.NotEqual(t, -1, start, "card for %s", key)
+	end := strings.Index(body[start:], "</fieldset>")
+	require.NotEqual(t, -1, end)
+	return body[start : start+end]
 }
 
 func TestDirectoryPage(t *testing.T) {
@@ -169,7 +182,7 @@ func TestDirectoryPage(t *testing.T) {
 			},
 		},
 		{
-			name:       "each withheld-field toggle is an inline Hide with an explanation",
+			name:       "each withheld-field toggle is an inline Keep private with an explanation",
 			target:     "/h/h_clyde",
 			wantStatus: http.StatusOK,
 			checkFunc: func(t *testing.T, body string) {
@@ -177,16 +190,16 @@ func TestDirectoryPage(t *testing.T) {
 				assert.NotContains(t, body, "Keep out of the printed directory")
 				assert.Contains(t, body, `title="Print [private] instead of this in the Directory"`)
 				for _, field := range []string{"birth date", "phone", "email", "address"} {
-					assert.Contains(t, body, `aria-label="Hide `+field+` in the printed directory"`)
+					assert.Contains(t, body, `aria-label="Keep `+field+` private in the printed directory"`)
 				}
 				// Pairs every toggle with a row; a stray toggle outside a row, or
 				// a row without its toggle, breaks the equality.
-				assert.Equal(t, strings.Count(body, `aria-label="Hide `), strings.Count(body, `class="field-row"`),
-					"every Hide sits in a field row with its field")
+				assert.Equal(t, strings.Count(body, `aria-label="Keep `), strings.Count(body, `class="field-row"`),
+					"every Keep private sits in a field row with its field")
 				assert.Equal(
 					t,
 					strings.Count(body, `title="Print [private] instead of this in the Directory"`),
-					strings.Count(body, `aria-label="Hide `),
+					strings.Count(body, `aria-label="Keep `),
 					"every toggle carries its hover text",
 				)
 			},
@@ -217,6 +230,68 @@ func TestDirectoryPage(t *testing.T) {
 			checkFunc: func(t *testing.T, body string) {
 				t.Helper()
 				assert.Contains(t, body, "Wherefolk status", "the Operator's bookmark does not move")
+			},
+		},
+		{
+			name:       "the household summary sits under the heading",
+			target:     "/h/h_clyde",
+			wantStatus: http.StatusOK,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				heading := strings.Index(body, "<h1>")
+				summary := strings.Index(
+					body,
+					`<p class="summary">Two adults, one dependent · Married June 14, 1962</p>`,
+				)
+				require.NotEqual(t, -1, summary)
+				assert.Less(t, heading, summary)
+			},
+		},
+		{
+			name:       "fields are grouped as Name, Dates and Contact on every person card",
+			target:     "/h/h_clyde",
+			wantStatus: http.StatusOK,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				card := personCard(t, body, "p_clyd01")
+				for _, group := range []string{`aria-label="Name"`, `aria-label="Dates"`, `aria-label="Contact"`} {
+					assert.Contains(t, card, group)
+				}
+			},
+		},
+		{
+			name:       "a deceased person's card says so and still shows every field",
+			target:     "/h/h_clyde",
+			wantStatus: http.StatusOK,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				card := personCard(t, body, "p_carl01")
+				assert.Contains(t, card, "In memory, 1963–1981")
+				assert.Contains(t, card, `name="person.p_carl01.phone"`, "ADR-0010: the editor never masks")
+			},
+		},
+		{
+			name:       "structural controls live in a closed disclosure on a GET",
+			target:     "/h/h_clyde",
+			wantStatus: http.StatusOK,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				card := personCard(t, body, "p_carl01")
+				details := strings.Index(card, `<details class="more">`)
+				require.NotEqual(t, -1, details, "closed when nothing is ticked")
+				assert.Less(t, details, strings.Index(card, `name="person.p_carl01.promote"`))
+				assert.Less(t, details, strings.Index(card, `name="person.p_carl01.remove"`))
+			},
+		},
+		{
+			name:       "dependents sit under their own heading and the button says what it does",
+			target:     "/h/h_clyde",
+			wantStatus: http.StatusOK,
+			checkFunc: func(t *testing.T, body string) {
+				t.Helper()
+				assert.Contains(t, body, "Children living at home")
+				assert.Contains(t, body, ">Save changes</button>")
+				assert.Contains(t, body, `<label for="q">Find someone by name</label>`)
 			},
 		},
 	}
@@ -306,5 +381,51 @@ func TestTreePaneCollapses(t *testing.T) {
 			require.Equal(t, http.StatusOK, rec.Code)
 			tt.checkFunc(t, rec.Body.String())
 		})
+	}
+}
+
+func TestFindingsRenderOnTheirCard(t *testing.T) {
+	doc := sampleDocument()
+	// h_clyde is index 1. A malformed email gives Clyde a Finding; an
+	// anniversary before Doris (1940) was born gives the Household one.
+	doc.Households[1].Adults[0].Email = "clyde-at-example"
+	doc.Households[1].Anniversary = rolo.Date{Year: 1930}
+
+	rec := get(t, doc, "/h/h_clyde")
+	require.Equal(t, http.StatusOK, rec.Code)
+	body := rec.Body.String()
+
+	tests := []struct {
+		name      string
+		checkFunc func(t *testing.T)
+	}{
+		{
+			name: "a person's finding is on their card",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				assert.Contains(t, personCard(t, body, "p_clyd01"), "does not look like an email address")
+			},
+		},
+		{
+			name: "a household finding is on the household card",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				start := strings.Index(body, `data-card="household"`)
+				require.NotEqual(t, -1, start)
+				card := body[start : start+strings.Index(body[start:], "</fieldset>")]
+				assert.Contains(t, card, "the anniversary 1930 is before")
+			},
+		},
+		{
+			name: "no finding is shown twice",
+			checkFunc: func(t *testing.T) {
+				t.Helper()
+				assert.Equal(t, 1, strings.Count(body, "does not look like an email address"))
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) { tt.checkFunc(t) })
 	}
 }

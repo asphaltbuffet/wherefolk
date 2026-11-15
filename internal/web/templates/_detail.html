@@ -1,7 +1,5 @@
 {{define "detail"}}
 <section id="detail" aria-label="Household">
-  {{if .Announcement.Message}}{{template "announce" .Announcement}}{{end}}
-
   {{/* One top line: the Path on the left, the export link on the right. The
        breadcrumb sits outside the form: following a link must never submit
        one. */}}
@@ -11,18 +9,23 @@
         {{range $i, $c := .Crumbs}}{{if $i}} › {{end}}<a href="/h/{{$c.ID}}">{{$c.Label}}</a>{{end}}
       </nav>
     {{end}}
-    <p class="export-link"><a href="/export">Make a Directory to send…</a></p>
+    <p class="export-link"><a class="pill pill-accent" href="/export">Make a Directory to send…</a></p>
   </div>
 
+  {{if .Announcement.Message}}{{template "announce" .Announcement}}{{end}}
+
   {{if .NotFound}}
-    <h1>That household is not in the directory</h1>
-    <p>It may have been removed, or the link may be out of date. Choose a household from the list
-       on the left.</p>
+    <div class="card empty-state">
+      <h1>That household is not in the directory</h1>
+      <p>It may have been removed, or the link may be out of date. Choose a household from the list
+         on the left.</p>
+    </div>
   {{else if .Household}}
     {{with .Household}}
       <h1>{{.Title}}{{if .Memorial}} <span class="badge">Memorial</span>{{end}}</h1>
 
       {{with .Form}}
+      {{with .Summary}}<p class="summary">{{.}}</p>{{end}}
       <form class="household-form" method="post" action="/h/{{.ID}}">
         <input type="hidden" name="open" value="{{.Open}}">
         <input type="hidden" name="pane" value="{{.Pane}}">
@@ -31,52 +34,49 @@
           <p class="field-error" role="alert">{{.}}</p>
         {{end}}
 
-        <fieldset class="household-facts">
-          <legend>Household</legend>
-
-          <label for="address">Address</label>
-          <div>
-            {{with .SharedWith}}
-              <p class="field-note">Same address as {{.}}</p>
-            {{end}}
-            <div class="field-row">
-              <textarea id="address" name="address.lines" rows="3">{{.AddressText}}</textarea>
-              <label class="hide-toggle" title="Print [private] instead of this in the Directory">
-                <input type="hidden" name="address.hidden" value="off">
-                <input type="checkbox" name="address.hidden" value="on"
-                       aria-label="Hide address in the printed directory"
-                       {{if .AddressHidden}}checked{{end}}>
-                Hide
-              </label>
+        <fieldset class="card household-facts" data-card="household">
+          <legend>The household</legend>
+          {{template "findings" .Findings}}
+          <div class="group" role="group" aria-label="Home">
+            <span class="group-name" aria-hidden="true">Home</span>
+            <div class="f">
+              <label for="address">Address</label>
+              {{with .SharedWith}}<p class="field-note">Same address as {{.}}</p>{{end}}
+              <div class="field-row">
+                <textarea id="address" name="address.lines" rows="3">{{.AddressText}}</textarea>
+                <label class="keep-private" title="Print [private] instead of this in the Directory">
+                  <input type="hidden" name="address.hidden" value="off">
+                  <input type="checkbox" name="address.hidden" value="on"
+                         aria-label="Keep address private in the printed directory"
+                         {{if .AddressHidden}}checked{{end}}>
+                  Keep private
+                </label>
+              </div>
             </div>
-          </div>
-
-          <label for="anniversary">Anniversary</label>
-          <div>
-            <input id="anniversary" name="anniversary" value="{{.Anniversary}}"
-                   placeholder="YYYY-MM-DD">
-            {{with index .Errors "anniversary"}}
-              <p class="field-error" role="alert">{{.}}</p>
-            {{end}}
+            <div class="f">
+              <label for="anniversary">Anniversary</label>
+              <input id="anniversary" name="anniversary" value="{{.Anniversary}}"
+                     placeholder="YYYY-MM-DD"
+                     aria-describedby="anniversary-hint{{with index .Errors "anniversary"}} anniversary-error{{end}}"
+                     {{with index .Errors "anniversary"}}aria-invalid="true"{{end}}>
+              <p class="hint" id="anniversary-hint">Year, month and day — or just the year</p>
+              {{with index .Errors "anniversary"}}
+                <p class="field-error" id="anniversary-error" role="alert">{{.}}</p>
+              {{end}}
+            </div>
           </div>
         </fieldset>
 
         {{range .Adults}}{{template "person-fields" .}}{{end}}
         {{with .NewSlot}}{{template "person-fields" .}}{{end}}
 
-        <h2>Dependents</h2>
+        <h2 class="section-title">Children living at home</h2>
         {{range .Dependents}}{{template "person-fields" .}}{{end}}
         {{if .NewDependent.Key}}{{template "person-fields" .NewDependent}}{{end}}
 
-        {{with .Findings}}
-          <ul class="findings">
-            {{range .}}
-              <li class="finding finding-{{.Severity}}">{{.Message}}</li>
-            {{end}}
-          </ul>
-        {{end}}
-
-        <button type="submit">Save</button>
+        <div class="save-bar">
+          <button type="submit" class="pill pill-primary">Save changes</button>
+        </div>
       </form>
       {{end}}
 
@@ -91,89 +91,131 @@
       {{end}}
     {{end}}
   {{else}}
-    <h1>Choose a household</h1>
-    <p>Pick a household from the list on the left, or search for someone by name.</p>
+    <div class="card empty-state">
+      <h1>Choose a household</h1>
+      <p>Pick a household from the list on the left, or search for someone by name.</p>
+    </div>
   {{end}}
 </section>
 {{end}}
 
+{{define "findings"}}
+{{range .}}<p class="stamp finding finding-{{.Severity}}">{{.Message}}</p>{{end}}
+{{end}}
+
 {{define "person-fields"}}
-<fieldset class="person{{if .Deceased}} person-deceased{{end}}{{if .IsNew}} person-new{{end}}">
+<fieldset class="card person{{if .Deceased}} person-deceased{{end}}{{if .IsNew}} person-new{{end}}" data-person="{{.Key}}">
   <legend>
-    {{if .IsNew}}Add someone{{else}}{{.Given}} {{.Surname}}{{end}}
+    {{- if .IsNew}}{{if .IsAdult}}Add someone{{else}}Add a child to this household{{end}}
+    {{- else}}{{.Given}} {{.Surname}}{{with .BirthName}} <em>born {{.}}</em>{{end}}{{end -}}
   </legend>
 
   <input type="hidden" name="person.{{.Key}}.is_adult" value="{{if .IsAdult}}true{{else}}false{{end}}">
 
-  <label for="{{.Key}}-given">Given name</label>
-  <input id="{{.Key}}-given" name="person.{{.Key}}.given" value="{{.Given}}">
+  {{if .Deceased}}
+    <p class="stamp">In memory{{with .Lifespan}}, {{.}}{{end}}. Contact details are left out of printed directories.</p>
+  {{end}}
+  {{template "findings" .Findings}}
 
-  <label for="{{.Key}}-surname">Surname</label>
-  <input id="{{.Key}}-surname" name="person.{{.Key}}.surname" value="{{.Surname}}">
-
-  <label for="{{.Key}}-aka">Known as</label>
-  <input id="{{.Key}}-aka" name="person.{{.Key}}.aka" value="{{.Aka}}">
-
-  <label for="{{.Key}}-birth-name">Birth name</label>
-  <input id="{{.Key}}-birth-name" name="person.{{.Key}}.birth_name" value="{{.BirthName}}">
-
-  <label for="{{.Key}}-birth">Born</label>
-  <div class="field-row">
-    <input id="{{.Key}}-birth" name="person.{{.Key}}.birth" value="{{.Birth}}"
-           placeholder="YYYY-MM-DD">
-    <label class="hide-toggle" title="Print [private] instead of this in the Directory">
-      <input type="hidden" name="person.{{.Key}}.hidden.birth" value="off">
-      <input type="checkbox" name="person.{{.Key}}.hidden.birth" value="on"
-             aria-label="Hide birth date in the printed directory"
-             {{if .HiddenBirth}}checked{{end}}>
-      Hide
-    </label>
-  </div>
-  {{with index .Errors "birth"}}<p class="field-error" role="alert">{{.}}</p>{{end}}
-
-  <label for="{{.Key}}-death">Died</label>
-  <input id="{{.Key}}-death" name="person.{{.Key}}.death" value="{{.Death}}"
-         placeholder="YYYY-MM-DD">
-  {{with index .Errors "death"}}<p class="field-error" role="alert">{{.}}</p>{{end}}
-
-  <label for="{{.Key}}-phone">Phone</label>
-  <div class="field-row">
-    <input id="{{.Key}}-phone" name="person.{{.Key}}.phone" value="{{.Phone}}">
-    <label class="hide-toggle" title="Print [private] instead of this in the Directory">
-      <input type="hidden" name="person.{{.Key}}.hidden.phone" value="off">
-      <input type="checkbox" name="person.{{.Key}}.hidden.phone" value="on"
-             aria-label="Hide phone in the printed directory"
-             {{if .HiddenPhone}}checked{{end}}>
-      Hide
-    </label>
+  <div class="group" role="group" aria-label="Name">
+    <span class="group-name" aria-hidden="true">Name</span>
+    <div class="f">
+      <label for="{{.Key}}-given">Given name</label>
+      <input id="{{.Key}}-given" name="person.{{.Key}}.given" value="{{.Given}}">
+    </div>
+    <div class="f">
+      <label for="{{.Key}}-surname">Surname</label>
+      <input id="{{.Key}}-surname" name="person.{{.Key}}.surname" value="{{.Surname}}">
+    </div>
+    <div class="f">
+      <label for="{{.Key}}-aka">Known as</label>
+      <input id="{{.Key}}-aka" name="person.{{.Key}}.aka" value="{{.Aka}}">
+    </div>
+    <div class="f">
+      <label for="{{.Key}}-birth-name">Birth name</label>
+      <input id="{{.Key}}-birth-name" name="person.{{.Key}}.birth_name" value="{{.BirthName}}">
+    </div>
   </div>
 
-  <label for="{{.Key}}-email">Email</label>
-  <div class="field-row">
-    <input id="{{.Key}}-email" name="person.{{.Key}}.email" value="{{.Email}}">
-    <label class="hide-toggle" title="Print [private] instead of this in the Directory">
-      <input type="hidden" name="person.{{.Key}}.hidden.email" value="off">
-      <input type="checkbox" name="person.{{.Key}}.hidden.email" value="on"
-             aria-label="Hide email in the printed directory"
-             {{if .HiddenEmail}}checked{{end}}>
-      Hide
-    </label>
+  <div class="group" role="group" aria-label="Dates">
+    <span class="group-name" aria-hidden="true">Dates</span>
+    <div class="f">
+      <label for="{{.Key}}-birth">Born</label>
+      <div class="field-row">
+        <input id="{{.Key}}-birth" name="person.{{.Key}}.birth" value="{{.Birth}}"
+               placeholder="YYYY-MM-DD"
+               aria-describedby="{{.Key}}-dates-hint{{with index .Errors "birth"}} {{$.Key}}-birth-error{{end}}"
+               {{with index .Errors "birth"}}aria-invalid="true"{{end}}>
+        <label class="keep-private" title="Print [private] instead of this in the Directory">
+          <input type="hidden" name="person.{{.Key}}.hidden.birth" value="off">
+          <input type="checkbox" name="person.{{.Key}}.hidden.birth" value="on"
+                 aria-label="Keep birth date private in the printed directory"
+                 {{if .HiddenBirth}}checked{{end}}>
+          Keep private
+        </label>
+      </div>
+      {{with index .Errors "birth"}}<p class="field-error" id="{{$.Key}}-birth-error" role="alert">{{.}}</p>{{end}}
+    </div>
+    <div class="f">
+      <label for="{{.Key}}-death">Died</label>
+      <input id="{{.Key}}-death" name="person.{{.Key}}.death" value="{{.Death}}"
+             placeholder="YYYY-MM-DD"
+             aria-describedby="{{.Key}}-dates-hint{{with index .Errors "death"}} {{$.Key}}-death-error{{end}}"
+             {{with index .Errors "death"}}aria-invalid="true"{{end}}>
+      {{with index .Errors "death"}}<p class="field-error" id="{{$.Key}}-death-error" role="alert">{{.}}</p>{{end}}
+    </div>
+    <p class="hint" id="{{.Key}}-dates-hint">Year, month and day — or just the year</p>
+  </div>
+
+  <div class="group" role="group" aria-label="Contact">
+    <span class="group-name" aria-hidden="true">Contact</span>
+    <div class="f">
+      <label for="{{.Key}}-phone">Phone</label>
+      <div class="field-row">
+        <input id="{{.Key}}-phone" name="person.{{.Key}}.phone" value="{{.Phone}}">
+        <label class="keep-private" title="Print [private] instead of this in the Directory">
+          <input type="hidden" name="person.{{.Key}}.hidden.phone" value="off">
+          <input type="checkbox" name="person.{{.Key}}.hidden.phone" value="on"
+                 aria-label="Keep phone private in the printed directory"
+                 {{if .HiddenPhone}}checked{{end}}>
+          Keep private
+        </label>
+      </div>
+    </div>
+    <div class="f">
+      <label for="{{.Key}}-email">Email</label>
+      <div class="field-row">
+        <input id="{{.Key}}-email" name="person.{{.Key}}.email" value="{{.Email}}">
+        <label class="keep-private" title="Print [private] instead of this in the Directory">
+          <input type="hidden" name="person.{{.Key}}.hidden.email" value="off">
+          <input type="checkbox" name="person.{{.Key}}.hidden.email" value="on"
+                 aria-label="Keep email private in the printed directory"
+                 {{if .HiddenEmail}}checked{{end}}>
+          Keep private
+        </label>
+      </div>
+    </div>
   </div>
 
   {{if not .IsNew}}
-    {{if not .IsAdult}}
+    {{/* <details> keeps these inputs in the form while closed, so they are
+         still submitted. Open whenever one is ticked, so a pending
+         structural change is never hidden behind the disclosure. */}}
+    <details class="more"{{if or .Promote .Remove}} open{{end}}>
+      <summary>More for {{if .Given}}{{.Given}}{{else}}this person{{end}}</summary>
+      {{if not .IsAdult}}
+        <label class="structural">
+          <input type="hidden" name="person.{{.Key}}.promote" value="off">
+          <input type="checkbox" name="person.{{.Key}}.promote" value="on"{{if .Promote}} checked{{end}}>
+          Give them a household of their own
+        </label>
+      {{end}}
       <label class="structural">
-        <input type="hidden" name="person.{{.Key}}.promote" value="off">
-        <input type="checkbox" name="person.{{.Key}}.promote" value="on">
-        Give them a household of their own
+        <input type="hidden" name="person.{{.Key}}.remove" value="off">
+        <input type="checkbox" name="person.{{.Key}}.remove" value="on"{{if .Remove}} checked{{end}}>
+        Remove from the directory
       </label>
-    {{end}}
-
-    <label class="structural">
-      <input type="hidden" name="person.{{.Key}}.remove" value="off">
-      <input type="checkbox" name="person.{{.Key}}.remove" value="on">
-      Remove from the directory
-    </label>
+    </details>
   {{end}}
 </fieldset>
 {{end}}
