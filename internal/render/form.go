@@ -14,6 +14,7 @@ import (
 	"github.com/pdfcpu/pdfcpu/pkg/api"
 	"github.com/pdfcpu/pdfcpu/pkg/font"
 	"github.com/pdfcpu/pdfcpu/pkg/pdfcpu/model"
+	"golang.org/x/image/font/sfnt"
 )
 
 // FieldKind is what a Proof Sheet field accepts. The template names it on
@@ -94,6 +95,52 @@ func formSetup() (string, error) {
 	return formRoot, errFormSetup
 }
 
+// UnprintableError reports a field value holding a character the field font
+// has no glyph for. ADR-0015 refuses such a sheet: a viewer would draw the
+// character as nothing, and a name that looks blank invites a "correction" of
+// a name the Directory holds perfectly well.
+type UnprintableError struct {
+	Field string
+	Value string
+	Rune  rune
+}
+
+func (e *UnprintableError) Error() string {
+	return fmt.Sprintf("render: field %q: the form font cannot draw %q", e.Field, e.Rune)
+}
+
+// fieldFont is the parsed field font, for glyph-coverage checks. sfnt.Font is
+// safe for concurrent use given a Buffer per caller.
+var fieldFont = sync.OnceValues(func() (*sfnt.Font, error) { return sfnt.Parse(fieldFontTTF) })
+
+// checkPrintable refuses a value with a character the field font lacks. Line
+// breaks are layout, not glyphs, so a multiline value may carry them.
+func checkPrintable(f FormField) error {
+	font, err := fieldFont()
+	if err != nil {
+		return fmt.Errorf("render: parse field font: %w", err)
+	}
+
+	var buf sfnt.Buffer
+
+	for _, r := range f.Value {
+		if r == '\n' || r == '\r' {
+			continue
+		}
+
+		idx, glyphErr := font.GlyphIndex(&buf, r)
+		if glyphErr != nil {
+			return fmt.Errorf("render: field %q: glyph lookup: %w", f.ID, glyphErr)
+		}
+
+		if idx == 0 {
+			return &UnprintableError{Field: f.ID, Value: f.Value, Rune: r}
+		}
+	}
+
+	return nil
+}
+
 // fieldFontDir is where pdfcpu looks for user fonts under a configuration root.
 func fieldFontDir(root string) string { return filepath.Join(root, "pdfcpu", "fonts") }
 
@@ -158,6 +205,11 @@ func AddFields(ctx context.Context, pdf []byte, fields []FormField) ([]byte, err
 			page.Content.CheckBoxes = append(page.Content.CheckBoxes,
 				pdfcpuCheckBox{ID: f.ID, Value: f.Checked, Pos: pos, Width: f.W})
 		case TextField, MultilineField:
+			err = checkPrintable(f)
+			if err != nil {
+				return nil, err
+			}
+
 			page.Content.TextFields = append(page.Content.TextFields, pdfcpuTextField{
 				ID: f.ID, Value: f.Value, Pos: pos, Width: f.W, Height: f.H,
 				Multiline: f.Kind == MultilineField,

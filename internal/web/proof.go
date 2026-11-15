@@ -82,6 +82,12 @@ func (s *Server) handleProofPDF(w http.ResponseWriter, r *http.Request) {
 	}
 
 	pdf, err := s.exporter.ProofPDF(r.Context(), sheet)
+
+	if unprintable, ok := errors.AsType[*render.UnprintableError](err); ok {
+		http.Error(w, unprintableSentence(unprintable), http.StatusUnprocessableEntity)
+		return
+	}
+
 	if err != nil {
 		s.log.ErrorContext(r.Context(), "render proof sheet", "household", id, "error", err)
 		http.Error(w, proofFailed, http.StatusInternalServerError)
@@ -104,6 +110,14 @@ func (s *Server) handleProofPDF(w http.ResponseWriter, r *http.Request) {
 // Instructions. Nothing is held during the compile that follows.
 func proofSheet(snap live.Snapshot, id rolo.HouseholdID, date time.Time) (render.ProofSheet, error) {
 	return render.BuildProof(snap.Tree, id, date, snap.Settings.Title, snap.Settings.Reply)
+}
+
+// unprintableSentence tells the Editor which stored value the Proof Sheet
+// cannot show, by the value itself rather than an internal field ID, so they
+// can find it on the Household's page (ADR-0015).
+func unprintableSentence(e *render.UnprintableError) string {
+	return fmt.Sprintf("The Proof Sheet was not made: its form cannot show the character “%c” in “%s”. "+
+		"Nothing is wrong with what is stored; the sheet's font simply lacks that character.", e.Rune, e.Value)
 }
 
 // proofFilename is the download name: proof_sheet_<name>_<date>.pdf.

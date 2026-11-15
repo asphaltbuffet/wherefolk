@@ -101,6 +101,35 @@ func TestAddFields(t *testing.T) {
 	}
 }
 
+// ADR-0015: a value the field font cannot draw refuses the sheet, rather than
+// printing a name that looks blank.
+func TestAddFieldsRefusesUnprintable(t *testing.T) {
+	base := basePDF(t)
+
+	tests := []struct {
+		name     string
+		kind     FieldKind
+		value    string
+		wantRune rune
+	}{
+		{name: "han surname", kind: TextField, value: "李明 Lee", wantRune: '李'},
+		{name: "multiline notes", kind: MultilineField, value: "fine\n한", wantRune: '한'},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := AddFields(t.Context(), base, []FormField{{ID: "p1-surname", Kind: tt.kind, Page: 1,
+				X: 72, Y: 72, W: 200, H: 14, PageHeight: usLetterHeight, Value: tt.value}})
+
+			var unprintable *UnprintableError
+			require.ErrorAs(t, err, &unprintable)
+			require.Equal(t, "p1-surname", unprintable.Field)
+			require.Equal(t, tt.value, unprintable.Value)
+			require.Equal(t, tt.wantRune, unprintable.Rune)
+		})
+	}
+}
+
 func TestAddFieldsRejectsUnknownKind(t *testing.T) {
 	base := basePDF(t)
 

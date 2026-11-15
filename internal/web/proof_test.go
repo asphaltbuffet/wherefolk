@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/asphaltbuffet/wherefolk/internal/config"
+	"github.com/asphaltbuffet/wherefolk/internal/render"
 	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/internal/web"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
@@ -81,6 +82,18 @@ func TestProofDownload(t *testing.T) {
 				t.Helper()
 
 				require.Contains(t, body, "not in the Directory")
+			},
+		},
+		{
+			name: "unprintable value names the character", target: "/h/h_live/proof",
+			exErr:      &render.UnprintableError{Field: "p_dar-surname", Value: "李明 Lee", Rune: '李'},
+			wantStatus: http.StatusUnprocessableEntity,
+			checkFunc: func(t *testing.T, _ *http.Response, body string, _ *fakeExporter) {
+				t.Helper()
+
+				require.Contains(t, body, "“李”")
+				require.Contains(t, body, "李明 Lee")
+				require.NotContains(t, body, "p_dar-surname")
 			},
 		},
 		{
