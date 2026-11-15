@@ -27,7 +27,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Set up mise
-        uses: jdx/mise-action@v5.2.4
+        uses: jdx/mise-action@v5.2.7
 
       - name: Generate code
         run: mise run generate
@@ -68,7 +68,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Set up mise
-        uses: jdx/mise-action@v5.2.4
+        uses: jdx/mise-action@v5.2.7
 
       - name: Generate code
         run: mise run generate
