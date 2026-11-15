@@ -1,9 +1,10 @@
 [tools]
 changie = "latest"
 "aqua:gotestyourself/gotestsum" = "latest"
-"go:golang.org/x/tools/cmd/goimports" = "latest"
-"go:golang.org/x/tools/cmd/stringer" = "latest"
-golangci-lint = "latest"
+"go:golang.org/x/tools/cmd/goimports" = "0.52.0"
+"go:golang.org/x/tools/cmd/stringer" = "0.52.0"
+# Must match golangci-lint-action's version in .github/workflows/build.yml.
+golangci-lint = "2.15"
 # Pinned, not "latest": Typst is the renderer, and an unpinned upgrade could
 # silently reflow the Directory (§2.1). This must match the version in
 # flake.nix and the one the Dockerfile installs, so CI exercises what ships.
@@ -114,5 +115,5 @@ run = [
 [tasks.update-deps]
 description = "update direct dependencies to latest versions"
 alias = "up"
-run = "go get -u"
+run = "go get -u -t ./..."
 depends_post = ["mod-tidy"]
