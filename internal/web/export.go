@@ -102,6 +102,7 @@ func (s *Server) handleExportPDF(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Disposition",
 		fmt.Sprintf(`attachment; filename="family_directory_%s_%s.pdf"`, tier.Key(), date.Format(time.DateOnly)))
 
+	//nolint:gosec // served as an application/pdf attachment, never rendered as HTML.
 	_, err = w.Write(pdf)
 	if err != nil {
 		s.log.DebugContext(r.Context(), "client disconnected during export", "error", err)

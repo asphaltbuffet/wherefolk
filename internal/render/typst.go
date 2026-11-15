@@ -197,6 +197,7 @@ func stageTemplate(dir, templateDir string) error {
 			return fmt.Errorf("typst: read template %s: %w", e.Name(), readErr)
 		}
 
+		//nolint:gosec // e.Name() is a bare basename from ReadDir of the Operator's template directory.
 		if writeErr := os.WriteFile(filepath.Join(dir, e.Name()), b, 0o600); writeErr != nil {
 			return fmt.Errorf("typst: stage template %s: %w", e.Name(), writeErr)
 		}

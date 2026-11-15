@@ -76,6 +76,7 @@ func (s *Server) handleUndo(w http.ResponseWriter, r *http.Request) {
 	q := url.Values{}
 	q.Set(saidKey, msg)
 
+	//nolint:gosec // pageURL always builds a local path; the ID is PathEscaped.
 	http.Redirect(w, r, pageURL(at, "", r.PostForm.Get("open"), r.PostForm.Get("pane"), q), http.StatusSeeOther)
 }
 

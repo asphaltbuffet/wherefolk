@@ -103,6 +103,7 @@ func (s *Server) handleRestore(w http.ResponseWriter, r *http.Request) {
 
 		// No open set to carry: the Trash page has no tree. The selection
 		// chain opens the restored Household's ancestors by itself.
+		//nolint:gosec // pageURL always builds a local path; the ID is PathEscaped.
 		http.Redirect(w, r, pageURL(id, "", "", "", q), http.StatusSeeOther)
 	}
 }

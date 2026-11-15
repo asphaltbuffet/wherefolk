@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"context"
-	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -21,7 +20,7 @@ import (
 // testLogger discards output, so a test's logging cannot reach the test binary's
 // own stderr or leak into another test.
 func testLogger() *slog.Logger {
-	return slog.New(slog.NewTextHandler(io.Discard, nil))
+	return slog.New(slog.DiscardHandler)
 }
 
 func TestRunStartupFailures(t *testing.T) {

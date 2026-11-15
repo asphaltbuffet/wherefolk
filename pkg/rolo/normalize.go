@@ -67,12 +67,12 @@ func NormalizePhone(s string) (string, bool) {
 func NormalizeEmail(s string) string {
 	trimmed := strings.TrimSpace(s)
 
-	at := strings.LastIndex(trimmed, "@")
-	if at < 0 {
+	local, host, ok := strings.CutLast(trimmed, "@")
+	if !ok {
 		return trimmed
 	}
 
-	return trimmed[:at] + "@" + strings.ToLower(trimmed[at+1:])
+	return local + "@" + strings.ToLower(host)
 }
 
 // Normalize rewrites the Person's fields into house style in place. It never

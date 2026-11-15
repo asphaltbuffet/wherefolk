@@ -63,6 +63,7 @@ func (s *Server) handleSave(w http.ResponseWriter, r *http.Request) {
 		s.refuse(r, w, id, outcome.sub, outcome.fieldErrs)
 
 	default:
+		//nolint:gosec // pageURL always builds a local path; the ID is PathEscaped.
 		http.Redirect(w, r, redirectAfterSave(id, outcome), http.StatusSeeOther)
 	}
 }
