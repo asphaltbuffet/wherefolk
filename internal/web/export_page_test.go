@@ -294,6 +294,20 @@ func TestExportPage(t *testing.T) {
 			},
 		},
 		{
+			name:     "the tiers are whole-tile choices inside a card",
+			target:   "/export",
+			cfg:      config.Config{FullPassphrase: passphrase},
+			exporter: &fakeExporter{pages: svgPages},
+			checkFunc: func(t *testing.T, rec *httptest.ResponseRecorder, _ *fakeExporter) {
+				t.Helper()
+				body := rec.Body.String()
+				assert.Equal(t, http.StatusOK, rec.Code)
+				assert.Contains(t, body, `class="tile tier"`)
+				assert.Contains(t, body, "Who is this Directory for?")
+				assert.Contains(t, body, ">Back to the family list</a>")
+			},
+		},
+		{
 			name:     "full is disabled and explained without a passphrase",
 			target:   "/export",
 			exporter: &fakeExporter{pages: svgPages},

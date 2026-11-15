@@ -42,6 +42,15 @@ func TestDeletePages(t *testing.T) {
 			},
 		},
 		{
+			name:       "the confirmation names the act and offers a way back",
+			target:     "/h/h_dave/delete",
+			wantStatus: http.StatusOK,
+			want: []string{
+				`class="pill pill-danger">Delete the household</button>`,
+				`>Keep it</a>`,
+			},
+		},
+		{
 			name:       "a Household with Households beneath it explains instead of offering",
 			target:     "/h/h_clyde/delete",
 			wantStatus: http.StatusOK,

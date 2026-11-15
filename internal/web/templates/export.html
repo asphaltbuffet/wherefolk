@@ -6,39 +6,56 @@
      when it pushes the URL, so Back re-fetches from the server instead of
      restoring a cached preview — which is why wantsFragment excludes history
      restores. -->
-<div class="export" hx-history="false">
-  <p class="export-back"><a href="/">← Back to the family list</a></p>
+<div class="export page" hx-history="false">
+  <p class="back-link"><a class="pill" href="/">Back to the family list</a></p>
   <h1>Make a Directory to send</h1>
+  <p class="lede">Choose who it's for and Wherefolk leaves out anything they shouldn't see. You can look
+     through every page before you download it.</p>
 
   {{if .Announcement.Message}}{{template "announce" .Announcement}}{{end}}
 
-  <!-- The title prints on the Directory's cover. The tier this form carries
-       arrives from inside #export-result (form="export-title"), because the
-       tier radios swap only that fragment. -->
-  <form id="export-title" class="export-title" action="/export/title" method="post">
-    <label for="export-title-input">Title on the cover</label>
-    <input id="export-title-input" type="text" name="title" value="{{.Title.Value}}"
-           placeholder="{{.DefaultTitle}}" maxlength="{{.MaxTitle}}"
-           {{- with .Title.Error}} aria-invalid="true" aria-describedby="export-title-error"{{end}}>
-    <button type="submit">Save title</button>
-    {{with .Title.Error}}<p id="export-title-error" class="export-error" role="alert">{{.}}</p>{{end}}
-  </form>
+  <section class="card" aria-labelledby="cover-heading">
+    <h2 class="card-title" id="cover-heading">The cover</h2>
+    <div class="group">
+      <span class="group-name" aria-hidden="true">Title</span>
+      <!-- The title prints on the Directory's cover. The tier this form carries
+           arrives from inside #export-result (form="export-title"), because the
+           tier radios swap only that fragment. -->
+      <form id="export-title" class="export-title" action="/export/title" method="post">
+        <div class="f">
+          <label for="export-title-input">Title on the cover</label>
+          <input id="export-title-input" type="text" name="title" value="{{.Title.Value}}"
+                 placeholder="{{.DefaultTitle}}" maxlength="{{.MaxTitle}}"
+                 aria-describedby="export-title-hint{{with .Title.Error}} export-title-error{{end}}"
+                 {{- with .Title.Error}} aria-invalid="true"{{end}}>
+          <p class="hint" id="export-title-hint">Leave it empty to use “{{.DefaultTitle}}”.</p>
+          {{with .Title.Error}}<p id="export-title-error" class="export-error field-error" role="alert">{{.}}</p>{{end}}
+        </div>
+        <button type="submit" class="pill pill-quiet">Save title</button>
+      </form>
+    </div>
+  </section>
 
-  <form class="export-tiers" action="/export" method="get"
-        hx-get="/export" hx-trigger="change" hx-target="#export-result"
-        hx-swap="outerHTML" hx-push-url="true">
-    <fieldset>
-      <legend>Who is this Directory for?</legend>
-      {{range .Options}}
-      <label class="tier{{if .Disabled}} tier-disabled{{end}}">
-        <input type="radio" name="tier" value="{{.Key}}"{{if .Checked}} checked{{end}}{{if .Disabled}} disabled{{end}}>
-        <span class="tier-description">{{.Description}}</span>
-        <span class="tier-detail">{{.Detail}}</span>
-      </label>
-      {{end}}
-    </fieldset>
-    <noscript><button type="submit">Show this Directory</button></noscript>
-  </form>
+  <section class="card" aria-label="Who it's for">
+    <div class="group">
+      <span class="group-name" aria-hidden="true">Audience</span>
+      <form class="export-tiers" action="/export" method="get"
+            hx-get="/export" hx-trigger="change" hx-target="#export-result"
+            hx-swap="outerHTML" hx-push-url="true">
+        <fieldset class="tiers">
+          <legend>Who is this Directory for?</legend>
+          {{range .Options}}
+          <label class="tile tier{{if .Disabled}} tier-disabled{{end}}">
+            <input type="radio" name="tier" value="{{.Key}}"{{if .Checked}} checked{{end}}{{if .Disabled}} disabled{{end}}>
+            <span class="tier-description">{{.Description}}</span>
+            <span class="tier-detail">{{.Detail}}</span>
+          </label>
+          {{end}}
+        </fieldset>
+        <noscript><button type="submit">Show this Directory</button></noscript>
+      </form>
+    </div>
+  </section>
 
   {{template "export_result" .Result}}
 </div>
