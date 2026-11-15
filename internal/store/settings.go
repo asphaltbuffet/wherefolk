@@ -14,7 +14,7 @@ import (
 const CurrentSettingsSchema = 1
 
 // Settings holds the Editor's choices about the Directory as a whole rather
-// than about any one Household. Today that is only the Directory Title
+// than about any one Household: the Directory Title and the Reply Instructions
 // (CONTEXT.md). It lives in its own file beside the document; see ADR-0013.
 //
 // Like Document and Trash, Settings is never mutated once built: a change is a
@@ -26,6 +26,11 @@ type Settings struct {
 	// Title is the Directory Title exactly as the Editor set it. Empty means
 	// it was never set; the printed default belongs to internal/render.
 	Title string `json:"title"`
+
+	// Reply is the Reply Instructions exactly as the Editor set them, printed
+	// at the head of every Proof Sheet (CONTEXT.md). Empty means none. It is
+	// omitted when empty so a settings file that never had it is unchanged.
+	Reply string `json:"reply_instructions,omitempty"`
 }
 
 // NewSettings returns the settings of a Directory nobody has titled yet.
@@ -74,6 +79,14 @@ func SaveSettings(path string, s *Settings) error {
 func (s *Settings) WithTitle(title string) *Settings {
 	next := *s
 	next.Title = title
+
+	return &next
+}
+
+// WithReply returns a copy of s carrying reply, leaving s untouched.
+func (s *Settings) WithReply(reply string) *Settings {
+	next := *s
+	next.Reply = reply
 
 	return &next
 }

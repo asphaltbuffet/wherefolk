@@ -13,6 +13,7 @@ import (
 
 	"github.com/asphaltbuffet/wherefolk/internal/live"
 	"github.com/asphaltbuffet/wherefolk/internal/render"
+	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
 
@@ -30,15 +31,30 @@ type proofSection struct {
 	URL         string
 	Unavailable string
 	Open        bool
+	Reply       replyForm
 }
 
-// proofSectionFor offers h's sheet, or explains its absence.
-func proofSectionFor(h rolo.Household) proofSection {
+// proofSectionFor offers h's sheet, or explains its absence, with the Reply
+// Instructions form either way: they belong to the Directory, not to h.
+func proofSectionFor(h rolo.Household, settings *store.Settings, open, pane string) proofSection {
+	base := "/h/" + url.PathEscape(string(h.ID)) + "/proof"
+
+	sec := proofSection{Reply: replyForm{
+		Action: base + "/reply",
+		Value:  settings.Reply,
+		Saved:  settings.Reply != "",
+		Open:   open,
+		Pane:   pane,
+	}}
+
 	if !h.HasLivingMember() {
-		return proofSection{Unavailable: proofNoLiving}
+		sec.Unavailable = proofNoLiving
+		return sec
 	}
 
-	return proofSection{URL: "/h/" + url.PathEscape(string(h.ID)) + "/proof"}
+	sec.URL = base
+
+	return sec
 }
 
 // handleProofPDF renders and downloads one Household's Proof Sheet. It is
@@ -84,10 +100,10 @@ func (s *Server) handleProofPDF(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// proofSheet builds id's sheet from snap under the served Title. Nothing is
-// held during the compile that follows.
+// proofSheet builds id's sheet from snap under the served Title and Reply
+// Instructions. Nothing is held during the compile that follows.
 func proofSheet(snap live.Snapshot, id rolo.HouseholdID, date time.Time) (render.ProofSheet, error) {
-	return render.BuildProof(snap.Tree, id, date, snap.Settings.Title, "")
+	return render.BuildProof(snap.Tree, id, date, snap.Settings.Title, snap.Settings.Reply)
 }
 
 // proofFilename is the download name: proof_sheet_<name>_<date>.pdf.

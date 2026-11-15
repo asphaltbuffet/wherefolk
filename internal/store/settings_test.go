@@ -114,3 +114,40 @@ func TestSettingsWithTitle(t *testing.T) {
 		})
 	}
 }
+
+func TestSettingsReply(t *testing.T) {
+	tests := []struct {
+		name      string
+		reply     string
+		wantInRaw string
+		absent    bool
+	}{
+		{name: "saved and reloaded", reply: "Mail Dawn\n12 Elm St", wantInRaw: `"reply_instructions": "Mail Dawn\n12 Elm St"`},
+		{name: "empty is omitted", reply: "", absent: true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			path := filepath.Join(t.TempDir(), "settings.json")
+			base := store.NewSettings().WithTitle("T")
+			next := base.WithReply(tt.reply)
+
+			require.Empty(t, base.Reply, "WithReply must not mutate its receiver")
+			require.NoError(t, store.SaveSettings(path, next))
+
+			raw, err := os.ReadFile(path)
+			require.NoError(t, err)
+
+			if tt.absent {
+				require.NotContains(t, string(raw), "reply_instructions")
+			} else {
+				require.Contains(t, string(raw), tt.wantInRaw)
+			}
+
+			got, err := store.LoadSettings(path)
+			require.NoError(t, err)
+			require.Equal(t, tt.reply, got.Reply)
+			require.Equal(t, "T", got.Title)
+		})
+	}
+}

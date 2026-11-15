@@ -76,7 +76,12 @@ func (s *Server) directoryView(
 	}
 
 	if h, ok := snap.Tree.Get(id); ok {
-		view.Household.Proof = proofSectionFor(h)
+		var open, pane string
+		if view.Household.Form != nil {
+			open, pane = view.Household.Form.Open, view.Household.Form.Pane
+		}
+
+		view.Household.Proof = proofSectionFor(h, snap.Settings, open, pane)
 	}
 
 	return view

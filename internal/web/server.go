@@ -141,6 +141,7 @@ func (s *Server) Handler() http.Handler {
 
 	// A Proof Sheet for one Household, to send them (§5.6, ADR-0005).
 	mux.HandleFunc("GET /h/{id}/proof", s.handleProofPDF)
+	mux.HandleFunc("POST /h/{id}/proof/reply", s.handleReply)
 
 	// Recently deleted (the Trash): list, and restore with whatever it needs.
 	mux.HandleFunc("GET /trash", s.handleTrash)
