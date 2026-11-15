@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/asphaltbuffet/wherefolk/internal/config"
 	"github.com/asphaltbuffet/wherefolk/internal/live"
@@ -154,7 +155,21 @@ func (s *Server) Handler() http.Handler {
 	// file with no runtime dependency on a directory beside it. The embed root
 	// already carries the "static/" prefix the URLs use, so the FS is served
 	// as-is rather than sub-rooted.
-	mux.Handle("GET /static/", http.FileServerFS(staticFS))
+	mux.Handle("GET /static/", fontTypes(http.FileServerFS(staticFS)))
 
 	return mux
+}
+
+// fontTypes names the font media type itself. Go's built-in table has no
+// .woff2, and the system table it falls back to differs between the devShell
+// and the container image; [http.FileServer] keeps a Content-Type that is
+// already set.
+func fontTypes(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, ".woff2") {
+			w.Header().Set("Content-Type", "font/woff2")
+		}
+
+		next.ServeHTTP(w, r)
+	})
 }
