@@ -1,6 +1,7 @@
 package web_test
 
 import (
+	"fmt"
 	"net/url"
 	"testing"
 
@@ -230,6 +231,36 @@ func TestFormViewFromSubmission(t *testing.T) {
 				assert.Equal(t, "closed", got.Pane)
 			},
 		},
+		{
+			name: "a ticked remove survives a refusal",
+			form: url.Values{
+				"person.p_clyd01.given":  {"Clyde"},
+				"person.p_clyd01.birth":  {"June-ish 1998"},
+				"person.p_clyd01.remove": {"off", "on"},
+			},
+			check: func(t *testing.T, got web.HouseholdFormViewForTest) {
+				t.Helper()
+
+				require.Len(t, got.Adults, 1)
+				assert.True(t, got.Adults[0].Remove, "a pending removal is not silently dropped")
+				assert.False(t, got.Adults[0].Promote)
+			},
+		},
+		{
+			name: "a ticked promote survives a refusal",
+			form: url.Values{
+				"person.p_carl01.given":    {"Carl"},
+				"person.p_carl01.is_adult": {"false"},
+				"person.p_carl01.birth":    {"soon"},
+				"person.p_carl01.promote":  {"off", "on"},
+			},
+			check: func(t *testing.T, got web.HouseholdFormViewForTest) {
+				t.Helper()
+
+				require.Len(t, got.Adults, 1, "the refusal path renders everyone in one list")
+				assert.True(t, got.Adults[0].Promote)
+			},
+		},
 	}
 
 	for _, tt := range tests {
@@ -237,6 +268,160 @@ func TestFormViewFromSubmission(t *testing.T) {
 			sub, errs := web.ParseSubmissionForTest(tt.form, editable())
 
 			got := web.FormViewFromSubmissionForTest("h_clyde", sub, errs)
+			tt.check(t, got)
+		})
+	}
+}
+
+func TestHouseholdSummary(t *testing.T) {
+	adult := rolo.Person{ID: "p_a", Given: "Ann"}
+	child := rolo.Person{ID: "p_c", Given: "Cal"}
+
+	twelve := make([]rolo.Person, 12)
+	for i := range twelve {
+		twelve[i] = rolo.Person{ID: rolo.PersonID(fmt.Sprintf("p_k%02d", i))}
+	}
+
+	tests := []struct {
+		name string
+		h    rolo.Household
+		want string
+	}{
+		{
+			name: "counts and a whole anniversary",
+			h: rolo.Household{
+				Adults:      []rolo.Person{adult, adult},
+				Dependents:  []rolo.Person{child},
+				Anniversary: rolo.Date{Year: 1962, Month: 6, Day: 14},
+			},
+			want: "Two adults, one dependent · Married June 14, 1962",
+		},
+		{
+			name: "one adult and nothing else",
+			h:    rolo.Household{Adults: []rolo.Person{adult}},
+			want: "One adult",
+		},
+		{
+			name: "an anniversary known only to the year",
+			h:    rolo.Household{Adults: []rolo.Person{adult}, Anniversary: rolo.Date{Year: 1962}},
+			want: "One adult · Married 1962",
+		},
+		{
+			name: "an anniversary known to the month",
+			h:    rolo.Household{Adults: []rolo.Person{adult}, Anniversary: rolo.Date{Year: 1962, Month: 6}},
+			want: "One adult · Married June 1962",
+		},
+		{
+			name: "large counts use digits",
+			h:    rolo.Household{Adults: []rolo.Person{adult}, Dependents: twelve},
+			want: "One adult, 12 dependents",
+		},
+		{
+			name: "no people but an anniversary",
+			h:    rolo.Household{Anniversary: rolo.Date{Year: 1962}},
+			want: "Married 1962",
+		},
+		{
+			name: "nothing to say says nothing",
+			h:    rolo.Household{},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := web.FormViewFromHouseholdForTest("h_x", tt.h, nil)
+			assert.Equal(t, tt.want, got.Summary)
+		})
+	}
+}
+
+func TestLifespan(t *testing.T) {
+	tests := []struct {
+		name string
+		p    rolo.Person
+		want string
+	}{
+		{
+			name: "both years known",
+			p:    rolo.Person{ID: "p_x", Birth: rolo.Date{Year: 1963}, Death: rolo.Date{Year: 1981, Month: 2}},
+			want: "1963–1981",
+		},
+		{
+			name: "birth unknown",
+			p:    rolo.Person{ID: "p_x", Death: rolo.Date{Year: 1981}},
+			want: "died 1981",
+		},
+		{
+			name: "living",
+			p:    rolo.Person{ID: "p_x", Birth: rolo.Date{Year: 1963}},
+			want: "",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := web.FormViewFromHouseholdForTest("h_x", rolo.Household{Adults: []rolo.Person{tt.p}}, nil)
+			require.Len(t, got.Adults, 1)
+			assert.Equal(t, tt.want, got.Adults[0].Lifespan)
+		})
+	}
+}
+
+func TestFindingsFileWithTheirPerson(t *testing.T) {
+	h := rolo.Household{
+		ID:         "h_x",
+		Adults:     []rolo.Person{{ID: "p_a", Given: "Ann"}},
+		Dependents: []rolo.Person{{ID: "p_c", Given: "Cal"}},
+	}
+	findings := []rolo.Finding{
+		{Person: "p_a", Message: "about Ann"},
+		{Message: "about the household"},
+		{Person: "p_c", Message: "about Cal"},
+		{Person: "p_gone", Message: "about someone not here"},
+	}
+
+	messages := func(fs []web.FindingViewForTest) []string {
+		out := make([]string, 0, len(fs))
+		for _, f := range fs {
+			out = append(out, f.Message)
+		}
+		return out
+	}
+
+	tests := []struct {
+		name  string
+		check func(t *testing.T, got web.HouseholdFormViewForTest)
+	}{
+		{
+			name: "an adult's finding is on the adult",
+			check: func(t *testing.T, got web.HouseholdFormViewForTest) {
+				t.Helper()
+				assert.Equal(t, []string{"about Ann"}, messages(got.Adults[0].Findings))
+			},
+		},
+		{
+			name: "a dependent's finding is on the dependent",
+			check: func(t *testing.T, got web.HouseholdFormViewForTest) {
+				t.Helper()
+				assert.Equal(t, []string{"about Cal"}, messages(got.Dependents[0].Findings))
+			},
+		},
+		{
+			name: "an orphaned finding falls back to the household card",
+			check: func(t *testing.T, got web.HouseholdFormViewForTest) {
+				t.Helper()
+				assert.Equal(t, []string{"about the household", "about someone not here"}, messages(got.Findings),
+					"a finding is never dropped because its person has no card")
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := web.FormViewFromHouseholdForTest("h_x", h, findings)
+			require.Len(t, got.Adults, 1)
+			require.Len(t, got.Dependents, 1)
 			tt.check(t, got)
 		})
 	}
