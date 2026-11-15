@@ -2,11 +2,14 @@ package web_test
 
 import (
 	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/asphaltbuffet/wherefolk/internal/config"
+	"github.com/asphaltbuffet/wherefolk/internal/store"
 	"github.com/asphaltbuffet/wherefolk/internal/web"
 	"github.com/asphaltbuffet/wherefolk/pkg/rolo"
 )
@@ -108,7 +111,7 @@ func TestTreeFragment(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := get(t, sampleDocument(), tt.target)
+			rec := getHTMX(t, sampleDocument(), tt.target)
 
 			require.Equal(t, tt.wantStatus, rec.Code)
 			tt.checkFunc(t, rec.Body.String())
@@ -234,11 +237,11 @@ func TestToggleURLEncodesIDs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := web.ToggleURLForTest("", tt.open, tt.id, tt.isOpen)
-
-			assert.Contains(t, got, tt.contains)
-			if tt.absent != "" {
-				assert.NotContains(t, got, tt.absent, "the raw id must never appear unencoded")
+			for _, got := range web.ToggleURLForTest("", tt.open, tt.id, tt.isOpen) {
+				assert.Contains(t, got, tt.contains)
+				if tt.absent != "" {
+					assert.NotContains(t, got, tt.absent, "the raw id must never appear unencoded")
+				}
 			}
 		})
 	}
@@ -299,7 +302,7 @@ func TestSelectionAncestorsHaveNoToggle(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := get(t, sampleDocument(), tt.target)
+			rec := getHTMX(t, sampleDocument(), tt.target)
 
 			require.Equal(t, http.StatusOK, rec.Code)
 			tt.checkFunc(t, rec.Body.String())
@@ -312,25 +315,44 @@ func TestSelectionAncestorsHaveNoToggle(t *testing.T) {
 // touch the address bar on its own, so without hx-push-url the toggles would
 // change the tree while the URL stood still and the back button would retrace
 // nothing.
+//
+// What is pushed must be a page, not the fragment URL: a pushed /tree URL is
+// what the browser fetches on Back or reload, and /tree has no stylesheet. The
+// same page URL is the link's href, so a click before htmx loads also lands on
+// a whole page.
 func TestToggleLinksPushHistory(t *testing.T) {
 	tests := []struct {
-		name   string
-		target string
+		name     string
+		target   string
+		wantPage string
 	}{
-		{name: "an expand link pushes history", target: "/tree"},
-		{name: "a collapse link pushes history", target: "/tree?open=h_aden"},
+		{name: "an expand link pushes history", target: "/tree", wantPage: "/?open=h_aden"},
+		{
+			name:     "a collapse link pushes history",
+			target:   "/tree?open=h_aden",
+			wantPage: "/?close=h_aden&amp;open=h_aden",
+		},
+		{
+			name:     "a selection is pushed as its page",
+			target:   "/tree?selected=h_reeve",
+			wantPage: "/h/h_reeve?open=h_aden",
+		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rec := get(t, sampleDocument(), tt.target)
+			rec := getHTMX(t, sampleDocument(), tt.target)
 
 			require.Equal(t, http.StatusOK, rec.Code)
 
 			body := rec.Body.String()
 			require.Contains(t, body, "hx-get=", "this fixture state must offer a toggle")
-			assert.Contains(t, body, `hx-push-url="true"`,
+			assert.Contains(t, body, `hx-push-url="`+tt.wantPage+`"`,
 				"a toggle that does not push history breaks ADR-0008's back-button claim")
+			assert.Contains(t, body, `href="`+tt.wantPage+`"`,
+				"without htmx the toggle must still lead to a whole page")
+			assert.NotContains(t, body, `hx-push-url="/tree`, "a pushed fragment URL renders unstyled on Back")
+			assert.NotContains(t, body, `href="/tree`, "a fragment URL as href renders unstyled before htmx loads")
 		})
 	}
 }
@@ -373,6 +395,73 @@ func TestOpenSetDropsChildlessNodes(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.want, srv.JoinIDsOrderedForTest(srv.OpenSetForTest(tt.selected, tt.raw)))
+		})
+	}
+}
+
+// TestTreeOutsideHTMXRedirectsToPage guards against a bare fragment reaching
+// the browser as a whole document. /tree renders only the <nav>, with no layout
+// and no stylesheet, so a browser that navigates to it — a click before htmx
+// has loaded, an old history entry, a bookmark — would show an unstyled page.
+// Anything but an htmx swap is sent to the page that shows the same tree.
+func TestTreeOutsideHTMXRedirectsToPage(t *testing.T) {
+	tests := []struct {
+		name         string
+		target       string
+		headers      map[string]string
+		wantLocation string
+	}{
+		{
+			name:         "nothing selected lands on the directory root",
+			target:       "/tree",
+			wantLocation: "/",
+		},
+		{
+			name:         "the open set survives the redirect",
+			target:       "/tree?open=h_aden",
+			wantLocation: "/?open=h_aden",
+		},
+		{
+			name:         "the selection becomes the path, not a parameter",
+			target:       "/tree?selected=h_clyde&open=h_aden&close=h_reeve",
+			wantLocation: "/h/h_clyde?close=h_reeve&open=h_aden",
+		},
+		{
+			name:         "a selection that is not URL-safe stays inside the path",
+			target:       "/tree?selected=%2F%2Fevil.example",
+			wantLocation: "/h/%2F%2Fevil.example",
+		},
+		{
+			name:   "an htmx history restore gets the page too",
+			target: "/tree?open=h_aden",
+			headers: map[string]string{
+				"Hx-Request":                 "true",
+				"Hx-History-Restore-Request": "true",
+			},
+			wantLocation: "/?open=h_aden",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			srv, err := web.New(store.State{Document: sampleDocument()}, config.Config{}, testLogger(), web.Meta{},
+				func(_, _ store.State) error { return nil },
+				func() (rolo.HouseholdID, error) { return "h_test01", nil },
+				func() (rolo.PersonID, error) { return "p_test01", nil },
+				&fakeExporter{}, testClock,
+			)
+			require.NoError(t, err)
+
+			req := httptest.NewRequest(http.MethodGet, tt.target, nil)
+			for k, v := range tt.headers {
+				req.Header.Set(k, v)
+			}
+
+			rec := httptest.NewRecorder()
+			srv.Handler().ServeHTTP(rec, req)
+
+			require.Equal(t, http.StatusSeeOther, rec.Code)
+			assert.Equal(t, tt.wantLocation, rec.Header().Get("Location"))
 		})
 	}
 }
