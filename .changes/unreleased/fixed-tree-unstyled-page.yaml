@@ -1,5 +1,0 @@
-kind: Fixed
-body: Expanding a branch of the household tree no longer leaves an unstyled page behind on Back, reload, or a click before the page has finished loading
-time: 2026-11-15T18:18:56.523780868-05:00
-custom:
-    Issue: '#53'

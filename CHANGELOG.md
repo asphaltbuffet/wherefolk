@@ -6,6 +6,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.3.0] - 2026-11-19
+
+### Added
+
+- Each living Household's page offers a fillable Proof Sheet PDF, pre-filled with everything held about them, headed by Reply Instructions the Editor saves once [#46]
+
+### Changed
+
+- The Tailscale sidecar image is pinned to v1.104.7
+
+### Fixed
+
+- Expanding a branch of the household tree no longer leaves an unstyled page behind on Back, reload, or a click before the page has finished loading [#53]
+
+[0.3.0]: https://github.com/asphaltbuffet/wherefolk/compare/v0.2.0...v0.3.0
+
+
 ## [0.2.0] - 2026-11-15
 
 ### Added
