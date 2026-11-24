@@ -41,7 +41,7 @@ jobs:
           go-version-file: 'go.mod'
 
       - name: Set up mise
-        uses: jdx/mise-action@v5.2.8
+        uses: jdx/mise-action@v5.2.10
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
